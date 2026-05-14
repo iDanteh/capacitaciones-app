@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens — Capacitaciones LMS
+ *
+ * Paleta principal:
+ *  · #5AC8FA  → sky   (hsl 199 94% 67%)  — acento, highlights, gradients
+ *  · #0B5A8C  → navy  (hsl 203 85% 29%)  — primario, CTAs, headings
+ *  · #F4F8FB  → frost (hsl 204 46% 97%)  — fondo general
+ */
+
+@layer base {
+  :root {
+    /* ── Fondos ──────────────────────────────────────────────────────────── */
+    --background:     204 46% 97%;   /* #F4F8FB */
+    --card:           0   0%  100%;
+    --popover:        0   0%  100%;
+
+    /* ── Textos ──────────────────────────────────────────────────────────── */
+    --foreground:     215 30%  12%;
+    --card-foreground:     215 30%  12%;
+    --popover-foreground:  215 30%  12%;
+    --muted-foreground:    215 16%  47%;
+
+    /* ── Marca principal: navy ───────────────────────────────────────────── */
+    --primary:            203 85% 29%;   /* #0B5A8C */
+    --primary-foreground: 0   0%  100%;
+
+    /* ── Secundario: sky suave ───────────────────────────────────────────── */
+    --secondary:           199 60% 92%;
+    --secondary-foreground: 203 85% 25%;
+
+    /* ── Muted / apagado ─────────────────────────────────────────────────── */
+    --muted: 204 30% 93%;
+
+    /* ── Acento: sky ─────────────────────────────────────────────────────── */
+    --accent:            199 94% 67%;   /* #5AC8FA */
+    --accent-foreground: 203 85% 15%;
+
+    /* ── Destructivo ─────────────────────────────────────────────────────── */
+    --destructive:            0 84% 60%;
+    --destructive-foreground: 0  0% 100%;
+
+    /* ── Bordes e inputs ─────────────────────────────────────────────────── */
+    --border: 204 30% 88%;
+    --input:  204 30% 88%;
+    --ring:   199 94% 67%;
+
+    /* ── Shape ───────────────────────────────────────────────────────────── */
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background:     215 40%  8%;
+    --card:           215 35% 11%;
+    --popover:        215 35% 11%;
+
+    --foreground:     210 40% 96%;
+    --card-foreground:     210 40% 96%;
+    --popover-foreground:  210 40% 96%;
+    --muted-foreground:    215 20% 65%;
+
+    --primary:            199 94% 67%;   /* sky en dark */
+    --primary-foreground: 215 40%  8%;
+
+    --secondary:           215 30% 18%;
+    --secondary-foreground: 210 40% 96%;
+
+    --muted: 215 30% 16%;
+
+    --accent:            199 94% 67%;
+    --accent-foreground: 215 40%  8%;
+
+    --destructive:            0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 30% 18%;
+    --input:  215 30% 18%;
+    --ring:   199 94% 67%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+}

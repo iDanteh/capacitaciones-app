@@ -1,0 +1,14 @@
+{
+  "extends": "@capacitaciones/tsconfig/nestjs.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "incremental": true,
+    "paths": {
+      "@app/*": ["./src/*"],
+      "@capacitaciones/types": ["../../packages/types/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "test", "dist"]
+}

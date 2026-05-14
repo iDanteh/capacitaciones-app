@@ -1,0 +1,230 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Prisma Schema — Capacitaciones LMS
+//
+// Convenciones:
+//  · Todos los IDs usan cuid() — distribuible, sin colisiones, URL-safe.
+//  · Todas las tablas con tenant data tienen `tenantId` para multi-tenancy.
+//  · Soft delete via `deletedAt DateTime?` — nunca borrar registros de usuarios.
+//  · `createdAt` y `updatedAt` en todos los modelos.
+//  · Row Level Security (RLS) se habilita en la migración — ver docs/rls.md
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ────────────────────────────────────────────────────────────────────
+
+/// Roles en la plataforma. SUPER_ADMIN es exclusivo del equipo de la plataforma.
+enum UserRole {
+  SUPER_ADMIN // Equipo interno — acceso total, no pertenece a ningún tenant
+  OWNER       // Quien contrató el plan — gestiona suscripción y admins
+  ADMIN       // Administra usuarios, cursos y configuración del tenant
+  MANAGER     // Supervisión de equipos y reportes de progreso
+  EMPLOYEE    // Empleado / estudiante — solo consume contenido
+}
+
+enum PlanType {
+  FREE
+  BUSINESS
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING  // Período de prueba activo
+  ACTIVE    // Suscripción paga y al día
+  PAST_DUE  // Pago fallido, en período de gracia
+  UNPAID    // Gracia expirada, acceso suspendido
+  CANCELED  // Cancelada por el cliente o por falta de pago
+}
+
+// ─── MODELS ───────────────────────────────────────────────────────────────────
+
+/// Planes de suscripción disponibles en la plataforma.
+/// Administrado por el equipo interno — no editable por tenants.
+model Plan {
+  id          String   @id @default(cuid())
+  type        PlanType @unique
+  name        String
+  description String?
+
+  /// Precio mensual en USD. 0 para el plan FREE.
+  priceUsd Decimal @db.Decimal(10, 2)
+
+  // ── Límites del plan (-1 = ilimitado) ──────────────────────────────────────
+  maxEmployees Int
+  maxCompanies Int
+  maxStorageGb Int
+
+  // ── Feature flags ──────────────────────────────────────────────────────────
+  hasEvaluations  Boolean @default(false)
+  hasCertificates Boolean @default(false)
+  hasAnalytics    Boolean @default(false)
+  hasWhiteLabel   Boolean @default(false)
+  hasApi          Boolean @default(false)
+
+  // ── Stripe (null para FREE) ─────────────────────────────────────────────────
+  stripePriceId   String? @unique
+  stripeProductId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+/// Empresa / organización que contrata el servicio.
+/// Es la unidad raíz de multi-tenancy.
+model Tenant {
+  id      String  @id @default(cuid())
+  name    String
+  /// Identificador URL-friendly único. Ej: "acme-corp". Inmutable tras creación.
+  slug    String  @unique
+  /// Dominio personalizado. Solo disponible en plan Enterprise.
+  domain  String? @unique
+  logoUrl String?
+  isActive Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  /// Soft delete — preserva historial de facturación y progreso de empleados.
+  deletedAt DateTime?
+
+  users        User[]
+  subscription Subscription?
+
+  @@map("tenants")
+}
+
+/// Usuario del sistema. Siempre pertenece a un tenant.
+/// SUPER_ADMIN es la única excepción — su tenantId apunta a un tenant interno.
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  email        String
+  passwordHash String
+  firstName    String
+  lastName     String
+  avatarUrl    String?
+  role         UserRole @default(EMPLOYEE)
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  /// Soft delete — requerido por GDPR/compliance. El email se anonimiza aparte.
+  deletedAt DateTime?
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  refreshTokens RefreshToken[]
+
+  /// El email es único DENTRO de un tenant, no globalmente.
+  /// Un usuario puede existir con el mismo email en distintas empresas.
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([email])
+  @@map("users")
+}
+
+/// Refresh tokens para rotación segura de sesiones JWT.
+/// Se guarda el hash SHA-256, nunca el token en plano.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  /// Hash SHA-256 del token. El token real solo existe en el cliente.
+  tokenHash String    @unique
+  expiresAt DateTime
+  /// Null = vigente. Populated = revocado (logout o rotación por sospecha).
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+/// Suscripción activa de un tenant a un plan.
+/// Relación 1:1 con Tenant — solo puede haber una suscripción activa por empresa.
+model Subscription {
+  id       String @id @default(cuid())
+  tenantId String @unique
+  planId   String
+
+  status             SubscriptionStatus @default(TRIALING)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  /// Si true, no se renueva al final del período actual.
+  cancelAtPeriodEnd  Boolean            @default(false)
+  trialEndsAt        DateTime?
+
+  // ── Stripe (null para FREE) ─────────────────────────────────────────────────
+  stripeCustomerId     String?
+  stripeSubscriptionId String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant        Tenant                   @relation(fields: [tenantId], references: [id])
+  plan          Plan                     @relation(fields: [planId], references: [id])
+  storagePacks  SubscriptionStoragePack[]
+
+  @@index([tenantId])
+  @@map("subscriptions")
+}
+
+// ─── STORAGE ADD-ONS ──────────────────────────────────────────────────────────
+
+/// Packs de almacenamiento extra disponibles para compra a-la-carte.
+/// Solo Business y Enterprise pueden adquirirlos.
+/// Administrado por el equipo interno.
+model StoragePack {
+  id          String  @id @default(cuid())
+  name        String  // "Pack S", "Pack M", "Pack L"
+  storageGb   Int     // Gigabytes que suma al cupo base del plan
+  priceUsd    Decimal @db.Decimal(10, 2)
+  isActive    Boolean @default(true)
+
+  // ── Stripe ────────────────────────────────────────────────────────────────
+  stripePriceId   String? @unique
+  stripeProductId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptionPacks SubscriptionStoragePack[]
+
+  @@map("storage_packs")
+}
+
+/// Pivot entre Subscription y StoragePack.
+/// quantity > 1 permite acumular múltiples unidades del mismo pack.
+model SubscriptionStoragePack {
+  id             String @id @default(cuid())
+  subscriptionId String
+  storagePackId  String
+
+  /// Cantidad de este pack activa. Normalmente 1, pero acumulable.
+  quantity Int @default(1)
+
+  // ── Stripe — cada item en la suscripción tiene su propio subscriptionItemId ──
+  stripeSubscriptionItemId String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  storagePack  StoragePack  @relation(fields: [storagePackId], references: [id])
+
+  @@unique([subscriptionId, storagePackId])
+  @@index([subscriptionId])
+  @@map("subscription_storage_packs")
+}

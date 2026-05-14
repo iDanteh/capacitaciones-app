@@ -1,0 +1,64 @@
+# ── Entorno de Desarrollo Local ───────────────────────────────────────────────
+# Levanta PostgreSQL y Redis sin el API (el API corre con `npm run start:dev`)
+# Uso: docker compose up -d
+# pgAdmin: http://localhost:5050 (admin@admin.com / admin)
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cap_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: capacitaciones_dev
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db_test:
+    image: postgres:16-alpine
+    container_name: cap_postgres_test
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: capacitaciones_test
+    ports:
+      - '5433:5432'
+    # Sin volumen persistente — se destruye con cada ejecución de tests
+
+  redis:
+    image: redis:7-alpine
+    container_name: cap_redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: cap_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - '5050:80'
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
