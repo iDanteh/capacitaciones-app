@@ -27,12 +27,14 @@ export default () => ({
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
   },
 
-  cloudflare: {
-    r2AccountId: process.env.R2_ACCOUNT_ID,
-    r2AccessKeyId: process.env.R2_ACCESS_KEY_ID,
-    r2SecretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-    r2BucketName: process.env.R2_BUCKET_NAME,
-    r2PublicUrl: process.env.R2_PUBLIC_URL,
+  // Storage S3-compatible — MinIO en dev/VPS, Backblaze B2 o AWS S3 en prod.
+  // Cambiar de proveedor = solo cambiar estas env vars. El SDK es el mismo.
+  storage: {
+    endpoint:  process.env.STORAGE_ENDPOINT,
+    accessKey: process.env.STORAGE_ACCESS_KEY,
+    secretKey: process.env.STORAGE_SECRET_KEY,
+    bucket:    process.env.STORAGE_BUCKET,
+    publicUrl: process.env.STORAGE_PUBLIC_URL,
   },
 
   mux: {
