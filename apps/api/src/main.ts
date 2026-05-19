@@ -2,13 +2,15 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
-import * as compression from 'compression';
+import compression from 'compression';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true → expone req.rawBody (Buffer) necesario para verificar
+  // la firma de los webhooks de Stripe antes del JSON parsing.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   // ── Seguridad ──────────────────────────────────────────────────────────────
   app.use(helmet());
@@ -53,10 +55,10 @@ async function bootstrap() {
       swaggerOptions: { persistAuthorization: true },
     });
 
-    console.log(`Swagger disponible en: http://localhost:${process.env.PORT ?? 3001}/api/docs`);
+    console.log(`Swagger disponible en: http://localhost:${process.env.PORT ?? 5000}/api/docs`);
   }
 
-  const port = process.env.PORT ?? 3001;
+  const port = process.env.PORT ?? 5000;
   await app.listen(port);
   console.log(`API corriendo en: http://localhost:${port}/api/v1`);
 }

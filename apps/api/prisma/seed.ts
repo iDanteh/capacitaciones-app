@@ -22,6 +22,7 @@ async function main() {
   console.log('🌱 Iniciando seed...\n');
 
   await seedPlans();
+  await seedStoragePacks();
 
   if (process.env.NODE_ENV !== 'production') {
     await seedDevelopmentData();
@@ -91,6 +92,29 @@ async function seedPlans() {
   }
 
   console.log('     ✓ 3 planes creados (FREE, BUSINESS, ENTERPRISE)');
+}
+
+// ─── Storage Packs ────────────────────────────────────────────────────────────
+
+async function seedStoragePacks() {
+  console.log('  → Creando storage packs...');
+
+  const packs = [
+    { name: 'Pack S', storageGb: 10,  priceUsd: 5  },
+    { name: 'Pack M', storageGb: 50,  priceUsd: 19 },
+    { name: 'Pack L', storageGb: 200, priceUsd: 59 },
+  ];
+
+  for (const pack of packs) {
+    const existing = await prisma.storagePack.findFirst({ where: { name: pack.name } });
+    if (existing) {
+      await prisma.storagePack.update({ where: { id: existing.id }, data: pack });
+    } else {
+      await prisma.storagePack.create({ data: { ...pack, isActive: true } });
+    }
+  }
+
+  console.log('     ✓ 3 storage packs (S: +10 GB, M: +50 GB, L: +200 GB)');
 }
 
 // ─── Datos de desarrollo ──────────────────────────────────────────────────────

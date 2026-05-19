@@ -4,80 +4,93 @@
 
 /*
  * Design tokens — Capacitaciones LMS
+ * Filosofía: neutrales 100% sin tinte de color (hue 0°).
+ * Los colores de marca (navy #0B5A8C, sky #5AC8FA, teal #14B8A6)
+ * aparecen SOLO en elementos interactivos y acentos.
  *
- * Paleta principal:
- *  · #5AC8FA  → sky   (hsl 199 94% 67%)  — acento, highlights, gradients
- *  · #0B5A8C  → navy  (hsl 203 85% 29%)  — primario, CTAs, headings
- *  · #F4F8FB  → frost (hsl 204 46% 97%)  — fondo general
+ * Inspiración: Notion + Apple Human Interface Guidelines.
+ *
+ * Light:  fondo blanco puro, texto carbón neutro, grises limpios.
+ * Dark:   #1A1A1A (Notion dark), texto #EDEDED, grises neutros.
  */
 
 @layer base {
   :root {
-    /* ── Fondos ──────────────────────────────────────────────────────────── */
-    --background:     204 46% 97%;   /* #F4F8FB */
-    --card:           0   0%  100%;
-    --popover:        0   0%  100%;
+    /* ── Superficies ──────────────────────────────────────────────────────── */
+    --background:  0 0% 100%;          /* #FFFFFF — blanco puro                */
+    --card:        0 0% 100%;          /* #FFFFFF — tarjetas sobre fondo        */
+    --popover:     0 0% 100%;
 
-    /* ── Textos ──────────────────────────────────────────────────────────── */
-    --foreground:     215 30%  12%;
-    --card-foreground:     215 30%  12%;
-    --popover-foreground:  215 30%  12%;
-    --muted-foreground:    215 16%  47%;
+    /* ── Texto ────────────────────────────────────────────────────────────── */
+    --foreground:          0 0%  9%;   /* #171717 — carbón neutro, 18:1 en blanco ✓ */
+    --card-foreground:     0 0%  9%;
+    --popover-foreground:  0 0%  9%;
+    --muted-foreground:    0 0% 44%;   /* #707070 — gris neutro, 5.9:1 en blanco ✓ WCAG AA */
 
-    /* ── Marca principal: navy ───────────────────────────────────────────── */
-    --primary:            203 85% 29%;   /* #0B5A8C */
-    --primary-foreground: 0   0%  100%;
+    /* ── Primario: navy ───────────────────────────────────────────────────── */
+    --primary:            203 85% 29%; /* #0B5A8C */
+    --primary-foreground: 0   0% 100%;
 
-    /* ── Secundario: sky suave ───────────────────────────────────────────── */
-    --secondary:           199 60% 92%;
-    --secondary-foreground: 203 85% 25%;
+    /* ── Secundario: gris suave ───────────────────────────────────────────── */
+    --secondary:           0 0% 96%;   /* #F5F5F5 */
+    --secondary-foreground: 0 0%  9%;
 
-    /* ── Muted / apagado ─────────────────────────────────────────────────── */
-    --muted: 204 30% 93%;
+    /* ── Muted: gris muy suave ────────────────────────────────────────────── */
+    --muted:           0 0% 96%;       /* #F5F5F5 */
+    --muted-foreground: 0 0% 44%;
 
-    /* ── Acento: sky ─────────────────────────────────────────────────────── */
-    --accent:            199 94% 67%;   /* #5AC8FA */
-    --accent-foreground: 203 85% 15%;
+    /* ── Acento: sky ──────────────────────────────────────────────────────── */
+    --accent:            199 94% 67%;  /* #5AC8FA */
+    --accent-foreground: 0   0%  9%;
 
-    /* ── Destructivo ─────────────────────────────────────────────────────── */
+    /* ── Destructivo ──────────────────────────────────────────────────────── */
     --destructive:            0 84% 60%;
     --destructive-foreground: 0  0% 100%;
 
-    /* ── Bordes e inputs ─────────────────────────────────────────────────── */
-    --border: 204 30% 88%;
-    --input:  204 30% 88%;
-    --ring:   199 94% 67%;
+    /* ── Bordes e inputs ──────────────────────────────────────────────────── */
+    --border: 0 0% 89%;                /* #E3E3E3 — gris neutro claro          */
+    --input:  0 0% 89%;
+    --ring:   199 94% 67%;             /* sky — focus ring                     */
 
-    /* ── Shape ───────────────────────────────────────────────────────────── */
+    /* ── Shape ────────────────────────────────────────────────────────────── */
     --radius: 0.75rem;
   }
 
   .dark {
-    --background:     215 40%  8%;
-    --card:           215 35% 11%;
-    --popover:        215 35% 11%;
+    /* ── Superficies ──────────────────────────────────────────────────────── */
+    --background: 0 0% 10%;           /* #1A1A1A — Notion dark                */
+    --card:       0 0% 14%;           /* #242424 — tarjeta, ligeramente más claro */
+    --popover:    0 0% 14%;
 
-    --foreground:     210 40% 96%;
-    --card-foreground:     210 40% 96%;
-    --popover-foreground:  210 40% 96%;
-    --muted-foreground:    215 20% 65%;
+    /* ── Texto ────────────────────────────────────────────────────────────── */
+    --foreground:          0 0% 93%;  /* #EDEDED — casi blanco neutro          */
+    --card-foreground:     0 0% 93%;
+    --popover-foreground:  0 0% 93%;
+    --muted-foreground:    0 0% 63%;  /* #A1A1A1 — gris neutro, 6.1:1 en #1A1A1A ✓ */
 
-    --primary:            199 94% 67%;   /* sky en dark */
-    --primary-foreground: 215 40%  8%;
+    /* ── Primario: sky (más brillante en dark) ────────────────────────────── */
+    --primary:            199 94% 67%; /* #5AC8FA */
+    --primary-foreground: 0   0% 10%;
 
-    --secondary:           215 30% 18%;
-    --secondary-foreground: 210 40% 96%;
+    /* ── Secundario ───────────────────────────────────────────────────────── */
+    --secondary:           0 0% 18%;  /* #2E2E2E */
+    --secondary-foreground: 0 0% 93%;
 
-    --muted: 215 30% 16%;
+    /* ── Muted ────────────────────────────────────────────────────────────── */
+    --muted:           0 0% 16%;      /* #292929 */
+    --muted-foreground: 0 0% 63%;
 
+    /* ── Acento ───────────────────────────────────────────────────────────── */
     --accent:            199 94% 67%;
-    --accent-foreground: 215 40%  8%;
+    --accent-foreground: 0   0% 10%;
 
-    --destructive:            0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    /* ── Destructivo ──────────────────────────────────────────────────────── */
+    --destructive:            0 72% 51%;
+    --destructive-foreground: 0  0% 98%;
 
-    --border: 215 30% 18%;
-    --input:  215 30% 18%;
+    /* ── Bordes e inputs ──────────────────────────────────────────────────── */
+    --border: 0 0% 20%;               /* #333333 — borde oscuro neutro        */
+    --input:  0 0% 18%;               /* #2E2E2E */
     --ring:   199 94% 67%;
   }
 }

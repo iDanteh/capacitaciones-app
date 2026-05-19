@@ -40,9 +40,9 @@ function InputField({
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       <input
         {...props}
-        className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all
-          focus:border-navy/40 focus:ring-2 focus:ring-sky/20
-          ${error ? 'border-destructive/60 bg-destructive/5' : 'border-border bg-white hover:border-navy/25'}`}
+        className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all
+          focus:border-sky/50 focus:ring-2 focus:ring-sky/15
+          ${error ? 'border-destructive/60 bg-destructive/5' : 'border-border bg-background hover:border-navy/30 dark:hover:border-sky/30'}`}
       />
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
@@ -70,6 +70,8 @@ export default function LoginPage() {
 
       localStorage.setItem('access_token', res.data.accessToken);
       localStorage.setItem('refresh_token', res.data.refreshToken);
+      localStorage.setItem('tenant_slug', res.data.user.tenantSlug);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
       router.push('/dashboard');
     } catch (err: unknown) {
       const message =
@@ -114,7 +116,7 @@ export default function LoginPage() {
       </aside>
 
       {/* ── Panel derecho (formulario) ── */}
-      <main className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-12">
+      <main className="flex flex-1 flex-col items-center justify-center bg-background px-6 py-12">
         {/* Logo mobile */}
         <div className="mb-10 flex items-center gap-2.5 lg:hidden">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky to-navy shadow-sm">
@@ -168,8 +170,8 @@ export default function LoginPage() {
                 type="password"
                 placeholder="••••••••"
                 autoComplete="current-password"
-                className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all focus:border-navy/40 focus:ring-2 focus:ring-sky/20
-                  ${errors.password ? 'border-destructive/60 bg-destructive/5' : 'border-border bg-white hover:border-navy/25'}`}
+                className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-sky/50 focus:ring-2 focus:ring-sky/15
+                  ${errors.password ? 'border-destructive/60 bg-destructive/5' : 'border-border bg-background hover:border-navy/30 dark:hover:border-sky/30'}`}
                 {...register('password')}
               />
               {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
@@ -193,7 +195,7 @@ export default function LoginPage() {
           </div>
 
           <Link href="/register"
-            className="block w-full rounded-xl border border-border py-3.5 text-center text-sm font-semibold text-foreground transition-all hover:border-navy/25 hover:bg-secondary">
+            className="block w-full rounded-xl border border-border bg-background py-3.5 text-center text-sm font-semibold text-foreground transition-all hover:border-navy/20 hover:bg-muted dark:hover:border-sky/20">
             Crear cuenta gratis
           </Link>
 

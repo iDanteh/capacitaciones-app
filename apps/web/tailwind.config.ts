@@ -51,6 +51,7 @@ const config: Config = {
         // ── Brand tokens directos ─────────────────────────────────────────
         navy:  '#0B5A8C',
         sky:   '#5AC8FA',
+        teal:  '#14B8A6',
         frost: '#F4F8FB',
       },
       borderRadius: {

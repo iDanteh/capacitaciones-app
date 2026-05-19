@@ -18,12 +18,14 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// ── Request: adjunta access token ─────────────────────────────────────────────
+// ── Request: adjunta access token y tenant slug ───────────────────────────────
 
 api.interceptors.request.use((config) => {
   if (typeof window === 'undefined') return config;
   const token = localStorage.getItem('access_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  const tenantSlug = localStorage.getItem('tenant_slug');
+  if (tenantSlug) config.headers['X-Tenant-Slug'] = tenantSlug;
   return config;
 });
 
@@ -87,6 +89,8 @@ api.interceptors.response.use(
       flushQueue(refreshError);
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
+      localStorage.removeItem('tenant_slug');
+      localStorage.removeItem('user');
       if (typeof window !== 'undefined') window.location.href = '/login';
       return Promise.reject(refreshError);
     } finally {

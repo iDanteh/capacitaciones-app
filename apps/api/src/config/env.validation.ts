@@ -19,7 +19,7 @@ class EnvironmentVariables {
 
   @IsNumber()
   @IsOptional()
-  PORT: number = 3001;
+  PORT: number = 5000;
 
   @IsString()
   DATABASE_URL: string;
@@ -37,6 +37,10 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   STRIPE_SECRET_KEY: string;
+
+  @IsString()
+  @IsOptional()
+  STRIPE_WEBHOOK_SECRET: string;
 
   @IsString()
   @IsOptional()

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
 
@@ -6,13 +7,13 @@ function Navbar() {
   return (
     <header className="fixed top-0 z-50 w-full">
       <div className="mx-auto mt-3 max-w-6xl px-4">
-        <div className="flex h-14 items-center justify-between rounded-2xl border border-navy/10 bg-white/80 px-5 shadow-sm shadow-navy/5 backdrop-blur-xl">
+        <div className="flex h-14 items-center justify-between rounded-2xl border border-border bg-background/90 px-5 shadow-sm backdrop-blur-xl dark:shadow-none">
           {/* Logo placeholder */}
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky to-navy shadow-sm shadow-sky/30">
               <span className="text-xs font-bold text-white">L</span>
             </div>
-            <span className="text-sm font-semibold text-navy tracking-tight">LMS</span>
+            <span className="text-sm font-semibold tracking-tight text-foreground">LMS</span>
           </div>
 
           {/* Nav links */}
@@ -22,20 +23,22 @@ function Navbar() {
               { label: 'Precios', href: '#precios' },
             ].map(({ label, href }) => (
               <a key={label} href={href}
-                className="text-sm text-muted-foreground transition-colors hover:text-navy">
+                className="text-sm text-muted-foreground transition-colors hover:text-foreground">
                 {label}
               </a>
             ))}
           </nav>
 
-          {/* CTAs */}
-          <div className="flex items-center gap-2">
+          {/* CTAs + toggle */}
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
+            <div className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
             <Link href="/login"
-              className="rounded-xl px-4 py-2 text-sm font-medium text-navy/70 transition-all hover:bg-secondary hover:text-navy">
+              className="rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground">
               Iniciar sesión
             </Link>
             <Link href="/register"
-              className="rounded-xl bg-gradient-to-r from-navy to-[#0E6FAD] px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-navy/20 transition-all hover:shadow-navy/40 hover:scale-105 active:scale-95">
+              className="rounded-xl bg-gradient-to-r from-navy to-[#0E6FAD] px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-navy/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
               Comenzar gratis
             </Link>
           </div>
@@ -49,7 +52,7 @@ function Navbar() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-white px-6 pb-24 pt-36">
+    <section className="relative overflow-hidden bg-background px-6 pb-24 pt-36">
       {/* Gradiente suave de fondo */}
       <div aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10"
@@ -62,9 +65,9 @@ function Hero() {
       />
       {/* Dot grid decorativo */}
       <div aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.025]"
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.06] dark:opacity-[0.12]"
         style={{
-          backgroundImage: 'radial-gradient(#0B5A8C 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)',
           backgroundSize: '28px 28px',
         }}
       />
@@ -97,7 +100,7 @@ function Hero() {
             Comenzar gratis
           </Link>
           <Link href="/login"
-            className="w-full rounded-2xl border border-border bg-white px-8 py-4 text-base font-semibold text-foreground transition-all hover:border-navy/25 hover:bg-secondary hover:text-navy sm:w-auto">
+            className="w-full rounded-2xl border border-border bg-background px-8 py-4 text-base font-semibold text-foreground transition-all hover:border-border hover:bg-muted sm:w-auto">
             Iniciar sesión
           </Link>
         </div>
@@ -114,17 +117,16 @@ function Hero() {
           />
           <div className="overflow-hidden rounded-2xl border border-navy/10 shadow-2xl shadow-navy/10">
             {/* Barra browser */}
-            <div className="flex items-center gap-1.5 border-b border-navy/8 bg-frost px-4 py-3">
+            <div className="flex items-center gap-1.5 border-b border-border bg-muted px-4 py-3">
               <span className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
               <span className="h-2.5 w-2.5 rounded-full bg-yellow-400/70" />
               <span className="h-2.5 w-2.5 rounded-full bg-green-400/70" />
-              <div className="ml-4 flex-1 rounded-lg border border-navy/8 bg-white/60 px-3 py-1 text-xs text-muted-foreground/60">
+              <div className="ml-4 flex-1 rounded-lg border border-border bg-white/60 px-3 py-1 text-xs text-muted-foreground/60">
                 app.tudominio.com/dashboard
               </div>
             </div>
             {/* Preview area */}
-            <div className="flex min-h-[360px] items-center justify-center p-8 sm:min-h-[460px]"
-              style={{ background: 'linear-gradient(180deg, #F4F8FB 0%, #FFFFFF 100%)' }}>
+            <div className="flex min-h-[360px] items-center justify-center bg-background p-8 sm:min-h-[460px]">
               <div className="w-full max-w-2xl space-y-3 opacity-30">
                 <div className="grid grid-cols-3 gap-3">
                   {[`#5AC8FA`, `#14B8A6`, `#0B5A8C`].map((c, i) => (
@@ -132,10 +134,10 @@ function Hero() {
                       style={{ borderColor: `${c}30`, background: `${c}10` }} />
                   ))}
                 </div>
-                <div className="h-40 rounded-xl border border-navy/10 bg-white" />
+                <div className="h-40 rounded-xl border border-border bg-card" />
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="h-24 rounded-xl border border-navy/10 bg-white" />
-                  <div className="h-24 rounded-xl border border-navy/10 bg-white" />
+                  <div className="h-24 rounded-xl border border-border bg-card" />
+                  <div className="h-24 rounded-xl border border-border bg-card" />
                 </div>
                 <p className="pt-4 text-center text-xs text-muted-foreground/60">
                   Esta sección se actualizará con capturas reales del producto
@@ -160,7 +162,7 @@ const STATS = [
 
 function Stats() {
   return (
-    <section className="border-y border-navy/8 bg-frost px-6 py-12">
+    <section className="border-y border-border bg-muted px-6 py-12">
       <div className="mx-auto max-w-6xl grid grid-cols-2 gap-8 sm:grid-cols-4">
         {STATS.map(({ value, label }) => (
           <div key={label} className="text-center">
@@ -215,7 +217,7 @@ const BENTO_CARDS = [
 
 function Features() {
   return (
-    <section id="caracteristicas" className="bg-white px-6 py-24">
+    <section id="caracteristicas" className="bg-background px-6 py-24">
       <div className="mx-auto max-w-6xl">
         <div className="mb-16 text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest bg-clip-text text-transparent"
@@ -233,7 +235,7 @@ function Features() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {BENTO_CARDS.map((card) => (
             <div key={card.title}
-              className={`group relative overflow-hidden rounded-2xl border border-navy/8 bg-white p-7 transition-all hover:-translate-y-0.5 hover:border-navy/15 hover:shadow-xl hover:shadow-navy/8 ${card.span}`}>
+              className={`group relative overflow-hidden rounded-2xl border border-navy/10 bg-card p-7 transition-all hover:-translate-y-0.5 hover:border-navy/20 hover:shadow-lg hover:shadow-navy/8 dark:hover:border-sky/15 ${card.span}`}>
               {/* Top accent line */}
               <div className="absolute inset-x-0 top-0 h-px"
                 style={{ background: `linear-gradient(90deg, transparent, ${card.accentFrom}60, transparent)` }}
@@ -249,7 +251,7 @@ function Features() {
               {card.extra && (
                 <div className="mt-4 flex gap-2">
                   {['Empresa A', 'Empresa B', 'Empresa C'].map((e) => (
-                    <span key={e} className="rounded-lg border border-navy/10 bg-frost px-2.5 py-1 text-xs text-muted-foreground">
+                    <span key={e} className="rounded-lg border border-navy/10 bg-muted px-2.5 py-1 text-xs text-muted-foreground">
                       {e}
                     </span>
                   ))}
@@ -303,7 +305,7 @@ const PLANS = [
 
 function Pricing() {
   return (
-    <section id="precios" className="bg-frost px-6 py-24">
+    <section id="precios" className="bg-muted px-6 py-24">
       <div className="mx-auto max-w-6xl">
         <div className="mb-16 text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest bg-clip-text text-transparent"
@@ -324,7 +326,7 @@ function Pricing() {
               className={`relative flex flex-col overflow-hidden rounded-2xl transition-all hover:-translate-y-1 ${
                 plan.highlighted
                   ? 'shadow-2xl shadow-navy/20'
-                  : 'border border-navy/10 bg-white shadow-sm hover:shadow-md hover:shadow-navy/8'
+                  : 'border border-navy/10 bg-card shadow-sm hover:border-navy/20 hover:shadow-md hover:shadow-navy/8 dark:hover:border-sky/15'
               }`}
               style={plan.highlighted ? {
                 background: 'linear-gradient(160deg, #0B5A8C 0%, #071F30 100%)',
@@ -343,7 +345,7 @@ function Pricing() {
               )}
 
               <div className="p-7">
-                <p className={`text-sm font-semibold ${plan.highlighted ? 'text-sky' : 'text-navy'}`}>
+                <p className={`text-sm font-semibold ${plan.highlighted ? 'text-sky' : 'text-navy dark:text-sky'}`}>
                   {plan.name}
                 </p>
                 <div className="mt-3 flex items-baseline gap-1">
@@ -361,7 +363,7 @@ function Pricing() {
                 <ul className="mt-7 space-y-2.5">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-center gap-2.5 text-sm">
-                      <span className={`flex-shrink-0 leading-none ${plan.highlighted ? 'text-sky' : 'text-navy'}`}>✓</span>
+                      <span className={`flex-shrink-0 leading-none ${plan.highlighted ? 'text-sky' : 'text-navy dark:text-sky'}`}>✓</span>
                       <span className={plan.highlighted ? 'text-white/65' : 'text-muted-foreground'}>{f}</span>
                     </li>
                   ))}
@@ -387,14 +389,14 @@ function Pricing() {
         </div>
 
         {/* Add-on callout */}
-        <div className="mt-8 rounded-2xl border border-sky/20 bg-white p-6 text-center shadow-sm">
+        <div className="mt-8 rounded-2xl border border-sky/20 bg-card p-6 text-center shadow-sm">
           <p className="text-sm">
-            <span className="font-semibold text-navy">¿Necesitas más espacio?</span>{' '}
+            <span className="font-semibold text-navy dark:text-sky">¿Necesitas más espacio?</span>{' '}
             <span className="text-muted-foreground">
               Amplía sin cambiar de plan —{' '}
-              <span className="text-navy font-medium">+10 GB $5/mes</span>{' · '}
-              <span className="text-navy font-medium">+50 GB $19/mes</span>{' · '}
-              <span className="text-navy font-medium">+200 GB $59/mes</span>
+              <span className="font-medium text-navy dark:text-sky">+10 GB $5/mes</span>{' · '}
+              <span className="font-medium text-navy dark:text-sky">+50 GB $19/mes</span>{' · '}
+              <span className="font-medium text-navy dark:text-sky">+200 GB $59/mes</span>
             </span>
           </p>
         </div>
@@ -407,8 +409,8 @@ function Pricing() {
 
 function CtaBanner() {
   return (
-    <section className="bg-white px-6 py-20">
-      <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl px-8 py-16 text-center"
+    <section className="bg-background px-6 py-20">
+      <div className="relative mx-auto max-w-6xl overflow-hidden rounded-2xl px-8 py-16 text-center"
         style={{
           background: 'linear-gradient(135deg, #0B5A8C 0%, #071F30 60%, #0B3D5A 100%)',
           boxShadow: '0 0 80px #0B5A8C20, inset 0 0 60px #5AC8FA05',
@@ -447,7 +449,7 @@ function CtaBanner() {
 
 function Footer() {
   return (
-    <footer className="border-t border-navy/8 bg-frost px-6 py-10">
+    <footer className="border-t border-border bg-muted px-6 py-10">
       <div className="mx-auto max-w-6xl flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg"

@@ -3,6 +3,9 @@ import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
+import { TenantsModule } from './tenants/tenants.module';
+import { UsersModule } from './users/users.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
 
@@ -22,9 +25,9 @@ import { validate } from './config/env.validation';
 
     // Fase 1 — Auth & Multi-tenancy:
     AuthModule,              // ✓ Registro, login, JWT + refresh tokens
-    // TenantsModule         → Onboarding de empresas, middleware de tenant
-    // UsersModule           → Gestión de usuarios y roles
-    // SubscriptionsModule   → Planes y pagos con Stripe
+    TenantsModule,           // ✓ Middleware RLS, resolución de tenant por header
+    UsersModule,             // ✓ CRUD de usuarios, roles e invitaciones por email
+    SubscriptionsModule,     // ✓ Planes, Stripe checkout/portal, storage add-ons, webhooks
 
     // Fase 2 — Core LMS:
     // CoursesModule         → Cursos, módulos y lecciones

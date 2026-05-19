@@ -85,9 +85,9 @@ function InputField({
     <div className="space-y-1.5">
       <label className="block text-sm font-medium text-foreground">{label}</label>
       <input {...props}
-        className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all
-          focus:border-navy/40 focus:ring-2 focus:ring-sky/20
-          ${error ? 'border-destructive/60 bg-destructive/5' : 'border-border bg-white hover:border-navy/25'}`}
+        className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all
+          focus:border-sky/50 focus:ring-2 focus:ring-sky/15
+          ${error ? 'border-destructive/60 bg-destructive/5' : 'border-border bg-background hover:border-navy/30 dark:hover:border-sky/30'}`}
       />
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
@@ -124,12 +124,15 @@ function RegisterForm() {
     setServerError(null);
     const { confirmPassword: _, ...payload } = data;
     try {
-      const res = await api.post<{ accessToken: string; refreshToken: string }>(
-        '/auth/register',
-        payload,
-      );
+      const res = await api.post<{
+        accessToken: string;
+        refreshToken: string;
+        user: { tenantSlug: string };
+      }>('/auth/register', payload);
       localStorage.setItem('access_token', res.data.accessToken);
       localStorage.setItem('refresh_token', res.data.refreshToken);
+      localStorage.setItem('tenant_slug', res.data.user.tenantSlug);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
       router.push('/dashboard');
     } catch (err: unknown) {
       const message =
@@ -207,9 +210,9 @@ function RegisterForm() {
             type="password"
             placeholder="Mínimo 8 caracteres"
             autoComplete="new-password"
-            className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all
-              focus:border-navy/40 focus:ring-2 focus:ring-sky/20
-              ${errors.password ? 'border-destructive/60 bg-destructive/5' : 'border-border bg-white hover:border-navy/25'}`}
+            className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all
+              focus:border-sky/50 focus:ring-2 focus:ring-sky/15
+              ${errors.password ? 'border-destructive/60 bg-destructive/5' : 'border-border bg-background hover:border-navy/30 dark:hover:border-sky/30'}`}
             {...register('password')}
           />
           {errors.password
@@ -310,7 +313,7 @@ export default function RegisterPage() {
       </aside>
 
       {/* ── Panel derecho (formulario) ── */}
-      <main className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-12">
+      <main className="flex flex-1 flex-col items-center justify-center bg-background px-6 py-12">
         {/* Logo mobile */}
         <div className="mb-8 flex items-center gap-2.5 lg:hidden">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky to-navy shadow-sm">

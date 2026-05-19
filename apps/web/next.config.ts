@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Permite hot-reload y requests desde otras IPs de la red local en dev
+  // (VirtualBox host-only adapter, WSL2, etc.)
+  allowedDevOrigins: ['192.168.56.1'],
   images: {
     remotePatterns: [
       {

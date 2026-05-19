@@ -99,6 +99,7 @@ model Tenant {
 
   users        User[]
   subscription Subscription?
+  userInvites  UserInvite[]
 
   @@map("tenants")
 }
@@ -124,6 +125,7 @@ model User {
 
   tenant        Tenant         @relation(fields: [tenantId], references: [id])
   refreshTokens RefreshToken[]
+  sentInvites   UserInvite[]  @relation("SentInvites")
 
   /// El email es único DENTRO de un tenant, no globalmente.
   /// Un usuario puede existir con el mismo email en distintas empresas.
@@ -179,6 +181,33 @@ model Subscription {
 
   @@index([tenantId])
   @@map("subscriptions")
+}
+
+/// Invitaciones de usuarios pendientes de activación.
+/// Sigue el mismo patrón de hash que RefreshToken: solo el hash se persiste.
+model UserInvite {
+  id          String    @id @default(cuid())
+  tenantId    String
+  email       String
+  role        UserRole  @default(EMPLOYEE)
+  firstName   String
+  lastName    String
+  /// Hash SHA-256 del token enviado por email. El token real solo existe en el cliente.
+  tokenHash   String    @unique
+  invitedById String
+  expiresAt   DateTime
+  /// Null = pendiente. Populated = cuenta activada.
+  acceptedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  invitedBy User   @relation("SentInvites", fields: [invitedById], references: [id])
+
+  /// Solo puede existir una invitación por email dentro de un tenant.
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("user_invites")
 }
 
 // ─── STORAGE ADD-ONS ──────────────────────────────────────────────────────────
