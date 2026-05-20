@@ -30,16 +30,19 @@ export default () => ({
   // Storage S3-compatible — MinIO en dev/VPS, Backblaze B2 o AWS S3 en prod.
   // Cambiar de proveedor = solo cambiar estas env vars. El SDK es el mismo.
   storage: {
-    endpoint:  process.env.STORAGE_ENDPOINT,
-    accessKey: process.env.STORAGE_ACCESS_KEY,
-    secretKey: process.env.STORAGE_SECRET_KEY,
-    bucket:    process.env.STORAGE_BUCKET,
-    publicUrl: process.env.STORAGE_PUBLIC_URL,
+    endpoint:  process.env.STORAGE_ENDPOINT  ?? 'localhost',
+    port:      parseInt(process.env.STORAGE_PORT ?? '9000', 10),
+    useSSL:    process.env.STORAGE_USE_SSL   ?? 'false',
+    accessKey: process.env.STORAGE_ACCESS_KEY ?? 'minioadmin',
+    secretKey: process.env.STORAGE_SECRET_KEY ?? 'minioadmin',
+    bucket:    process.env.STORAGE_BUCKET    ?? 'lms-files',
+    publicUrl: process.env.STORAGE_PUBLIC_URL ?? 'http://localhost:9000/lms-files',
   },
 
   mux: {
-    tokenId: process.env.MUX_TOKEN_ID,
-    tokenSecret: process.env.MUX_TOKEN_SECRET,
+    tokenId:       process.env.MUX_TOKEN_ID,
+    tokenSecret:   process.env.MUX_TOKEN_SECRET,
+    webhookSecret: process.env.MUX_WEBHOOK_SECRET,
   },
 
   email: {

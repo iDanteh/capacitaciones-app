@@ -6,6 +6,11 @@ import { AuthModule } from './auth/auth.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { UsersModule } from './users/users.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { SeederModule } from './seeder/seeder.module';
+import { CoursesModule } from './courses/courses.module';
+import { EnrollmentsModule } from './enrollments/enrollments.module';
+import { StorageModule } from './storage/storage.module';
+import { VideoModule } from './video/video.module';
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
 
@@ -29,11 +34,14 @@ import { validate } from './config/env.validation';
     UsersModule,             // ✓ CRUD de usuarios, roles e invitaciones por email
     SubscriptionsModule,     // ✓ Planes, Stripe checkout/portal, storage add-ons, webhooks
 
+    // Infra — Seed automático en desarrollo:
+    SeederModule,            // ✓ OnApplicationBootstrap → seed idempotente en dev
+
     // Fase 2 — Core LMS:
-    // CoursesModule         → Cursos, módulos y lecciones
-    // EnrollmentsModule     → Inscripciones y progreso
-    // StorageModule         → Upload de archivos (MinIO / S3-compatible)
-    // VideoModule           → Streaming con Mux.com
+    CoursesModule,           // ✓ Cursos, módulos y lecciones (CRUD completo)
+    EnrollmentsModule,       // ✓ Inscripciones y tracking de progreso por lección
+    StorageModule,           // ✓ MinIO presigned URLs (upload/download directo)
+    VideoModule,             // ✓ Mux Direct Upload + webhooks de procesamiento
 
     // Fase 3 — Premium:
     // EvaluationsModule     → Evaluaciones y resultados

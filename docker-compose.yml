@@ -1,7 +1,11 @@
 # ── Entorno de Desarrollo Local ───────────────────────────────────────────────
-# Levanta PostgreSQL y Redis sin el API (el API corre con `npm run start:dev`)
+# Servicios: PostgreSQL, Redis, pgAdmin, MinIO
 # Uso: docker compose up -d
-# pgAdmin: http://localhost:5050 (admin@admin.com / admin)
+#
+# URLs:
+#   pgAdmin  → http://localhost:5050  (admin@admin.com / admin)
+#   MinIO UI → http://localhost:9001  (minioadmin / minioadmin)
+#   MinIO S3 → http://localhost:9000
 
 services:
   db:
@@ -59,6 +63,47 @@ services:
       db:
         condition: service_healthy
 
+  # ── MinIO — Object Storage S3-compatible ──────────────────────────────────────
+  # Reemplaza Cloudflare R2 en desarrollo local.
+  # En producción: migrar a Backblaze B2 o AWS S3 sin cambiar el SDK.
+  minio:
+    image: minio/minio:latest
+    container_name: cap_minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - '9000:9000' # S3 API
+      - '9001:9001' # Web Console
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      # MinIO expone /minio/health/live — no requiere mc ni alias configurado.
+      test: ['CMD-SHELL', 'curl -f http://localhost:9000/minio/health/live || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── MinIO bucket init ─────────────────────────────────────────────────────────
+  # Crea el bucket 'lms-files' automáticamente al levantar el stack.
+  minio-init:
+    image: minio/mc:latest
+    container_name: cap_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc mb --ignore-existing local/lms-files;
+      mc anonymous set download local/lms-files/public;
+      echo 'MinIO bucket lms-files creado.';
+      "
+    restart: on-failure
+
 volumes:
   postgres_data:
   redis_data:
+  minio_data:

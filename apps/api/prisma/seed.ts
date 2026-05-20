@@ -163,7 +163,7 @@ async function seedDevelopmentData() {
   for (const user of devUsers) {
     await prisma.user.upsert({
       where:  { tenantId_email: { tenantId: tenant.id, email: user.email } },
-      update: {},
+      update: { passwordHash, isActive: true, deletedAt: null },
       create: {
         tenantId: tenant.id,
         passwordHash,

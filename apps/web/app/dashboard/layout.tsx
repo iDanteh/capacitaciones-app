@@ -29,13 +29,15 @@ interface UserData {
 
 // ─── Navegación ───────────────────────────────────────────────────────────────
 
-const NAV_ITEMS = [
-  { label: 'Inicio',      icon: LayoutDashboard, href: '/dashboard' },
-  { label: 'Cursos',      icon: BookOpen,         href: '/dashboard/courses' },
-  { label: 'Usuarios',    icon: Users,            href: '/dashboard/users' },
-  { label: 'Analíticas',  icon: BarChart2,        href: '/dashboard/analytics' },
-  { label: 'Suscripción', icon: CreditCard,       href: '/dashboard/subscription' },
-] as const;
+const NAV_ITEMS_ALL = [
+  { label: 'Inicio',      icon: LayoutDashboard, href: '/dashboard',               roles: [] },
+  { label: 'Cursos',      icon: BookOpen,         href: '/dashboard/courses',       roles: [] },
+  { label: 'Usuarios',    icon: Users,            href: '/dashboard/users',         roles: ['OWNER', 'ADMIN', 'MANAGER'] },
+  { label: 'Analíticas',  icon: BarChart2,        href: '/dashboard/analytics',     roles: ['OWNER', 'ADMIN', 'MANAGER'] },
+  { label: 'Suscripción', icon: CreditCard,       href: '/dashboard/subscription',  roles: ['OWNER'] },
+];
+
+type NavItem = (typeof NAV_ITEMS_ALL)[number];
 
 // ─── Nav Item ─────────────────────────────────────────────────────────────────
 
@@ -44,7 +46,7 @@ function NavItem({
   active,
   onClick,
 }: {
-  item: (typeof NAV_ITEMS)[number];
+  item: NavItem;
   active: boolean;
   onClick?: () => void;
 }) {
@@ -124,11 +126,13 @@ function SidebarContent({
         <p className="mb-2 px-3 pt-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
           Principal
         </p>
-        {NAV_ITEMS.map((item) => (
+        {NAV_ITEMS_ALL.filter(item =>
+          item.roles.length === 0 || (user?.role && item.roles.includes(user.role)),
+        ).map((item) => (
           <NavItem
             key={item.href}
             item={item}
-            active={pathname === item.href}
+            active={item.href === '/dashboard' ? pathname === '/dashboard' : pathname === item.href || pathname.startsWith(item.href + '/')}
             onClick={onNavClick}
           />
         ))}
