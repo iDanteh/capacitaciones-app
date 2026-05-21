@@ -7,8 +7,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { CaptaLogo } from '@/components/capta-logo';
+import { Icon } from '@/components/capta-icon';
 
-// ─── Schema de validación ─────────────────────────────────────────────────────
+// ─── Schema ───────────────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
   tenantSlug: z
@@ -22,17 +24,12 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
-// ─── Componentes auxiliares ───────────────────────────────────────────────────
+// ─── Input field ──────────────────────────────────────────────────────────────
 
 function InputField({
-  label,
-  error,
-  hint,
-  ...props
+  label, error, hint, ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & {
-  label: string;
-  error?: string;
-  hint?: string;
+  label: string; error?: string; hint?: string;
 }) {
   return (
     <div className="space-y-1.5">
@@ -40,16 +37,19 @@ function InputField({
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       <input
         {...props}
-        className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all
-          focus:border-sky/50 focus:ring-2 focus:ring-sky/15
-          ${error ? 'border-destructive/60 bg-destructive/5' : 'border-border bg-background hover:border-navy/30 dark:hover:border-sky/30'}`}
+        className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all
+          focus:border-capta-soft/60 focus:ring-2 focus:ring-capta-soft/12
+          ${error
+            ? 'border-destructive/60 bg-destructive/5'
+            : 'border-border bg-background hover:border-capta-deep/30 dark:hover:border-capta-soft/25'
+          }`}
       />
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-xs font-medium text-destructive">{error}</p>}
     </div>
   );
 }
 
-// ─── Página ───────────────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LoginPage() {
   const router = useRouter();
@@ -82,62 +82,89 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen">
+
       {/* ── Panel izquierdo (branding) ── */}
       <aside
-        className="hidden lg:flex lg:w-[45%] flex-col justify-between p-12"
-        style={{ background: 'linear-gradient(155deg, #0B5A8C 0%, #071F30 60%, #050E1A 100%)' }}
+        className="relative hidden lg:flex lg:w-[44%] flex-col justify-between overflow-hidden p-12"
+        style={{ background: 'linear-gradient(155deg, #0A1419 0%, #1E4F7A 55%, #2D6FA0 100%)' }}
       >
-        {/* Logo placeholder */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky to-[#38BDF8] shadow-lg shadow-sky/30">
-            <span className="text-sm font-bold text-navy">L</span>
-          </div>
-          <span className="text-lg font-semibold text-white/90">LMS</span>
+        {/* Decorative grid */}
+        <div aria-hidden className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: 'linear-gradient(#FFFFFF06 1px, transparent 1px), linear-gradient(90deg, #FFFFFF06 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
+          }}
+        />
+        {/* Glow */}
+        <div aria-hidden className="pointer-events-none absolute -bottom-20 -right-20 h-80 w-80 rounded-full opacity-20 blur-3xl"
+          style={{ background: '#8FC4E8' }} />
+
+        {/* Logo */}
+        <div className="relative">
+          <CaptaLogo markSize={36} showText forceDark />
         </div>
 
-        {/* Quote central */}
-        <div className="space-y-6">
-          <div className="h-px w-12" style={{ background: 'linear-gradient(90deg, #5AC8FA, transparent)' }} />
-          <blockquote className="text-2xl font-medium leading-snug text-white/85">
+        {/* Quote */}
+        <div className="relative space-y-5">
+          <div className="h-px w-10"
+            style={{ background: 'linear-gradient(90deg, #8FC4E8, transparent)' }} />
+          <blockquote className="text-2xl font-semibold leading-snug text-white/90">
             "El talento de tu equipo es tu mayor ventaja competitiva."
           </blockquote>
-          <p className="text-sm text-white/35">
+          <p className="text-sm font-medium text-white/35">
             Capacita, mide y certifica desde una sola plataforma.
           </p>
+
+          {/* Mini stats */}
+          <div className="grid grid-cols-2 gap-3 pt-4">
+            {[
+              { val: '312', label: 'Colaboradores' },
+              { val: '78%', label: 'Tasa completado' },
+              { val: '24',  label: 'Cursos activos' },
+              { val: '8.4h', label: 'Promedio semanal' },
+            ].map((s) => (
+              <div key={s.label}
+                className="rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm">
+                <div className="text-xl font-bold text-white/90">{s.val}</div>
+                <div className="text-xs text-white/40">{s.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Decoración bento mini */}
-        <div className="grid grid-cols-3 gap-3 opacity-20">
-          {[`#5AC8FA`, `#14B8A6`, `#0B5A8C`, `#38BDF8`, `#0E6FAD`, `#5AC8FA`].map((c, i) => (
-            <div key={i} className="h-12 rounded-xl border"
-              style={{ borderColor: `${c}30`, background: `${c}15` }} />
+        <div className="relative grid grid-cols-4 gap-2 opacity-15">
+          {['#8FC4E8', '#7FD1AE', '#1E4F7A', '#DCE9F4', '#2D6FA0', '#8FC4E8', '#7FD1AE', '#1E4F7A'].map((c, i) => (
+            <div key={i} className="h-8 rounded-lg border"
+              style={{ borderColor: `${c}40`, background: `${c}18` }} />
           ))}
         </div>
       </aside>
 
       {/* ── Panel derecho (formulario) ── */}
       <main className="flex flex-1 flex-col items-center justify-center bg-background px-6 py-12">
-        {/* Logo mobile */}
-        <div className="mb-10 flex items-center gap-2.5 lg:hidden">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky to-navy shadow-sm">
-            <span className="text-xs font-bold text-white">L</span>
-          </div>
-          <span className="text-base font-semibold text-navy">LMS</span>
+
+        {/* Mobile logo */}
+        <div className="mb-10 lg:hidden">
+          <CaptaLogo markSize={32} showText />
         </div>
 
         <div className="w-full max-w-md">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-foreground">Bienvenido de nuevo</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Bienvenido de nuevo
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Ingresa los datos de tu empresa para continuar.
             </p>
           </div>
 
-          {/* Error de servidor */}
+          {/* Error banner */}
           {serverError && (
-            <div className="mb-6 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
-              <p className="text-sm text-destructive">{serverError}</p>
+            <div className="mb-5 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+              <Icon name="alert-circle" size={16} className="flex-shrink-0 mt-0.5 text-destructive" />
+              <p className="text-sm font-medium text-destructive">{serverError}</p>
             </div>
           )}
 
@@ -162,7 +189,7 @@ export default function LoginPage() {
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium text-foreground">Contraseña</label>
                 <Link href="/forgot-password"
-                  className="text-xs text-navy/60 transition-colors hover:text-navy">
+                  className="text-xs font-medium text-capta-deep/60 transition-colors hover:text-capta-deep dark:text-capta-soft/60 dark:hover:text-capta-soft">
                   ¿Olvidaste tu contraseña?
                 </Link>
               </div>
@@ -170,40 +197,50 @@ export default function LoginPage() {
                 type="password"
                 placeholder="••••••••"
                 autoComplete="current-password"
-                className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-sky/50 focus:ring-2 focus:ring-sky/15
-                  ${errors.password ? 'border-destructive/60 bg-destructive/5' : 'border-border bg-background hover:border-navy/30 dark:hover:border-sky/30'}`}
+                className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all
+                  focus:border-capta-soft/60 focus:ring-2 focus:ring-capta-soft/12
+                  ${errors.password ? 'border-destructive/60 bg-destructive/5' : 'border-border bg-background hover:border-capta-deep/30 dark:hover:border-capta-soft/25'}`}
                 {...register('password')}
               />
-              {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+              {errors.password && (
+                <p className="text-xs font-medium text-destructive">{errors.password.message}</p>
+              )}
             </div>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-xl py-3.5 text-sm font-semibold text-navy shadow-md shadow-sky/20 transition-all hover:shadow-sky/35 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-              style={{ background: 'linear-gradient(135deg, #5AC8FA, #38BDF8)' }}
+              className="relative w-full overflow-hidden rounded-xl py-3.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
+                boxShadow: '0 4px 20px rgba(30,79,122,0.30)',
+              }}
             >
-              {isSubmitting ? 'Iniciando sesión…' : 'Iniciar sesión'}
+              {isSubmitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Icon name="refresh" size={16} className="animate-spin" />
+                  Iniciando sesión…
+                </span>
+              ) : 'Iniciar sesión'}
             </button>
           </form>
 
-          {/* Divisor */}
           <div className="my-7 flex items-center gap-4">
             <div className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground/60">¿No tienes cuenta?</span>
+            <span className="text-xs font-medium text-muted-foreground/50">¿No tienes cuenta?</span>
             <div className="h-px flex-1 bg-border" />
           </div>
 
           <Link href="/register"
-            className="block w-full rounded-xl border border-border bg-background py-3.5 text-center text-sm font-semibold text-foreground transition-all hover:border-navy/20 hover:bg-muted dark:hover:border-sky/20">
+            className="block w-full rounded-xl border border-border bg-background py-3.5 text-center text-sm font-semibold text-foreground transition-all hover:border-capta-deep/20 hover:bg-muted dark:hover:border-capta-soft/20">
             Crear cuenta gratis
           </Link>
 
           <p className="mt-8 text-center text-xs text-muted-foreground/50">
             Al iniciar sesión aceptas nuestros{' '}
-            <span className="text-navy/60">Términos de servicio</span>{' '}
+            <span className="text-capta-deep/60 dark:text-capta-soft/60">Términos de servicio</span>{' '}
             y{' '}
-            <span className="text-navy/60">Política de privacidad</span>.
+            <span className="text-capta-deep/60 dark:text-capta-soft/60">Política de privacidad</span>.
           </p>
         </div>
       </main>

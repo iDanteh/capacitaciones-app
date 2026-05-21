@@ -4,19 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  LayoutDashboard,
-  BookOpen,
-  Users,
-  BarChart2,
-  CreditCard,
-  Menu,
-  LogOut,
-  ChevronRight,
-} from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { CaptaLogo, CaptaMark } from '@/components/capta-logo';
+import { Icon, type IconName } from '@/components/capta-icon';
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface UserData {
   id: string;
@@ -27,69 +19,66 @@ interface UserData {
   tenantSlug: string;
 }
 
-// ─── Navegación ───────────────────────────────────────────────────────────────
+// ─── Navigation config ────────────────────────────────────────────────────────
 
-const NAV_ITEMS_ALL = [
-  { label: 'Inicio',      icon: LayoutDashboard, href: '/dashboard',               roles: [] },
-  { label: 'Cursos',      icon: BookOpen,         href: '/dashboard/courses',       roles: [] },
-  { label: 'Usuarios',    icon: Users,            href: '/dashboard/users',         roles: ['OWNER', 'ADMIN', 'MANAGER'] },
-  { label: 'Analíticas',  icon: BarChart2,        href: '/dashboard/analytics',     roles: ['OWNER', 'ADMIN', 'MANAGER'] },
-  { label: 'Suscripción', icon: CreditCard,       href: '/dashboard/subscription',  roles: ['OWNER'] },
-];
+const NAV_ITEMS = [
+  { label: 'Inicio',      icon: 'home'        as IconName, href: '/dashboard',              roles: [] },
+  { label: 'Cursos',      icon: 'book-open'   as IconName, href: '/dashboard/courses',      roles: [] },
+  { label: 'Usuarios',    icon: 'users'       as IconName, href: '/dashboard/users',        roles: ['OWNER', 'ADMIN', 'MANAGER'] },
+  { label: 'Analíticas',  icon: 'chart-bar'   as IconName, href: '/dashboard/analytics',   roles: ['OWNER', 'ADMIN', 'MANAGER'] },
+  { label: 'Suscripción', icon: 'credit-card' as IconName, href: '/dashboard/subscription', roles: ['OWNER'] },
+] as const;
 
-type NavItem = (typeof NAV_ITEMS_ALL)[number];
+type NavItem = (typeof NAV_ITEMS)[number];
 
-// ─── Nav Item ─────────────────────────────────────────────────────────────────
+// ─── Role labels ──────────────────────────────────────────────────────────────
 
-function NavItem({
-  item,
-  active,
-  onClick,
-}: {
-  item: NavItem;
-  active: boolean;
-  onClick?: () => void;
+const ROLE_LABELS: Record<string, string> = {
+  OWNER:       'Propietario',
+  ADMIN:       'Administrador',
+  MANAGER:     'Manager',
+  EMPLOYEE:    'Empleado',
+  SUPER_ADMIN: 'Super Admin',
+};
+
+// ─── Nav item ─────────────────────────────────────────────────────────────────
+
+function NavItem({ item, active, onClick }: {
+  item: NavItem; active: boolean; onClick?: () => void;
 }) {
   return (
     <Link
       href={item.href}
       onClick={onClick}
-      className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
+      className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
         active
-          ? 'bg-navy/8 text-navy dark:bg-sky/[0.12] dark:text-sky'
+          ? 'bg-capta-tint/60 text-capta-deep dark:bg-capta-soft/10 dark:text-capta-soft'
           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       }`}
     >
-      <item.icon
-        size={18}
-        className={`flex-shrink-0 transition-colors ${
-          active
-            ? 'text-navy dark:text-sky'
-            : 'text-muted-foreground group-hover:text-foreground group-hover:opacity-100'
-        }`}
+      {/* Indicador lateral activo */}
+      {active && (
+        <span
+          className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full"
+          style={{ background: 'linear-gradient(180deg, #1E4F7A, #8FC4E8)' }}
+        />
+      )}
+      <Icon
+        name={item.icon}
+        size={16}
+        className={active
+          ? 'text-capta-deep dark:text-capta-soft'
+          : 'text-muted-foreground/60 group-hover:text-foreground'}
       />
       <span>{item.label}</span>
-      {active && (
-        <ChevronRight size={13} className="ml-auto text-navy/30 dark:text-sky/30" />
-      )}
     </Link>
   );
 }
 
-// ─── Sidebar Content ──────────────────────────────────────────────────────────
+// ─── Sidebar content ──────────────────────────────────────────────────────────
 
-/**
- * Contenido del sidebar — compartido entre desktop fijo y drawer mobile.
- * Se extrae para no duplicar JSX.
- */
-function SidebarContent({
-  user,
-  pathname,
-  onNavClick,
-}: {
-  user: UserData | null;
-  pathname: string;
-  onNavClick?: () => void;
+function SidebarContent({ user, pathname, onNavClick }: {
+  user: UserData | null; pathname: string; onNavClick?: () => void;
 }) {
   const router = useRouter();
 
@@ -102,68 +91,68 @@ function SidebarContent({
     ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
     : '?';
 
-  const roleLabel: Record<string, string> = {
-    OWNER: 'Propietario',
-    ADMIN: 'Administrador',
-    MANAGER: 'Manager',
-    EMPLOYEE: 'Empleado',
-    SUPER_ADMIN: 'Super Admin',
-  };
+  const visibleItems = NAV_ITEMS.filter(item =>
+    item.roles.length === 0 || (user?.role && item.roles.includes(user.role as never)),
+  );
 
   return (
     <div className="flex h-full flex-col">
+
       {/* ── Logo ── */}
-      <div className="flex h-16 flex-shrink-0 items-center gap-3 border-b border-border px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky to-navy shadow-sm shadow-sky/20">
-          <span className="text-xs font-bold text-white">L</span>
-        </div>
-        <span className="text-sm font-semibold tracking-tight text-foreground">LMS</span>
+      <div className="flex h-[60px] flex-shrink-0 items-center border-b border-border px-5">
+        <CaptaLogo markSize={26} showText />
       </div>
 
       {/* ── Nav ── */}
-
-      <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-        <p className="mb-2 px-3 pt-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-          Principal
+      <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-4">
+        <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/40">
+          Plataforma
         </p>
-        {NAV_ITEMS_ALL.filter(item =>
-          item.roles.length === 0 || (user?.role && item.roles.includes(user.role)),
-        ).map((item) => (
-          <NavItem
-            key={item.href}
-            item={item}
-            active={item.href === '/dashboard' ? pathname === '/dashboard' : pathname === item.href || pathname.startsWith(item.href + '/')}
-            onClick={onNavClick}
-          />
-        ))}
+        <div className="space-y-0.5">
+          {visibleItems.map((item) => (
+            <NavItem
+              key={item.href}
+              item={item}
+              active={
+                item.href === '/dashboard'
+                  ? pathname === '/dashboard'
+                  : pathname === item.href || pathname.startsWith(item.href + '/')
+              }
+              onClick={onNavClick}
+            />
+          ))}
+        </div>
       </nav>
 
       {/* ── Bottom: usuario + acciones ── */}
       <div className="flex-shrink-0 border-t border-border p-3 space-y-1">
-        {/* User info */}
+        {/* User */}
         <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky/20 to-navy/20 text-[11px] font-bold text-navy dark:text-sky">
+          <div
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+            style={{ background: 'linear-gradient(135deg, #DCE9F4, #8FC4E830)', color: '#1E4F7A' }}
+          >
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground leading-tight">
+            <p className="truncate text-sm font-semibold leading-tight text-foreground">
               {user ? `${user.firstName} ${user.lastName}` : '—'}
             </p>
-            <p className="truncate text-xs font-medium text-muted-foreground">
-              {user?.role ? (roleLabel[user.role] ?? user.role) : '—'}
+            <p className="truncate text-[11px] text-muted-foreground/70">
+              {user?.role ? (ROLE_LABELS[user.role] ?? user.role) : '—'}
             </p>
           </div>
         </div>
 
-        {/* Acciones: theme toggle + logout */}
+        {/* Acciones */}
         <div className="flex items-center justify-between px-3 py-1">
           <ThemeToggle />
           <button
             onClick={handleLogout}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/50 transition-all hover:bg-destructive/10 hover:text-destructive"
             aria-label="Cerrar sesión"
           >
-            <LogOut size={15} />
+            <Icon name="logout" size={15} />
           </button>
         </div>
       </div>
@@ -171,22 +160,8 @@ function SidebarContent({
   );
 }
 
-// ─── Layout principal ─────────────────────────────────────────────────────────
+// ─── Layout ───────────────────────────────────────────────────────────────────
 
-/**
- * Layout autenticado del dashboard.
- *
- * Responsabilidades:
- *  1. Auth guard: verifica access_token en localStorage. Si no existe → /login.
- *  2. Sidebar fijo en desktop (240px) con glassmorphism.
- *  3. Drawer overlay en mobile con animación spring (Framer Motion).
- *  4. Dark mode toggle integrado en el sidebar.
- *  5. Page content con fade-up de entrada.
- *
- * Nota de seguridad: esta protección es solo UX (client-side).
- * La protección real está en el backend (JwtAuthGuard + RLS).
- * Agregar middleware.ts con cookie de sesión cuando se migre de localStorage.
- */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
   const pathname = usePathname();
@@ -197,32 +172,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
-
-    if (!token) {
-      router.replace('/login');
-      return;
-    }
-
+    if (!token) { router.replace('/login'); return; }
     try {
       const raw = localStorage.getItem('user');
       if (raw) setUser(JSON.parse(raw) as UserData);
-    } catch {
-      // Datos corruptos — tokens siguen siendo válidos, continuamos sin nombre
-    }
-
+    } catch { /* datos corruptos — continuar */ }
     setIsReady(true);
   }, [router]);
 
-  // Cerrar drawer al cambiar de ruta en mobile
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
+  // Cerrar drawer al navegar
+  useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
-  // Pantalla de carga durante verificación de auth — evita flash del dashboard
   if (!isReady) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
+        <div
+          className="h-6 w-6 animate-spin rounded-full border-2 border-transparent"
+          style={{ borderTopColor: '#1E4F7A', borderRightColor: '#8FC4E820' }}
+        />
       </div>
     );
   }
@@ -230,16 +197,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen overflow-hidden bg-background">
 
-      {/* ── Sidebar desktop (fijo) ── */}
-      <aside className="hidden lg:flex lg:w-60 lg:flex-shrink-0 lg:flex-col border-r border-border bg-card">
+      {/* ── Sidebar desktop ── */}
+      <aside className="hidden lg:flex lg:w-[220px] lg:flex-shrink-0 lg:flex-col border-r border-border bg-card">
         <SidebarContent user={user} pathname={pathname} />
       </aside>
 
-      {/* ── Sidebar mobile (drawer overlay) ── */}
+      {/* ── Sidebar mobile (drawer) ── */}
       <AnimatePresence>
         {sidebarOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               key="backdrop"
               initial={{ opacity: 0 }}
@@ -247,18 +213,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
               onClick={() => setSidebarOpen(false)}
-              className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
-              aria-hidden="true"
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+              aria-hidden
             />
-
-            {/* Drawer */}
             <motion.aside
               key="drawer"
-              initial={{ x: -240 }}
+              initial={{ x: -220 }}
               animate={{ x: 0 }}
-              exit={{ x: -240 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed left-0 top-0 z-50 flex h-full w-60 flex-col border-r border-border bg-card lg:hidden"
+              exit={{ x: -220 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+              className="fixed left-0 top-0 z-50 flex h-full w-[220px] flex-col border-r border-border bg-card lg:hidden"
             >
               <SidebarContent
                 user={user}
@@ -270,35 +234,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </AnimatePresence>
 
-      {/* ── Main area ── */}
+      {/* ── Main ── */}
       <div className="flex flex-1 flex-col overflow-hidden">
 
         {/* Header mobile */}
-        <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-border bg-card px-4 lg:hidden">
+        <header className="flex h-[52px] flex-shrink-0 items-center justify-between border-b border-border bg-card/80 backdrop-blur-md px-4 lg:hidden">
           <button
-            onClick={() => setSidebarOpen(true)}
+            onClick={() => setSidebarOpen(s => !s)}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             aria-label="Abrir menú"
           >
-            <Menu size={18} />
+            <Icon name={sidebarOpen ? 'close' : 'menu'} size={16} />
           </button>
 
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-sky to-navy">
-              <span className="text-[10px] font-bold text-white">L</span>
-            </div>
-            <span className="text-sm font-semibold tracking-tight text-foreground">LMS</span>
-          </div>
+          <CaptaMark size={24} />
 
           <ThemeToggle />
         </header>
 
-        {/* Contenido de la página */}
-        <main className="flex-1 overflow-y-auto">
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto scrollbar-thin">
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.05 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.04 }}
           >
             {children}
           </motion.div>

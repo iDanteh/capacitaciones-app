@@ -5,11 +5,31 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ArrowLeft, BookOpen, Plus, Trash2, Edit3, ChevronDown, ChevronRight,
-  Video, FileText, File, Globe, Archive, Save, Loader2, Play, Check,
-  GripVertical, X, Upload, AlertCircle, RefreshCw, Eye,
-} from 'lucide-react';
+import { Icon } from '@/components/capta-icon';
+
+// Icon aliases for inline usage
+const ArrowLeft    = (p: { size?: number; className?: string }) => <Icon name="arrow-left"     size={p.size} className={p.className} />;
+const BookOpen     = (p: { size?: number; className?: string }) => <Icon name="book-open"      size={p.size} className={p.className} />;
+const Plus         = (p: { size?: number; className?: string }) => <Icon name="plus"           size={p.size} className={p.className} />;
+const Trash2       = (p: { size?: number; className?: string }) => <Icon name="trash"          size={p.size} className={p.className} />;
+const Edit3        = (p: { size?: number; className?: string }) => <Icon name="edit"           size={p.size} className={p.className} />;
+const ChevronDown  = (p: { size?: number; className?: string }) => <Icon name="chevron-down"   size={p.size} className={p.className} />;
+const ChevronRight = (p: { size?: number; className?: string }) => <Icon name="chevron-right"  size={p.size} className={p.className} />;
+const Video        = (p: { size?: number; className?: string }) => <Icon name="video"          size={p.size} className={p.className} />;
+const FileText     = (p: { size?: number; className?: string }) => <Icon name="file"           size={p.size} className={p.className} />;
+const File         = (p: { size?: number; className?: string }) => <Icon name="file"           size={p.size} className={p.className} />;
+const Globe        = (p: { size?: number; className?: string }) => <Icon name="globe"          size={p.size} className={p.className} />;
+const Archive      = (p: { size?: number; className?: string }) => <Icon name="archive"        size={p.size} className={p.className} />;
+const Save         = (p: { size?: number; className?: string }) => <Icon name="save"           size={p.size} className={p.className} />;
+const Loader2      = (p: { size?: number; className?: string }) => <Icon name="refresh"        size={p.size} className={p.className} />;
+const Play         = (p: { size?: number; className?: string }) => <Icon name="play"           size={p.size} className={p.className} />;
+const Check        = (p: { size?: number; className?: string }) => <Icon name="check"          size={p.size} className={p.className} />;
+const GripVertical = (p: { size?: number; className?: string }) => <Icon name="grip-vertical"  size={p.size} className={p.className} />;
+const X            = (p: { size?: number; className?: string }) => <Icon name="close"          size={p.size} className={p.className} />;
+const Upload       = (p: { size?: number; className?: string }) => <Icon name="upload"         size={p.size} className={p.className} />;
+const AlertCircle  = (p: { size?: number; className?: string }) => <Icon name="alert-circle"  size={p.size} className={p.className} />;
+const RefreshCw    = (p: { size?: number; className?: string }) => <Icon name="refresh"        size={p.size} className={p.className} />;
+const Eye          = (p: { size?: number; className?: string }) => <Icon name="eye"            size={p.size} className={p.className} />;
 import { api } from '@/lib/api';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -245,8 +265,8 @@ function LessonContentDrawer({
         {/* Header */}
         <div className="flex h-14 flex-shrink-0 items-center justify-between border-b border-border px-5">
           <div className="flex items-center gap-2.5">
-            {lesson.type === 'VIDEO' && <Video size={16} className="text-sky" />}
-            {lesson.type === 'TEXT'  && <FileText size={16} className="text-teal" />}
+            {lesson.type === 'VIDEO' && <Video size={16} className="text-capta-soft" />}
+            {lesson.type === 'TEXT'  && <FileText size={16} className="text-emerald-600 dark:text-emerald-400" />}
             {lesson.type === 'FILE'  && <File size={16} className="text-amber-500" />}
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -287,10 +307,10 @@ function LessonContentDrawer({
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
-                className="flex items-center gap-2 rounded-xl border border-teal/20 bg-teal/5 px-4 py-3"
+                className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/5 px-4 py-3"
               >
-                <Check size={15} className="text-teal" />
-                <p className="text-sm font-medium text-teal">Guardado correctamente.</p>
+                <Check size={15} className="text-emerald-600 dark:text-emerald-400" />
+                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Guardado correctamente.</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -302,17 +322,17 @@ function LessonContentDrawer({
               {lesson.muxStatus && (
                 <div className={`flex items-center gap-2.5 rounded-xl border px-4 py-3 ${
                   lesson.muxStatus === 'ready'
-                    ? 'border-teal/20 bg-teal/5'
+                    ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/5'
                     : lesson.muxStatus === 'errored'
                     ? 'border-destructive/20 bg-destructive/5'
                     : 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20'
                 }`}>
-                  {lesson.muxStatus === 'ready' && <Check size={15} className="text-teal flex-shrink-0" />}
+                  {lesson.muxStatus === 'ready' && <Check size={15} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />}
                   {lesson.muxStatus === 'errored' && <AlertCircle size={15} className="text-destructive flex-shrink-0" />}
                   {lesson.muxStatus === 'preparing' && <Loader2 size={15} className="text-amber-600 animate-spin flex-shrink-0" />}
                   <div>
                     <p className={`text-sm font-medium ${
-                      lesson.muxStatus === 'ready' ? 'text-teal' : lesson.muxStatus === 'errored' ? 'text-destructive' : 'text-amber-700 dark:text-amber-400'
+                      lesson.muxStatus === 'ready' ? 'text-emerald-600 dark:text-emerald-400' : lesson.muxStatus === 'errored' ? 'text-destructive' : 'text-amber-700 dark:text-amber-400'
                     }`}>
                       {lesson.muxStatus === 'ready' ? 'Video listo para reproducirse'
                         : lesson.muxStatus === 'errored' ? 'Error al procesar el video'
@@ -337,14 +357,14 @@ function LessonContentDrawer({
 
                 {uploading ? (
                   // Progreso de carga
-                  <div className="rounded-2xl border border-sky/30 bg-sky/5 p-5 space-y-3">
+                  <div className="rounded-2xl border border-capta-soft/30 bg-capta-soft/5 p-5 space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium text-foreground">{videoFile?.name}</span>
-                      <span className="text-sky font-semibold">{uploadProgress}%</span>
+                      <span className="text-capta-soft font-semibold">{uploadProgress}%</span>
                     </div>
                     <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
                       <motion.div
-                        className="h-full rounded-full bg-sky"
+                        className="h-full rounded-full bg-capta-soft"
                         initial={{ width: 0 }}
                         animate={{ width: `${uploadProgress}%` }}
                         transition={{ ease: 'linear', duration: 0.2 }}
@@ -362,7 +382,7 @@ function LessonContentDrawer({
                       const f = e.dataTransfer.files[0];
                       if (f) { setVideoFile(f); handleVideoUpload(f); }
                     }}
-                    className="flex flex-col items-center justify-center w-full rounded-2xl border-2 border-dashed border-border bg-muted/20 py-10 px-6 text-center hover:border-sky/50 hover:bg-sky/5 transition-all cursor-pointer"
+                    className="flex flex-col items-center justify-center w-full rounded-2xl border-2 border-dashed border-border bg-muted/20 py-10 px-6 text-center hover:border-capta-soft/50 hover:bg-capta-soft/5 transition-all cursor-pointer"
                   >
                     <Upload size={28} className="text-muted-foreground mb-3" />
                     <p className="text-sm font-medium text-foreground mb-1">
@@ -406,13 +426,13 @@ function LessonContentDrawer({
                   onChange={e => setContent(e.target.value)}
                   rows={18}
                   placeholder={`# Título de la lección\n\nEscribe el contenido aquí...\n\n## Subtítulo\n\nPuedes usar **negrita**, *cursiva*, \`código\`, listas, etc.`}
-                  className="w-full resize-y rounded-xl border border-border bg-background px-4 py-3 font-mono text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-sky/40 focus:border-sky transition-all leading-relaxed"
+                  className="w-full resize-y rounded-xl border border-border bg-background px-4 py-3 font-mono text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft transition-all leading-relaxed"
                 />
               )}
               <button
                 onClick={handleTextSave}
                 disabled={saving || loadingContent}
-                className="flex items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy/90 disabled:opacity-50 transition-all active:scale-[0.97]"
+                className="flex items-center gap-2 rounded-xl bg-capta-deep px-4 py-2.5 text-sm font-semibold text-white hover:bg-capta-deep/90 disabled:opacity-50 transition-all active:scale-[0.97]"
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 Guardar contenido
@@ -435,7 +455,7 @@ function LessonContentDrawer({
                       <p className="text-xs text-muted-foreground">{formatBytes(lesson.fileSizeBytes)}</p>
                     )}
                   </div>
-                  <span className="flex-shrink-0 rounded-full bg-teal/10 px-2 py-0.5 text-xs font-semibold text-teal">
+                  <span className="flex-shrink-0 rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                     Cargado
                   </span>
                 </div>
@@ -539,14 +559,14 @@ function LessonRow({
   const isPreparing = lesson.type === 'VIDEO' && lesson.muxStatus === 'preparing';
 
   return (
-    <div className="group flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2.5 hover:border-sky/30 transition-all">
+    <div className="group flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2.5 hover:border-capta-soft/30 transition-all">
       <GripVertical size={14} className="text-muted-foreground/40 flex-shrink-0 cursor-grab" />
       <Icon size={15} className="text-muted-foreground flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{lesson.title}</p>
         <div className="flex items-center gap-2 mt-0.5">
           {lesson.isPreview && (
-            <span className="text-[10px] font-semibold text-sky uppercase tracking-wide">Preview</span>
+            <span className="text-[10px] font-semibold text-capta-soft uppercase tracking-wide">Preview</span>
           )}
           {lesson.duration && (
             <span className="text-[10px] text-muted-foreground">{formatDuration(lesson.duration)}</span>
@@ -569,7 +589,7 @@ function LessonRow({
       {/* Botón editar contenido */}
       <button
         onClick={() => onEdit(lesson)}
-        className="opacity-0 group-hover:opacity-100 flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-navy hover:border-navy/40 dark:hover:text-sky transition-all"
+        className="opacity-0 group-hover:opacity-100 flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-capta-deep hover:border-navy/40 dark:hover:text-capta-soft transition-all"
       >
         <Edit3 size={11} /> Editar
       </button>
@@ -691,20 +711,20 @@ function ModuleAccordion({
 
               {/* Formulario agregar lección */}
               {addingLesson ? (
-                <div className="rounded-xl border border-sky/30 bg-sky/5 p-3 space-y-2">
+                <div className="rounded-xl border border-capta-soft/30 bg-capta-soft/5 p-3 space-y-2">
                   <input
                     autoFocus
                     value={lessonTitle}
                     onChange={e => setLessonTitle(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') handleAddLesson(); if (e.key === 'Escape') setAddingLesson(false); }}
                     placeholder="Título de la lección"
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky/40 focus:border-sky"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft"
                   />
                   <div className="flex gap-2 items-center">
                     <select
                       value={lessonType}
                       onChange={e => setLessonType(e.target.value as typeof lessonType)}
-                      className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-sky/40"
+                      className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-capta-soft/40"
                     >
                       <option value="TEXT">Texto / Markdown</option>
                       <option value="VIDEO">Video (Mux)</option>
@@ -715,7 +735,7 @@ function ModuleAccordion({
                       <button
                         onClick={handleAddLesson}
                         disabled={!lessonTitle.trim() || saving}
-                        className="flex items-center gap-1.5 rounded-lg bg-navy px-3 py-1.5 text-xs font-semibold text-white hover:bg-navy/90 disabled:opacity-50 transition-colors"
+                        className="flex items-center gap-1.5 rounded-lg bg-capta-deep px-3 py-1.5 text-xs font-semibold text-white hover:bg-capta-deep/90 disabled:opacity-50 transition-colors"
                       >
                         {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                         Crear
@@ -726,7 +746,7 @@ function ModuleAccordion({
               ) : (
                 <button
                   onClick={() => setAddingLesson(true)}
-                  className="flex w-full items-center gap-2 rounded-xl border-2 border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:border-sky/50 hover:text-sky transition-all"
+                  className="flex w-full items-center gap-2 rounded-xl border-2 border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:border-capta-soft/50 hover:text-capta-soft transition-all"
                 >
                   <Plus size={14} /> Agregar lección
                 </button>
@@ -896,7 +916,7 @@ export default function CourseEditorPage() {
 
   const STATUS_BADGE = {
     DRAFT:     { label: 'Borrador',  className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
-    PUBLISHED: { label: 'Publicado', className: 'bg-teal/10 text-teal dark:text-teal-400' },
+    PUBLISHED: { label: 'Publicado', className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' },
     ARCHIVED:  { label: 'Archivado', className: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
   };
   const badge = STATUS_BADGE[course.status];
@@ -929,7 +949,7 @@ export default function CourseEditorPage() {
                 onClick={handlePublish}
                 disabled={publishing || course.totalLessons === 0}
                 title={course.totalLessons === 0 ? 'Agrega al menos una lección para publicar' : ''}
-                className="flex items-center gap-1.5 rounded-xl bg-teal px-4 py-2 text-sm font-semibold text-white hover:bg-teal/90 disabled:opacity-50 transition-all"
+                className="flex items-center gap-1.5 rounded-xl bg-capta-deep px-4 py-2 text-sm font-semibold text-white hover:bg-capta-deep/90 disabled:opacity-50 transition-all"
               >
                 {publishing ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />}
                 Publicar
@@ -972,13 +992,13 @@ export default function CourseEditorPage() {
                   <input
                     value={editTitle}
                     onChange={e => setEditTitle(e.target.value)}
-                    className="w-full rounded-xl border border-sky/40 bg-background px-3 py-2 text-lg font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-sky/40"
+                    className="w-full rounded-xl border border-capta-soft/40 bg-background px-3 py-2 text-lg font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40"
                   />
                   <textarea
                     value={editDesc}
                     onChange={e => setEditDesc(e.target.value)}
                     rows={3}
-                    className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky/40"
+                    className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40"
                     placeholder="Descripción del curso…"
                   />
                   <div className="flex gap-2">
@@ -986,7 +1006,7 @@ export default function CourseEditorPage() {
                     <button
                       onClick={saveInfo}
                       disabled={saving}
-                      className="flex items-center gap-1.5 rounded-lg bg-navy px-3 py-1.5 text-xs font-semibold text-white hover:bg-navy/90"
+                      className="flex items-center gap-1.5 rounded-lg bg-capta-deep px-3 py-1.5 text-xs font-semibold text-white hover:bg-capta-deep/90"
                     >
                       {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Guardar
                     </button>
@@ -1029,7 +1049,7 @@ export default function CourseEditorPage() {
             <h2 className="text-base font-semibold text-foreground">Contenido del curso</h2>
             <button
               onClick={() => setAddingModule(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:border-navy/40 hover:text-navy dark:hover:text-sky transition-all"
+              className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:border-navy/40 hover:text-capta-deep dark:hover:text-capta-soft transition-all"
             >
               <Plus size={14} /> Agregar módulo
             </button>
@@ -1042,7 +1062,7 @@ export default function CourseEditorPage() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="rounded-2xl border border-sky/30 bg-sky/5 p-4"
+                  className="rounded-2xl border border-capta-soft/30 bg-capta-soft/5 p-4"
                 >
                   <input
                     autoFocus
@@ -1050,14 +1070,14 @@ export default function CourseEditorPage() {
                     onChange={e => setModuleTitle(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') handleAddModule(); if (e.key === 'Escape') setAddingModule(false); }}
                     placeholder="Nombre del módulo (Ej: Módulo 1 — Fundamentos)"
-                    className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky/40 focus:border-sky mb-3"
+                    className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft mb-3"
                   />
                   <div className="flex justify-end gap-2">
                     <button onClick={() => setAddingModule(false)} className="text-sm text-muted-foreground hover:text-foreground px-3 py-1.5">Cancelar</button>
                     <button
                       onClick={handleAddModule}
                       disabled={!moduleTitle.trim()}
-                      className="flex items-center gap-1.5 rounded-xl bg-navy px-4 py-1.5 text-sm font-semibold text-white hover:bg-navy/90 disabled:opacity-50"
+                      className="flex items-center gap-1.5 rounded-xl bg-capta-deep px-4 py-1.5 text-sm font-semibold text-white hover:bg-capta-deep/90 disabled:opacity-50"
                     >
                       <Check size={14} /> Crear módulo
                     </button>
@@ -1073,7 +1093,7 @@ export default function CourseEditorPage() {
                 <p className="text-sm text-muted-foreground mb-4">Organiza el contenido en módulos y lecciones.</p>
                 <button
                   onClick={() => setAddingModule(true)}
-                  className="flex items-center gap-1.5 rounded-xl bg-navy px-4 py-2 text-sm font-semibold text-white hover:bg-navy/90"
+                  className="flex items-center gap-1.5 rounded-xl bg-capta-deep px-4 py-2 text-sm font-semibold text-white hover:bg-capta-deep/90"
                 >
                   <Plus size={14} /> Agregar primer módulo
                 </button>

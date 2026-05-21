@@ -2,23 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Users,
-  UserPlus,
-  Mail,
-  MoreHorizontal,
-  Shield,
-  ShieldCheck,
-  UserCog,
-  UserMinus,
-  X,
-  Loader2,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
+import { Icon, type IconName } from '@/components/capta-icon';
 import { api } from '@/lib/api';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -58,11 +42,11 @@ interface PaginatedUsers {
 
 // ─── Config visual ────────────────────────────────────────────────────────────
 
-const ROLE_CONFIG: Record<UserRole, { label: string; color: string; bg: string; icon: typeof Shield }> = {
-  OWNER:      { label: 'Propietario', color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-50 dark:bg-amber-500/10',   icon: ShieldCheck },
-  ADMIN:      { label: 'Admin',       color: 'text-navy dark:text-sky',              bg: 'bg-navy/6 dark:bg-sky/10',           icon: Shield },
-  MANAGER:    { label: 'Manager',     color: 'text-teal-600 dark:text-teal-400',     bg: 'bg-teal/8 dark:bg-teal/10',          icon: UserCog },
-  EMPLOYEE:   { label: 'Empleado',    color: 'text-muted-foreground',               bg: 'bg-muted',                           icon: Users },
+const ROLE_CONFIG: Record<UserRole, { label: string; color: string; bg: string; icon: IconName }> = {
+  OWNER:    { label: 'Propietario', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-500/10',     icon: 'shield' },
+  ADMIN:    { label: 'Admin',       color: 'text-capta-deep dark:text-capta-soft', bg: 'bg-capta-tint dark:bg-capta-soft/10', icon: 'shield' },
+  MANAGER:  { label: 'Manager',     color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-500/10', icon: 'gear' },
+  EMPLOYEE: { label: 'Empleado',    color: 'text-muted-foreground',               bg: 'bg-muted',                              icon: 'user' },
 };
 
 const INVITABLE_ROLES: { value: UserRole; label: string }[] = [
@@ -75,20 +59,16 @@ const INVITABLE_ROLES: { value: UserRole; label: string }[] = [
 
 function RoleBadge({ role }: { role: UserRole }) {
   const cfg = ROLE_CONFIG[role];
-  const Icon = cfg.icon;
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${cfg.bg} ${cfg.color}`}>
-      <Icon size={11} />
+      <Icon name={cfg.icon} size={11} />
       {cfg.label}
     </span>
   );
 }
 
 function Avatar({ firstName, lastName, avatarUrl, size = 'md' }: {
-  firstName: string;
-  lastName: string;
-  avatarUrl?: string | null;
-  size?: 'sm' | 'md';
+  firstName: string; lastName: string; avatarUrl?: string | null; size?: 'sm' | 'md';
 }) {
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   const dim = size === 'sm' ? 'h-8 w-8 text-[11px]' : 'h-10 w-10 text-xs';
@@ -96,7 +76,10 @@ function Avatar({ firstName, lastName, avatarUrl, size = 'md' }: {
     return <img src={avatarUrl} alt={`${firstName} ${lastName}`} className={`${dim} rounded-full object-cover`} />;
   }
   return (
-    <div className={`${dim} flex flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky/20 to-navy/20 font-bold text-navy dark:text-sky`}>
+    <div
+      className={`${dim} flex flex-shrink-0 items-center justify-center rounded-full font-bold`}
+      style={{ background: 'linear-gradient(135deg, #DCE9F4, #8FC4E830)', color: '#1E4F7A' }}
+    >
       {initials}
     </div>
   );
@@ -161,13 +144,13 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             <p className="mt-0.5 text-sm text-muted-foreground">Se enviará un email con el enlace de activación.</p>
           </div>
           <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted">
-            <X size={16} />
+            <Icon name="close" size={16} />
           </button>
         </div>
 
         {error && (
           <div className="mb-4 flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2.5">
-            <AlertCircle size={15} className="mt-0.5 flex-shrink-0 text-destructive" />
+            <Icon name="alert-circle" size={15} className="mt-0.5 flex-shrink-0 text-destructive" />
             <p className="text-sm text-destructive">{error}</p>
           </div>
         )}
@@ -181,7 +164,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               placeholder="usuario@empresa.com"
               value={form.email}
               onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-              className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-sky/50 focus:ring-2 focus:ring-sky/15"
+              className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15"
             />
           </div>
 
@@ -193,7 +176,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                 placeholder="Juan"
                 value={form.firstName}
                 onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))}
-                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-sky/50 focus:ring-2 focus:ring-sky/15"
+                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15"
               />
             </div>
             <div className="space-y-1.5">
@@ -203,7 +186,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                 placeholder="Pérez"
                 value={form.lastName}
                 onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))}
-                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-sky/50 focus:ring-2 focus:ring-sky/15"
+                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15"
               />
             </div>
           </div>
@@ -213,7 +196,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             <select
               value={form.role}
               onChange={(e) => setForm((p) => ({ ...p, role: e.target.value as UserRole }))}
-              className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-all focus:border-sky/50 focus:ring-2 focus:ring-sky/15"
+              className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15"
             >
               {INVITABLE_ROLES.map((r) => (
                 <option key={r.value} value={r.value}>{r.label}</option>
@@ -232,10 +215,12 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             <button
               type="submit"
               disabled={loading}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-navy shadow-md shadow-sky/20 transition-all hover:shadow-sky/35 disabled:cursor-not-allowed disabled:opacity-60"
-              style={{ background: 'linear-gradient(135deg, #5AC8FA, #38BDF8)' }}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
             >
-              {loading ? <Loader2 size={15} className="animate-spin" /> : <Mail size={15} />}
+              {loading
+                ? <Icon name="refresh" size={15} className="animate-spin" />
+                : <Icon name="mail" size={15} />}
               {loading ? 'Enviando…' : 'Enviar invitación'}
             </button>
           </div>
@@ -248,15 +233,10 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 // ─── Row / Card de usuario ────────────────────────────────────────────────────
 
 function UserRow({
-  user,
-  onUpdate,
-  onDelete,
-  currentUserId,
+  user, onUpdate, onDelete, currentUserId,
 }: {
-  user: UserItem;
-  onUpdate: (id: string, data: Partial<UserItem>) => void;
-  onDelete: (id: string) => void;
-  currentUserId: string;
+  user: UserItem; onUpdate: (id: string, data: Partial<UserItem>) => void;
+  onDelete: (id: string) => void; currentUserId: string;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -287,7 +267,7 @@ function UserRow({
   };
 
   return (
-    <div className={`flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-secondary/40 ${!user.isActive ? 'opacity-60' : ''}`}>
+    <div className={`flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-muted/30 ${!user.isActive ? 'opacity-60' : ''}`}>
       <Avatar firstName={user.firstName} lastName={user.lastName} avatarUrl={user.avatarUrl} />
 
       <div className="min-w-0 flex-1">
@@ -300,7 +280,7 @@ function UserRow({
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">Inactivo</span>
           )}
           {isMe && (
-            <span className="rounded-full bg-sky/10 px-2 py-0.5 text-xs font-medium text-sky">Tú</span>
+            <span className="rounded-full bg-capta-tint dark:bg-capta-soft/10 px-2 py-0.5 text-xs font-medium text-capta-deep dark:text-capta-soft">Tú</span>
           )}
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">{user.email}</p>
@@ -314,14 +294,14 @@ function UserRow({
       {/* Actions */}
       <div className="relative flex-shrink-0">
         {loading ? (
-          <Loader2 size={16} className="animate-spin text-muted-foreground" />
+          <Icon name="refresh" size={16} className="animate-spin text-muted-foreground" />
         ) : (
           <button
             disabled={isMe || isOwner}
             onClick={() => setMenuOpen((p) => !p)}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
           >
-            <MoreHorizontal size={16} />
+            <Icon name="more-horizontal" size={16} />
           </button>
         )}
 
@@ -339,8 +319,8 @@ function UserRow({
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted"
               >
                 {user.isActive
-                  ? <><UserMinus size={14} className="text-muted-foreground" /> Desactivar</>
-                  : <><CheckCircle2 size={14} className="text-emerald-500" /> Activar</>
+                  ? <><Icon name="user-minus" size={14} className="text-muted-foreground" /> Desactivar</>
+                  : <><Icon name="check-circle" size={14} className="text-emerald-500" /> Activar</>
                 }
               </button>
               <div className="my-1 h-px bg-border" />
@@ -348,7 +328,7 @@ function UserRow({
                 onClick={handleDelete}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-destructive/8"
               >
-                <X size={14} />
+                <Icon name="close" size={14} />
                 Eliminar usuario
               </button>
             </motion.div>
@@ -362,15 +342,14 @@ function UserRow({
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function UsersPage() {
-  const [data, setData]             = useState<PaginatedUsers | null>(null);
-  const [invites, setInvites]       = useState<PendingInvite[]>([]);
-  const [page, setPage]             = useState(1);
-  const [loading, setLoading]       = useState(true);
+  const [data, setData]               = useState<PaginatedUsers | null>(null);
+  const [invites, setInvites]         = useState<PendingInvite[]>([]);
+  const [page, setPage]               = useState(1);
+  const [loading, setLoading]         = useState(true);
   const [inviteModal, setInviteModal] = useState(false);
   const [successMsg, setSuccessMsg]   = useState<string | null>(null);
-  const [tab, setTab]               = useState<'users' | 'invites'>('users');
+  const [tab, setTab]                 = useState<'users' | 'invites'>('users');
 
-  // Obtener el user ID del localStorage para marcar "Tú"
   const [currentUserId] = useState(() => {
     try { return JSON.parse(localStorage.getItem('user') ?? '{}').id ?? ''; } catch { return ''; }
   });
@@ -430,7 +409,7 @@ export default function UsersPage() {
     }
   };
 
-  const totalActive  = data?.data.filter((u) => u.isActive).length ?? 0;
+  const totalActive = data?.data.filter((u) => u.isActive).length ?? 0;
 
   return (
     <div className="min-h-full p-6 lg:p-8">
@@ -443,7 +422,7 @@ export default function UsersPage() {
         className="mb-8 flex flex-wrap items-start justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Usuarios</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Usuarios</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Gestiona los miembros de tu empresa y sus permisos.
           </p>
@@ -451,10 +430,10 @@ export default function UsersPage() {
 
         <button
           onClick={() => setInviteModal(true)}
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-navy shadow-md shadow-sky/20 transition-all hover:shadow-sky/35 hover:scale-[1.02] active:scale-[0.98]"
-          style={{ background: 'linear-gradient(135deg, #5AC8FA, #38BDF8)' }}
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
+          style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
         >
-          <UserPlus size={16} />
+          <Icon name="user-plus" size={16} />
           Invitar usuario
         </button>
       </motion.div>
@@ -468,7 +447,7 @@ export default function UsersPage() {
             exit={{ opacity: 0, y: -8 }}
             className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400"
           >
-            <CheckCircle2 size={15} />
+            <Icon name="check-circle" size={15} />
             {successMsg}
           </motion.div>
         )}
@@ -478,9 +457,9 @@ export default function UsersPage() {
       {data && (
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {[
-            { label: 'Total usuarios', value: data.total,    icon: Users,       color: 'text-foreground' },
-            { label: 'Activos',        value: totalActive,   icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400' },
-            { label: 'Invitaciones',   value: invites.length, icon: Mail,        color: 'text-navy dark:text-sky' },
+            { label: 'Total usuarios', value: data.total,     iconName: 'users'        as const, accent: '#1E4F7A' },
+            { label: 'Activos',        value: totalActive,    iconName: 'check-circle' as const, accent: '#7FD1AE' },
+            { label: 'Invitaciones',   value: invites.length, iconName: 'mail'         as const, accent: '#8FC4E8' },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}
@@ -488,8 +467,9 @@ export default function UsersPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30, delay: i * 0.06 }}
               className="rounded-xl border border-border bg-card px-4 py-3"
+              style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
             >
-              <stat.icon size={14} className={`mb-1.5 ${stat.color}`} />
+              <Icon name={stat.iconName} size={14} className="mb-1.5" style={{ color: stat.accent }} />
               <p className="text-xl font-bold text-foreground">{stat.value}</p>
               <p className="text-xs text-muted-foreground">{stat.label}</p>
             </motion.div>
@@ -519,11 +499,11 @@ export default function UsersPage() {
         <>
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 size={24} className="animate-spin text-muted-foreground" />
+              <Icon name="refresh" size={24} className="animate-spin text-muted-foreground" />
             </div>
           ) : !data || data.data.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
-              <Users size={32} className="mb-3 text-muted-foreground/40" />
+              <Icon name="users" size={32} className="mb-3 text-muted-foreground/40" />
               <p className="text-sm font-medium text-foreground">Sin usuarios</p>
               <p className="mt-1 text-sm text-muted-foreground">Invita miembros de tu equipo para comenzar.</p>
             </div>
@@ -563,14 +543,14 @@ export default function UsersPage() {
                   onClick={() => setPage((p) => p - 1)}
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-all hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <ChevronLeft size={15} />
+                  <Icon name="chevron-left" size={15} />
                 </button>
                 <button
                   disabled={page >= (data.totalPages ?? 1)}
                   onClick={() => setPage((p) => p + 1)}
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-all hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <ChevronRight size={15} />
+                  <Icon name="chevron-right" size={15} />
                 </button>
               </div>
             </div>
@@ -583,7 +563,7 @@ export default function UsersPage() {
         <div>
           {invites.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
-              <Mail size={32} className="mb-3 text-muted-foreground/40" />
+              <Icon name="mail" size={32} className="mb-3 text-muted-foreground/40" />
               <p className="text-sm font-medium text-foreground">Sin invitaciones pendientes</p>
               <p className="mt-1 text-sm text-muted-foreground">Las invitaciones activas aparecerán aquí.</p>
             </div>
@@ -601,7 +581,10 @@ export default function UsersPage() {
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                   className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3"
                 >
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-sky/10 text-xs font-bold text-sky">
+                  <div
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                    style={{ background: '#DCE9F4', color: '#1E4F7A' }}
+                  >
                     {inv.firstName.charAt(0)}{inv.lastName.charAt(0)}
                   </div>
 
@@ -619,7 +602,7 @@ export default function UsersPage() {
 
                   <div className="hidden text-right md:block">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock size={11} />
+                      <Icon name="clock" size={11} />
                       Expira {formatDate(inv.expiresAt)}
                     </div>
                   </div>
@@ -629,7 +612,7 @@ export default function UsersPage() {
                     className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/8 hover:text-destructive"
                     title="Cancelar invitación"
                   >
-                    <X size={15} />
+                    <Icon name="close" size={15} />
                   </button>
                 </motion.div>
               ))}

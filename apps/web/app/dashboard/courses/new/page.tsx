@@ -7,7 +7,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { ArrowLeft, BookOpen, Upload, X, Loader2 } from 'lucide-react';
+import { Icon } from '@/components/capta-icon';
+
+// Icon aliases for inline usage
+const ArrowLeft = (p: { size?: number; className?: string }) => <Icon name="arrow-left" size={p.size} className={p.className} />;
+const BookOpen  = (p: { size?: number; className?: string }) => <Icon name="book-open"  size={p.size} className={p.className} />;
+const Upload    = (p: { size?: number; className?: string }) => <Icon name="upload"     size={p.size} className={p.className} />;
+const X         = (p: { size?: number; className?: string }) => <Icon name="close"      size={p.size} className={p.className} />;
+const Loader2   = (p: { size?: number; className?: string }) => <Icon name="refresh"    size={p.size} className={p.className} />;
 import { api } from '@/lib/api';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -122,7 +129,7 @@ export default function NewCoursePage() {
           {/* ── Icono + título ── */}
           <div className="mb-6 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky/20 to-navy/20">
-              <BookOpen size={20} className="text-navy dark:text-sky" />
+              <BookOpen size={20} className="text-capta-deep dark:text-capta-soft" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">Nuevo curso</h1>
@@ -146,7 +153,7 @@ export default function NewCoursePage() {
               <input
                 {...register('title')}
                 placeholder="Ej: Introducción a Excel"
-                className={`w-full rounded-xl border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-sky/40 focus:border-sky transition-all ${
+                className={`w-full rounded-xl border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft transition-all ${
                   errors.title ? 'border-destructive/60 bg-destructive/5' : 'border-border hover:border-navy/30'
                 }`}
               />
@@ -160,7 +167,7 @@ export default function NewCoursePage() {
                 {...register('description')}
                 rows={4}
                 placeholder="Describe qué aprenderán los empleados en este curso..."
-                className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-sky/40 focus:border-sky transition-all hover:border-navy/30"
+                className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft transition-all hover:border-navy/30"
               />
               {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
             </div>
@@ -180,7 +187,7 @@ export default function NewCoursePage() {
                   </button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center w-full aspect-video rounded-xl border-2 border-dashed border-border bg-muted/30 hover:border-sky/50 hover:bg-sky/5 transition-all cursor-pointer">
+                <label className="flex flex-col items-center justify-center w-full aspect-video rounded-xl border-2 border-dashed border-border bg-muted/30 hover:border-capta-soft/50 hover:bg-capta-soft/5 transition-all cursor-pointer">
                   <Upload size={24} className="text-muted-foreground mb-2" />
                   <p className="text-sm font-medium text-muted-foreground">Arrastra una imagen o haz clic</p>
                   <p className="text-xs text-muted-foreground/70 mt-0.5">PNG, JPG hasta 5 MB</p>
@@ -208,12 +215,12 @@ export default function NewCoursePage() {
                       key={opt.value}
                       className={`flex-1 cursor-pointer rounded-xl border p-4 transition-all ${
                         selected
-                          ? 'border-navy/40 bg-navy/5 dark:border-sky/40 dark:bg-sky/5'
+                          ? 'border-navy/40 bg-capta-deep/5 dark:border-capta-soft/40 dark:bg-capta-soft/5'
                           : 'border-border hover:border-navy/20'
                       }`}
                     >
                       <input {...register('status')} type="radio" value={opt.value} className="sr-only" />
-                      <p className={`text-sm font-semibold ${selected ? 'text-navy dark:text-sky' : 'text-foreground'}`}>
+                      <p className={`text-sm font-semibold ${selected ? 'text-capta-deep dark:text-capta-soft' : 'text-foreground'}`}>
                         {opt.label}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
@@ -234,7 +241,7 @@ export default function NewCoursePage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="flex items-center gap-2 rounded-xl bg-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-navy/90 active:scale-[0.97] transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex items-center gap-2 rounded-xl bg-capta-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-capta-deep/90 active:scale-[0.97] transition-all disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isLoading ? (
                   <><Loader2 size={15} className="animate-spin" /> {uploadingThumb ? 'Subiendo imagen...' : 'Creando...'}</>

@@ -4,10 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import {
-  BookOpen, Plus, Clock, Users, CheckCircle2, FileText,
-  Video, Play, MoreVertical, ArrowRight, Search, Filter,
-} from 'lucide-react';
+import { Icon } from '@/components/capta-icon';
 import { api } from '@/lib/api';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -30,14 +27,12 @@ interface Course {
 // ─── Helpers de diseño ────────────────────────────────────────────────────────
 
 const STATUS_CONFIG = {
-  DRAFT:     { label: 'Borrador',   className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
-  PUBLISHED: { label: 'Publicado',  className: 'bg-teal/10 text-teal dark:text-teal-400' },
-  ARCHIVED:  { label: 'Archivado',  className: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
+  DRAFT:     { label: 'Borrador',  className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
+  PUBLISHED: { label: 'Publicado', className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' },
+  ARCHIVED:  { label: 'Archivado', className: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
 };
 
-const listContainer = {
-  animate: { transition: { staggerChildren: 0.05 } },
-};
+const listContainer = { animate: { transition: { staggerChildren: 0.05 } } };
 const listItem = {
   initial: { opacity: 0, y: 10 },
   animate: { opacity: 1, y: 0 },
@@ -54,10 +49,12 @@ function CourseCard({ course, role }: { course: Course; role: string }) {
       variants={listItem}
       whileHover={{ y: -2 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="group relative flex flex-col rounded-2xl border border-border bg-card shadow-sm hover:shadow-md hover:border-sky/30 transition-all duration-200 overflow-hidden"
+      className="group relative flex flex-col rounded-2xl border border-border bg-card hover:border-capta-soft/30 transition-all duration-200 overflow-hidden"
+      style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
     >
       {/* Thumbnail */}
-      <div className="relative h-40 bg-gradient-to-br from-navy/5 to-sky/10 dark:from-navy/20 dark:to-sky/20 flex-shrink-0">
+      <div className="relative h-40 flex-shrink-0"
+        style={{ background: 'linear-gradient(135deg, rgba(30,79,122,0.05), rgba(143,196,232,0.10))' }}>
         {course.thumbnailUrl ? (
           <img
             src={course.thumbnailUrl}
@@ -66,7 +63,7 @@ function CourseCard({ course, role }: { course: Course; role: string }) {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <BookOpen size={36} className="text-sky/40" />
+            <Icon name="book-open" size={36} className="text-capta-soft/40" />
           </div>
         )}
 
@@ -80,9 +77,9 @@ function CourseCard({ course, role }: { course: Course; role: string }) {
           <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
             <Link
               href={`/dashboard/courses/${course.id}`}
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/90 dark:bg-gray-900/90 shadow-sm text-gray-600 dark:text-gray-400 hover:text-navy dark:hover:text-sky transition-colors"
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/90 dark:bg-gray-900/90 shadow-sm text-gray-600 dark:text-gray-400 hover:text-capta-deep dark:hover:text-capta-soft transition-colors"
             >
-              <MoreVertical size={14} />
+              <Icon name="more-vertical" size={14} />
             </Link>
           </div>
         )}
@@ -106,12 +103,12 @@ function CourseCard({ course, role }: { course: Course; role: string }) {
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Tu progreso</span>
-              <span className="font-semibold text-teal">{course.myProgress}%</span>
+              <span className="font-semibold" style={{ color: '#7FD1AE' }}>{course.myProgress}%</span>
             </div>
             <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
               <div
-                className="h-full rounded-full bg-teal transition-all duration-500"
-                style={{ width: `${course.myProgress}%` }}
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${course.myProgress}%`, background: 'linear-gradient(90deg, #1F5C4D, #7FD1AE)' }}
               />
             </div>
           </div>
@@ -120,12 +117,12 @@ function CourseCard({ course, role }: { course: Course; role: string }) {
         {/* Stats */}
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
-            <FileText size={12} />
+            <Icon name="file" size={12} />
             {course.totalLessons} {course.totalLessons === 1 ? 'lección' : 'lecciones'}
           </span>
           {canEdit && course.enrollmentCount !== undefined && (
             <span className="flex items-center gap-1">
-              <Users size={12} />
+              <Icon name="users" size={12} />
               {course.enrollmentCount} {course.enrollmentCount === 1 ? 'inscrito' : 'inscritos'}
             </span>
           )}
@@ -142,20 +139,21 @@ function CourseCard({ course, role }: { course: Course; role: string }) {
             {canEdit && (
               <Link
                 href={`/dashboard/courses/${course.id}`}
-                className="flex items-center gap-1 text-xs font-medium text-navy dark:text-sky hover:underline"
+                className="flex items-center gap-1 text-xs font-medium text-capta-deep dark:text-capta-soft hover:underline"
               >
-                Editar <ArrowRight size={12} />
+                Editar <Icon name="arrow-right" size={12} />
               </Link>
             )}
             {course.status === 'PUBLISHED' && (
               <Link
                 href={`/dashboard/courses/${course.id}/learn`}
-                className="flex items-center gap-1.5 rounded-lg bg-navy px-3 py-1.5 text-xs font-semibold text-white hover:bg-navy/90 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:scale-[1.03]"
+                style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 8px rgba(30,79,122,0.25)' }}
               >
                 {course.isEnrolled ? (
-                  <><Play size={11} /> {course.myProgress === 100 ? 'Ver de nuevo' : course.myProgress && course.myProgress > 0 ? 'Continuar' : 'Iniciar'}</>
+                  <><Icon name="play" size={11} /> {course.myProgress === 100 ? 'Ver de nuevo' : course.myProgress && course.myProgress > 0 ? 'Continuar' : 'Iniciar'}</>
                 ) : (
-                  <><Play size={11} /> Ver curso</>
+                  <><Icon name="play" size={11} /> Ver curso</>
                 )}
               </Link>
             )}
@@ -185,12 +183,12 @@ function CourseCardSkeleton() {
 
 export default function CoursesPage() {
   const router = useRouter();
-  const [courses, setCourses]   = useState<Course[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
-  const [search, setSearch]     = useState('');
-  const [filter, setFilter]     = useState<string>('ALL');
-  const [role, setRole]         = useState('EMPLOYEE');
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
+  const [search, setSearch]   = useState('');
+  const [filter, setFilter]   = useState<string>('ALL');
+  const [role, setRole]       = useState('EMPLOYEE');
 
   useEffect(() => {
     const raw = localStorage.getItem('user');
@@ -212,7 +210,6 @@ export default function CoursesPage() {
     return matchSearch && matchFilter;
   });
 
-  // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = {
     total:     courses.length,
     published: courses.filter(c => c.status === 'PUBLISHED').length,
@@ -226,7 +223,7 @@ export default function CoursesPage() {
       {/* ── Header ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Cursos</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Cursos</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Gestiona el contenido de capacitación de tu empresa.
           </p>
@@ -234,9 +231,10 @@ export default function CoursesPage() {
         {canCreate && (
           <Link
             href="/dashboard/courses/new"
-            className="inline-flex items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy/90 active:scale-[0.97] transition-all shadow-sm shadow-navy/20"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.03] active:scale-[0.97]"
+            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
           >
-            <Plus size={16} /> Nuevo curso
+            <Icon name="plus" size={16} /> Nuevo curso
           </Link>
         )}
       </div>
@@ -250,15 +248,17 @@ export default function CoursesPage() {
           className="grid grid-cols-2 gap-3 lg:grid-cols-4"
         >
           {[
-            { label: 'Total de cursos',   value: stats.total,     icon: BookOpen,      color: 'text-navy dark:text-sky' },
-            { label: 'Publicados',        value: stats.published,  icon: CheckCircle2,  color: 'text-teal' },
-            { label: 'En borrador',       value: stats.draft,      icon: FileText,      color: 'text-amber-500' },
-            { label: 'Total lecciones',   value: stats.lessons,    icon: Video,         color: 'text-purple-500' },
+            { label: 'Total de cursos', value: stats.total,     iconName: 'book-open'   as const, accent: '#1E4F7A' },
+            { label: 'Publicados',      value: stats.published, iconName: 'check-circle' as const, accent: '#7FD1AE' },
+            { label: 'En borrador',     value: stats.draft,     iconName: 'file'         as const, accent: '#F59E0B' },
+            { label: 'Total lecciones', value: stats.lessons,   iconName: 'video'        as const, accent: '#8FC4E8' },
           ].map(s => (
-            <div key={s.label} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div key={s.label}
+              className="rounded-2xl border border-border bg-card p-4"
+              style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{s.label}</p>
-                <s.icon size={16} className={s.color} />
+                <Icon name={s.iconName} size={16} style={{ color: s.accent }} />
               </div>
               <p className="text-2xl font-bold text-foreground">{s.value}</p>
             </div>
@@ -269,13 +269,13 @@ export default function CoursesPage() {
       {/* ── Filtros ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Icon name="search" size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Buscar cursos..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-border bg-background pl-9 pr-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky/40 focus:border-sky transition-all"
+            className="w-full rounded-xl border border-border bg-background pl-9 pr-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft transition-all"
           />
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -285,9 +285,10 @@ export default function CoursesPage() {
               onClick={() => setFilter(s)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 filter === s
-                  ? 'bg-navy text-white dark:bg-sky dark:text-navy'
-                  : 'border border-border bg-background text-muted-foreground hover:text-foreground hover:border-navy/30'
+                  ? 'text-white'
+                  : 'border border-border bg-background text-muted-foreground hover:text-foreground hover:border-capta-deep/30'
               }`}
+              style={filter === s ? { background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' } : {}}
             >
               {s === 'ALL' ? 'Todos' : STATUS_CONFIG[s as keyof typeof STATUS_CONFIG]?.label ?? s}
             </button>
@@ -302,12 +303,12 @@ export default function CoursesPage() {
         </div>
       ) : error ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <BookOpen size={40} className="text-muted-foreground/30 mb-3" />
+          <Icon name="book-open" size={40} className="text-muted-foreground/30 mb-3" />
           <p className="text-sm text-muted-foreground">{error}</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <BookOpen size={40} className="text-muted-foreground/30 mb-4" />
+          <Icon name="book-open" size={40} className="text-muted-foreground/30 mb-4" />
           <p className="font-medium text-foreground mb-1">
             {search ? 'Sin resultados' : 'Aún no hay cursos'}
           </p>
@@ -319,9 +320,10 @@ export default function CoursesPage() {
           {canCreate && !search && (
             <Link
               href="/dashboard/courses/new"
-              className="inline-flex items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy/90 transition-all"
+              className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02]"
+              style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
             >
-              <Plus size={15} /> Crear primer curso
+              <Icon name="plus" size={15} /> Crear primer curso
             </Link>
           )}
         </div>

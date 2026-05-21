@@ -2,30 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
-import { Sun, Moon } from 'lucide-react';
+import { Icon } from './capta-icon';
 
 interface ThemeToggleProps {
-  /** Clases adicionales para el botón contenedor */
   className?: string;
-  /** Tamaño del ícono en px. Default 16. */
   iconSize?: number;
 }
 
-/**
- * Botón de toggle light / dark mode.
- *
- * Usa `suppressHydrationWarning` pattern: renderiza un placeholder vacío
- * del mismo tamaño hasta que el componente esté montado en el cliente.
- * Esto evita el hydration mismatch ya que el tema inicial se determina
- * en el cliente (no en el servidor).
- */
 export function ThemeToggle({ className = '', iconSize = 16 }: ThemeToggleProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
-  // Placeholder del mismo tamaño que el botón real para no causar layout shift
+  // Placeholder del mismo tamaño para evitar layout shift durante hidratación
   if (!mounted) {
     return <div className="h-8 w-8 flex-shrink-0" aria-hidden="true" />;
   }
@@ -43,10 +33,7 @@ export function ThemeToggle({ className = '', iconSize = 16 }: ThemeToggleProps)
         active:scale-95
         ${className}`}
     >
-      {isDark
-        ? <Sun  size={iconSize} strokeWidth={1.75} />
-        : <Moon size={iconSize} strokeWidth={1.75} />
-      }
+      <Icon name={isDark ? 'sun' : 'moon'} size={iconSize} />
     </button>
   );
 }

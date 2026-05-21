@@ -3,104 +3,205 @@
 @tailwind utilities;
 
 /*
- * Design tokens — Capacitaciones LMS
- * Filosofía: neutrales 100% sin tinte de color (hue 0°).
- * Los colores de marca (navy #0B5A8C, sky #5AC8FA, teal #14B8A6)
- * aparecen SOLO en elementos interactivos y acentos.
+ * Design tokens — Capta
  *
- * Inspiración: Notion + Apple Human Interface Guidelines.
+ * Extraídos directamente de los mockups Dash-Claro.html / Dash-Oscuro.html.
  *
- * Light:  fondo blanco puro, texto carbón neutro, grises limpios.
- * Dark:   #1A1A1A (Notion dark), texto #EDEDED, grises neutros.
+ * Light:  Fondo crema cálido #FAFAF7, texto navy profundo #0B1F2A,
+ *         cards blancas con glass sutil, border rgba(11,31,42,0.08).
+ *
+ * Dark:   Fondo teal-negro #0A1419, texto crema #F4F2EC,
+ *         cards con glass rgba(255,255,255,0.05), border rgba(255,255,255,0.10).
  */
 
 @layer base {
   :root {
     /* ── Superficies ──────────────────────────────────────────────────────── */
-    --background:  0 0% 100%;          /* #FFFFFF — blanco puro                */
-    --card:        0 0% 100%;          /* #FFFFFF — tarjetas sobre fondo        */
-    --popover:     0 0% 100%;
+    --background:  60 11% 97%;         /* #FAFAF7 — crema cálido               */
+    --card:        0  0% 100%;         /* #FFFFFF — tarjetas                    */
+    --popover:     0  0% 100%;
 
     /* ── Texto ────────────────────────────────────────────────────────────── */
-    --foreground:          0 0%  9%;   /* #171717 — carbón neutro, 18:1 en blanco ✓ */
-    --card-foreground:     0 0%  9%;
-    --popover-foreground:  0 0%  9%;
-    --muted-foreground:    0 0% 44%;   /* #707070 — gris neutro, 5.9:1 en blanco ✓ WCAG AA */
+    --foreground:          205 62% 10%;  /* #0B1F2A — navy profundo              */
+    --card-foreground:     205 62% 10%;
+    --popover-foreground:  205 62% 10%;
+    --muted-foreground:    202 15% 43%;  /* rgba(11,31,42,0.62) ≈ #5E7481       */
 
-    /* ── Primario: navy ───────────────────────────────────────────────────── */
-    --primary:            203 85% 29%; /* #0B5A8C */
-    --primary-foreground: 0   0% 100%;
+    /* ── Primario: accent-deep navy ───────────────────────────────────────── */
+    --primary:            209 59% 30%;  /* #1E4F7A */
+    --primary-foreground:  60 11% 97%;  /* #FAFAF7 */
 
-    /* ── Secundario: gris suave ───────────────────────────────────────────── */
-    --secondary:           0 0% 96%;   /* #F5F5F5 */
-    --secondary-foreground: 0 0%  9%;
+    /* ── Secundario ───────────────────────────────────────────────────────── */
+    --secondary:           47 17% 93%;  /* #F4F2EC — crema suave               */
+    --secondary-foreground: 205 62% 10%;
 
-    /* ── Muted: gris muy suave ────────────────────────────────────────────── */
-    --muted:           0 0% 96%;       /* #F5F5F5 */
-    --muted-foreground: 0 0% 44%;
+    /* ── Muted ────────────────────────────────────────────────────────────── */
+    --muted:           47 17% 93%;      /* #F4F2EC */
+    --muted-foreground: 202 15% 43%;
 
-    /* ── Acento: sky ──────────────────────────────────────────────────────── */
-    --accent:            199 94% 67%;  /* #5AC8FA */
-    --accent-foreground: 0   0%  9%;
+    /* ── Acento: accent-soft blue ─────────────────────────────────────────── */
+    --accent:            206 60% 73%;   /* #8FC4E8 */
+    --accent-foreground: 205 62% 10%;
 
     /* ── Destructivo ──────────────────────────────────────────────────────── */
     --destructive:            0 84% 60%;
     --destructive-foreground: 0  0% 100%;
 
     /* ── Bordes e inputs ──────────────────────────────────────────────────── */
-    --border: 0 0% 89%;                /* #E3E3E3 — gris neutro claro          */
-    --input:  0 0% 89%;
-    --ring:   199 94% 67%;             /* sky — focus ring                     */
+    --border: 200 19% 90%;             /* rgba(11,31,42,0.08) ≈ #E3E9EC       */
+    --input:  200 19% 90%;
+    --ring:   206 60% 73%;             /* accent-soft blue                    */
 
     /* ── Shape ────────────────────────────────────────────────────────────── */
-    --radius: 0.75rem;
+    --radius: 0.875rem;                /* 14px — ligeramente más suave        */
+
+    /* ── Brand tokens directos (logo + accents) ───────────────────────────── */
+    --brand-dark:     #1F5C4D;         /* teal profundo del logo              */
+    --brand-mid:      #7FD1AE;         /* mint del logo                       */
+    --brand-light:    #A8E6CF;         /* mint claro (dark mode logo)         */
+    --accent-deep:    #1E4F7A;         /* navy UI                             */
+    --accent-soft:    #8FC4E8;         /* azul claro UI                       */
+    --accent-tint:    #DCE9F4;         /* tint muy suave                      */
   }
 
   .dark {
     /* ── Superficies ──────────────────────────────────────────────────────── */
-    --background: 0 0% 10%;           /* #1A1A1A — Notion dark                */
-    --card:       0 0% 14%;           /* #242424 — tarjeta, ligeramente más claro */
-    --popover:    0 0% 14%;
+    --background: 199 40%  7%;         /* #0A1419 — teal-negro profundo       */
+    --card:       199 35% 11%;         /* ~#131F27 — tarjeta elevada          */
+    --popover:    199 35% 11%;
 
     /* ── Texto ────────────────────────────────────────────────────────────── */
-    --foreground:          0 0% 93%;  /* #EDEDED — casi blanco neutro          */
-    --card-foreground:     0 0% 93%;
-    --popover-foreground:  0 0% 93%;
-    --muted-foreground:    0 0% 63%;  /* #A1A1A1 — gris neutro, 6.1:1 en #1A1A1A ✓ */
+    --foreground:          47 22% 94%;  /* #F4F2EC — crema                     */
+    --card-foreground:     47 22% 94%;
+    --popover-foreground:  47 22% 94%;
+    --muted-foreground:    40  6% 62%;  /* rgba(244,242,236,0.62) ≈ #B0AEA9   */
 
-    /* ── Primario: sky (más brillante en dark) ────────────────────────────── */
-    --primary:            199 94% 67%; /* #5AC8FA */
-    --primary-foreground: 0   0% 10%;
+    /* ── Primario: accent-soft (más visible en dark) ──────────────────────── */
+    --primary:            206 60% 73%;  /* #8FC4E8 */
+    --primary-foreground: 199 40%  7%;
 
     /* ── Secundario ───────────────────────────────────────────────────────── */
-    --secondary:           0 0% 18%;  /* #2E2E2E */
-    --secondary-foreground: 0 0% 93%;
+    --secondary:           199 35% 14%; /* ~#111E26 */
+    --secondary-foreground: 47 22% 94%;
 
     /* ── Muted ────────────────────────────────────────────────────────────── */
-    --muted:           0 0% 16%;      /* #292929 */
-    --muted-foreground: 0 0% 63%;
+    --muted:           199 35% 14%;
+    --muted-foreground:  40  6% 62%;
 
     /* ── Acento ───────────────────────────────────────────────────────────── */
-    --accent:            199 94% 67%;
-    --accent-foreground: 0   0% 10%;
+    --accent:            206 60% 73%;  /* #8FC4E8 */
+    --accent-foreground: 199 40%  7%;
 
     /* ── Destructivo ──────────────────────────────────────────────────────── */
     --destructive:            0 72% 51%;
     --destructive-foreground: 0  0% 98%;
 
     /* ── Bordes e inputs ──────────────────────────────────────────────────── */
-    --border: 0 0% 20%;               /* #333333 — borde oscuro neutro        */
-    --input:  0 0% 18%;               /* #2E2E2E */
-    --ring:   199 94% 67%;
+    --border: 199 30% 15%;             /* rgba(255,255,255,0.10) ≈ #182530    */
+    --input:  199 30% 13%;
+    --ring:   206 60% 73%;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: 'rlig' 1, 'calt' 1;
+    font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
   }
+}
+
+/* ─── Sombras de cards del mockup ───────────────────────────────────────────── */
+@layer utilities {
+  .card-shadow {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.6) inset,
+      0 12px 36px rgba(11, 31, 42, 0.06);
+  }
+  .dark .card-shadow {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.04) inset,
+      0 24px 60px rgba(0, 0, 0, 0.35);
+  }
+  .card-shadow-lg {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.7) inset,
+      0 20px 60px rgba(11, 31, 42, 0.09);
+  }
+  .dark .card-shadow-lg {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.05) inset,
+      0 32px 80px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Glass surface del mockup */
+  .glass {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid rgba(11, 31, 42, 0.08);
+  }
+  .dark .glass {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+  }
+
+  /* Texto con gradiente de marca */
+  .text-brand {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #1F5C4D 0%, #7FD1AE 100%);
+  }
+  .dark .text-brand {
+    background-image: linear-gradient(135deg, #7FD1AE 0%, #A8E6CF 100%);
+  }
+
+  /* Scrollbar delgado */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 2px;
+  }
+}
+
+/* ─── Keyframes ─────────────────────────────────────────────────────────────── */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+@layer utilities {
+  .animate-fade-up   { animation: fade-up 0.45s ease-out both; }
+  .animate-fade-in   { animation: fade-in 0.3s ease-out both; }
+  .animate-shimmer   { background-size: 200% auto; animation: shimmer 2.5s linear infinite; }
+  .animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+
+  /* Stagger helpers */
+  .delay-50  { animation-delay: 50ms; }
+  .delay-100 { animation-delay: 100ms; }
+  .delay-150 { animation-delay: 150ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-250 { animation-delay: 250ms; }
+  .delay-300 { animation-delay: 300ms; }
 }

@@ -4,10 +4,23 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ArrowLeft, BookOpen, CheckCircle2, Circle, ChevronDown, ChevronRight,
-  Video, FileText, File, Download, Loader2, Menu, X, Award,
-} from 'lucide-react';
+import { Icon } from '@/components/capta-icon';
+
+// Icon aliases for inline usage
+const ArrowLeft    = (p: { size?: number; className?: string }) => <Icon name="arrow-left"    size={p.size} className={p.className} />;
+const BookOpen     = (p: { size?: number; className?: string }) => <Icon name="book-open"     size={p.size} className={p.className} />;
+const CheckCircle2 = (p: { size?: number; className?: string }) => <Icon name="check-circle" size={p.size} className={p.className} />;
+const Circle       = (p: { size?: number; className?: string }) => <Icon name="circle"        size={p.size} className={p.className} />;
+const ChevronDown  = (p: { size?: number; className?: string }) => <Icon name="chevron-down"  size={p.size} className={p.className} />;
+const ChevronRight = (p: { size?: number; className?: string }) => <Icon name="chevron-right" size={p.size} className={p.className} />;
+const Video        = (p: { size?: number; className?: string }) => <Icon name="video"         size={p.size} className={p.className} />;
+const FileText     = (p: { size?: number; className?: string }) => <Icon name="file"          size={p.size} className={p.className} />;
+const File         = (p: { size?: number; className?: string }) => <Icon name="file"          size={p.size} className={p.className} />;
+const Download     = (p: { size?: number; className?: string }) => <Icon name="download"      size={p.size} className={p.className} />;
+const Loader2      = (p: { size?: number; className?: string }) => <Icon name="refresh"       size={p.size} className={p.className} />;
+const Menu         = (p: { size?: number; className?: string }) => <Icon name="menu"          size={p.size} className={p.className} />;
+const X            = (p: { size?: number; className?: string }) => <Icon name="close"         size={p.size} className={p.className} />;
+const Award        = (p: { size?: number; className?: string }) => <Icon name="award"         size={p.size} className={p.className} />;
 import { api } from '@/lib/api';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -133,12 +146,12 @@ function LessonTree({
                       onClick={() => onSelectLesson(lesson)}
                       className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-all ${
                         active
-                          ? 'bg-navy/8 text-navy dark:bg-sky/[0.12] dark:text-sky'
+                          ? 'bg-capta-deep/8 text-capta-deep dark:bg-capta-soft/[0.12] dark:text-capta-soft'
                           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                       }`}
                     >
                       {completed
-                        ? <CheckCircle2 size={14} className="text-teal flex-shrink-0" />
+                        ? <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                         : <Circle size={14} className="flex-shrink-0 opacity-40" />
                       }
                       <Icon size={13} className="flex-shrink-0 opacity-70" />
@@ -365,7 +378,7 @@ function LessonViewer({
                   <a
                     href={fileSignedUrl}
                     download={lesson.fileName}
-                    className="flex items-center gap-2 rounded-xl bg-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-navy/90 transition-colors"
+                    className="flex items-center gap-2 rounded-xl bg-capta-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-capta-deep/90 transition-colors"
                   >
                     <Download size={15} /> Descargar archivo
                   </a>
@@ -381,7 +394,7 @@ function LessonViewer({
       {/* Footer: acción completar */}
       <div className="flex-shrink-0 border-t border-border px-6 py-4 flex items-center justify-between gap-3">
         {isCompleted ? (
-          <div className="flex items-center gap-2 text-teal text-sm font-semibold">
+          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm font-semibold">
             <CheckCircle2 size={18} /> Lección completada
           </div>
         ) : (
@@ -392,7 +405,7 @@ function LessonViewer({
             <button
               onClick={handleComplete}
               disabled={completing}
-              className="flex items-center gap-2 rounded-xl bg-teal px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal/90 disabled:opacity-60 transition-all active:scale-[0.97]"
+              className="flex items-center gap-2 rounded-xl bg-capta-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-capta-deep/90 disabled:opacity-60 transition-all active:scale-[0.97]"
             >
               {completing ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
               Marcar como completada
@@ -536,11 +549,11 @@ export default function LearnPage() {
             <div className="space-y-1">
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{completedCount}/{course.totalLessons} lecciones</span>
-                <span className="font-semibold text-teal">{progress}%</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{progress}%</span>
               </div>
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                 <motion.div
-                  className="h-full rounded-full bg-teal"
+                  className="h-full rounded-full bg-emerald-500"
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}
                   transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -566,9 +579,9 @@ export default function LearnPage() {
         {/* Completado */}
         {isCompleted && (
           <div className="flex-shrink-0 border-t border-border p-4">
-            <div className="flex items-center gap-2 rounded-xl bg-teal/10 px-3 py-2">
-              <Award size={16} className="text-teal" />
-              <p className="text-xs font-semibold text-teal">¡Curso completado!</p>
+            <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2">
+              <Award size={16} className="text-emerald-600 dark:text-emerald-400" />
+              <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">¡Curso completado!</p>
             </div>
           </div>
         )}
@@ -583,7 +596,7 @@ export default function LearnPage() {
             <Menu size={20} />
           </button>
           <h1 className="text-sm font-semibold text-foreground truncate max-w-[180px]">{course.title}</h1>
-          <span className="text-xs text-teal font-semibold">{progress}%</span>
+          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{progress}%</span>
         </div>
 
         {/* Contenido de lección o estado sin inscripción */}
@@ -592,7 +605,7 @@ export default function LearnPage() {
             // Estado: sin inscripción
             <div className="flex h-full flex-col items-center justify-center p-8 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-sky/20 to-navy/20 mb-4">
-                <BookOpen size={28} className="text-navy dark:text-sky" />
+                <BookOpen size={28} className="text-capta-deep dark:text-capta-soft" />
               </div>
               <h2 className="text-xl font-bold text-foreground mb-2">{course.title}</h2>
               {course.description && (
@@ -604,7 +617,7 @@ export default function LearnPage() {
               <button
                 onClick={handleEnroll}
                 disabled={enrolling}
-                className="flex items-center gap-2 rounded-xl bg-navy px-6 py-3 text-sm font-semibold text-white hover:bg-navy/90 disabled:opacity-60 transition-all active:scale-[0.97]"
+                className="flex items-center gap-2 rounded-xl bg-capta-deep px-6 py-3 text-sm font-semibold text-white hover:bg-capta-deep/90 disabled:opacity-60 transition-all active:scale-[0.97]"
               >
                 {enrolling ? <Loader2 size={16} className="animate-spin" /> : null}
                 Inscribirme en este curso

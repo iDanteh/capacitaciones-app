@@ -2,10 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import {
-  BookOpen, Users, TrendingUp, CheckCircle2,
-  BarChart2, Clock, ChevronDown, ChevronUp, RefreshCw,
-} from 'lucide-react';
+import { Icon, type IconName } from '@/components/capta-icon';
 import { api } from '@/lib/api';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -65,32 +62,40 @@ function formatDate(iso: string | null): string {
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, sub, icon: Icon, color }: {
+function StatCard({ label, value, sub, iconName, accent }: {
   label: string; value: string | number; sub?: string;
-  icon: React.ElementType; color: string;
+  iconName: IconName; accent: string;
 }) {
   return (
     <motion.div
       variants={listItem}
-      className="rounded-2xl border border-border bg-card p-5 shadow-sm"
+      className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition-all hover:-translate-y-0.5"
+      style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
     >
-      <div className="flex items-start justify-between mb-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-        <Icon size={16} className={color} />
+      <div className="pointer-events-none absolute -right-4 -top-4 h-20 w-20 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-15"
+        style={{ background: accent }} />
+      <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl"
+        style={{ background: `${accent}15`, color: accent, border: `1px solid ${accent}20` }}>
+        <Icon name={iconName} size={16} />
       </div>
-      <p className="text-3xl font-bold tracking-tight text-foreground">{value}</p>
-      {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
+      <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
+      <p className="mt-0.5 text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide">{label}</p>
+      {sub && <p className="mt-1 text-xs text-muted-foreground/50">{sub}</p>}
     </motion.div>
   );
 }
 
 // ─── Progress bar inline ──────────────────────────────────────────────────────
 
-function MiniBar({ value, color = 'bg-teal' }: { value: number; color?: string }) {
+function MiniBar({ value, color }: { value: number; color?: string }) {
+  const barStyle = color
+    ? { width: `${value}%`, background: color }
+    : { width: `${value}%`, background: 'linear-gradient(90deg, #1F5C4D, #7FD1AE)' };
+
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${value}%` }} />
+        <div className="h-full rounded-full transition-all" style={barStyle} />
       </div>
       <span className="text-xs font-semibold text-foreground w-8 text-right">{value}%</span>
     </div>
@@ -124,7 +129,6 @@ export default function AnalyticsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error,      setError]      = useState<string | null>(null);
 
-  // Sorting de tablas
   type CourseSort   = 'enrolled' | 'completionRate' | 'avgProgress';
   type EmployeeSort = 'avgProgress' | 'completed' | 'lastLoginAt';
   const [courseSort,   setCourseSort]   = useState<CourseSort>('enrolled');
@@ -162,13 +166,11 @@ export default function AnalyticsPage() {
     );
   }
 
-  // Ordenar cursos
   const sortedCourses = [...courses].sort((a, b) => {
     const diff = (a[courseSort] as number) - (b[courseSort] as number);
     return courseAsc ? diff : -diff;
   });
 
-  // Ordenar empleados
   const sortedEmployees = [...employees].sort((a, b) => {
     if (employeeSort === 'lastLoginAt') {
       const ta = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : 0;
@@ -190,8 +192,10 @@ export default function AnalyticsPage() {
   }
 
   function SortIcon({ col, current, asc }: { col: string; current: string; asc: boolean }) {
-    if (col !== current) return <ChevronDown size={12} className="opacity-30" />;
-    return asc ? <ChevronUp size={12} className="text-navy dark:text-sky" /> : <ChevronDown size={12} className="text-navy dark:text-sky" />;
+    if (col !== current) return <Icon name="chevron-down" size={12} className="opacity-30" />;
+    return asc
+      ? <Icon name="chevron-up" size={12} className="text-capta-deep dark:text-capta-soft" />
+      : <Icon name="chevron-down" size={12} className="text-capta-deep dark:text-capta-soft" />;
   }
 
   return (
@@ -200,7 +204,7 @@ export default function AnalyticsPage() {
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Analíticas</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Analíticas</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Progreso general de capacitación de tu empresa.
           </p>
@@ -211,7 +215,7 @@ export default function AnalyticsPage() {
           className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
           title="Actualizar datos"
         >
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+          <Icon name="refresh" size={14} className={refreshing ? 'animate-spin' : ''} />
           {refreshing ? 'Actualizando…' : 'Actualizar'}
         </button>
       </div>
@@ -223,10 +227,10 @@ export default function AnalyticsPage() {
         variants={{ animate: { transition: { staggerChildren: 0.06 } } }}
         className="grid grid-cols-2 lg:grid-cols-4 gap-4"
       >
-        <StatCard label="Cursos publicados"   value={overview.publishedCourses}  sub={`de ${overview.totalCourses} totales`} icon={BookOpen}     color="text-navy dark:text-sky" />
-        <StatCard label="Total inscripciones" value={overview.totalEnrollments}  sub={`${overview.completedEnrollments} completadas`}           icon={TrendingUp}   color="text-sky" />
-        <StatCard label="Tasa de completado"  value={`${overview.completionRate}%`} sub="del total de inscripciones"          icon={CheckCircle2} color="text-teal" />
-        <StatCard label="Empleados activos"   value={overview.totalUsers}        sub={`${overview.totalLessons} lecciones en total`}            icon={Users}        color="text-purple-500" />
+        <StatCard label="Cursos publicados"   value={overview.publishedCourses}     sub={`de ${overview.totalCourses} totales`}         iconName="book-open"    accent="#1E4F7A" />
+        <StatCard label="Total inscripciones" value={overview.totalEnrollments}     sub={`${overview.completedEnrollments} completadas`} iconName="trending"     accent="#8FC4E8" />
+        <StatCard label="Tasa de completado"  value={`${overview.completionRate}%`} sub="del total de inscripciones"                    iconName="check-circle" accent="#7FD1AE" />
+        <StatCard label="Empleados activos"   value={overview.totalUsers}           sub={`${overview.totalLessons} lecciones en total`} iconName="users"        accent="#F59E0B" />
       </motion.div>
 
       {/* ── Tabla de cursos ── */}
@@ -234,11 +238,12 @@ export default function AnalyticsPage() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.1 }}
-        className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden"
+        className="rounded-2xl border border-border bg-card overflow-hidden"
+        style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <BookOpen size={16} className="text-muted-foreground" />
+            <Icon name="book-open" size={16} className="text-muted-foreground" />
             <h2 className="text-sm font-semibold text-foreground">Cursos</h2>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{courses.length}</span>
           </div>
@@ -246,7 +251,7 @@ export default function AnalyticsPage() {
 
         {courses.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <BarChart2 size={32} className="text-muted-foreground/30 mb-3" />
+            <Icon name="chart-bar" size={32} className="text-muted-foreground/30 mb-3" />
             <p className="text-sm text-muted-foreground">Sin datos de cursos todavía.</p>
           </div>
         ) : (
@@ -291,16 +296,19 @@ export default function AnalyticsPage() {
                     </td>
                     <td className="px-4 py-3.5">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                        c.status === 'PUBLISHED' ? 'bg-teal/10 text-teal' :
-                        c.status === 'DRAFT' ? 'bg-muted text-muted-foreground' :
-                        'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400'
+                        c.status === 'PUBLISHED' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' :
+                        c.status === 'DRAFT'     ? 'bg-muted text-muted-foreground' :
+                                                   'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400'
                       }`}>
                         {c.status === 'PUBLISHED' ? 'Publicado' : c.status === 'DRAFT' ? 'Borrador' : 'Archivado'}
                       </span>
                     </td>
                     <td className="px-4 py-3.5 text-right font-semibold text-foreground">{c.enrolled}</td>
                     <td className="px-4 py-3.5 w-36">
-                      <MiniBar value={c.completionRate} color={c.completionRate >= 70 ? 'bg-teal' : c.completionRate >= 40 ? 'bg-sky' : 'bg-muted-foreground'} />
+                      <MiniBar
+                        value={c.completionRate}
+                        color={c.completionRate >= 70 ? 'linear-gradient(90deg, #1F5C4D, #7FD1AE)' : c.completionRate >= 40 ? '#8FC4E8' : undefined}
+                      />
                     </td>
                     <td className="px-4 py-3.5 w-36 hidden lg:table-cell">
                       <MiniBar value={c.avgProgress} />
@@ -318,11 +326,12 @@ export default function AnalyticsPage() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.15 }}
-        className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden"
+        className="rounded-2xl border border-border bg-card overflow-hidden"
+        style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <Users size={16} className="text-muted-foreground" />
+            <Icon name="users" size={16} className="text-muted-foreground" />
             <h2 className="text-sm font-semibold text-foreground">Empleados</h2>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{employees.length}</span>
           </div>
@@ -330,7 +339,7 @@ export default function AnalyticsPage() {
 
         {employees.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Users size={32} className="text-muted-foreground/30 mb-3" />
+            <Icon name="users" size={32} className="text-muted-foreground/30 mb-3" />
             <p className="text-sm text-muted-foreground">Sin empleados registrados.</p>
           </div>
         ) : (
@@ -375,7 +384,7 @@ export default function AnalyticsPage() {
                     </td>
                     <td className="px-4 py-3.5 text-right text-foreground font-semibold">{e.enrolled}</td>
                     <td className="px-4 py-3.5 text-right">
-                      <span className={`font-semibold ${e.completed > 0 ? 'text-teal' : 'text-muted-foreground'}`}>
+                      <span className={`font-semibold ${e.completed > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                         {e.completed}
                       </span>
                       {e.enrolled > 0 && (
@@ -389,7 +398,7 @@ export default function AnalyticsPage() {
                     </td>
                     <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
-                        <Clock size={11} />
+                        <Icon name="clock" size={11} />
                         {formatDate(e.lastLoginAt)}
                       </div>
                     </td>

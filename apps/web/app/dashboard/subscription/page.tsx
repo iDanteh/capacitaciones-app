@@ -2,23 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  CreditCard,
-  Package,
-  HardDrive,
-  ExternalLink,
-  Plus,
-  Minus,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  RefreshCw,
-  Calendar,
-  Zap,
-  Infinity,
-  X,
-} from 'lucide-react';
+import { Icon, type IconName } from '@/components/capta-icon';
 import { api } from '@/lib/api';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -73,19 +57,19 @@ interface StoragePack {
 
 const STATUS_CONFIG: Record<
   SubscriptionStatus,
-  { label: string; icon: typeof CheckCircle2; bg: string; text: string; border: string }
+  { label: string; icon: IconName; bg: string; text: string; border: string }
 > = {
-  ACTIVE:   { label: 'Activa',       icon: CheckCircle2,  bg: 'bg-teal-50 dark:bg-teal/10',   text: 'text-teal-600 dark:text-teal',     border: 'border-teal-200 dark:border-teal/30' },
-  TRIAL:    { label: 'Prueba',       icon: Zap,           bg: 'bg-sky-50 dark:bg-sky/10',     text: 'text-sky-600 dark:text-sky',       border: 'border-sky-200 dark:border-sky/30' },
-  PAST_DUE: { label: 'Pago vencido', icon: AlertTriangle, bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-500/30' },
-  CANCELED: { label: 'Cancelada',    icon: XCircle,       bg: 'bg-red-50 dark:bg-red-500/10',  text: 'text-red-600 dark:text-red-400',   border: 'border-red-200 dark:border-red-500/30' },
-  UNPAID:   { label: 'Sin pagar',    icon: AlertTriangle, bg: 'bg-red-50 dark:bg-red-500/10',  text: 'text-red-600 dark:text-red-400',   border: 'border-red-200 dark:border-red-500/30' },
+  ACTIVE:   { label: 'Activa',       icon: 'check-circle',   bg: 'bg-emerald-50 dark:bg-emerald-500/10',  text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/30' },
+  TRIAL:    { label: 'Prueba',       icon: 'zap',            bg: 'bg-capta-tint dark:bg-capta-soft/10',   text: 'text-capta-deep dark:text-capta-soft',  border: 'border-capta-soft/30 dark:border-capta-soft/20' },
+  PAST_DUE: { label: 'Pago vencido', icon: 'alert-triangle', bg: 'bg-amber-50 dark:bg-amber-500/10',      text: 'text-amber-600 dark:text-amber-400',     border: 'border-amber-200 dark:border-amber-500/30' },
+  CANCELED: { label: 'Cancelada',    icon: 'x-circle',       bg: 'bg-red-50 dark:bg-red-500/10',          text: 'text-red-600 dark:text-red-400',          border: 'border-red-200 dark:border-red-500/30' },
+  UNPAID:   { label: 'Sin pagar',    icon: 'alert-triangle', bg: 'bg-red-50 dark:bg-red-500/10',          text: 'text-red-600 dark:text-red-400',          border: 'border-red-200 dark:border-red-500/30' },
 };
 
 const PLAN_GRADIENT: Record<PlanType, string> = {
   FREE:       'from-neutral-400 to-neutral-600',
-  BUSINESS:   'from-sky to-navy',
-  ENTERPRISE: 'from-teal to-navy',
+  BUSINESS:   'from-capta-soft to-capta-deep',
+  ENTERPRISE: 'from-emerald-400 to-capta-deep',
 };
 
 // ─── Utilidades ───────────────────────────────────────────────────────────────
@@ -120,15 +104,15 @@ function StorageBar({ usedBytes, totalGb }: { usedBytes: number; totalGb: number
   const pct = unlimited ? 0 : Math.min(100, (usedBytes / totalBytes) * 100);
 
   const barColor =
-    pct >= 90 ? 'bg-red-500' :
-    pct >= 70 ? 'bg-amber-500' :
-    'bg-teal';
+    pct >= 90 ? '#ef4444' :
+    pct >= 70 ? '#f59e0b' :
+    '#7FD1AE';
 
   return (
     <div className="mt-5 border-t border-border pt-5 space-y-2">
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1.5 font-medium text-foreground">
-          <HardDrive size={13} className="text-muted-foreground" />
+          <Icon name="hard-drive" size={13} className="text-muted-foreground" />
           Almacenamiento usado
         </div>
         <span className="text-muted-foreground">
@@ -141,8 +125,8 @@ function StorageBar({ usedBytes, totalGb }: { usedBytes: number; totalGb: number
       {!unlimited && (
         <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all duration-700 ${barColor}`}
-            style={{ width: `${pct}%` }}
+            className="h-full rounded-full transition-all duration-700"
+            style={{ width: `${pct}%`, background: barColor }}
           />
         </div>
       )}
@@ -162,12 +146,11 @@ function StorageBar({ usedBytes, totalGb }: { usedBytes: number; totalGb: number
 
 function StatusBadge({ status }: { status: SubscriptionStatus }) {
   const cfg = STATUS_CONFIG[status];
-  const Icon = cfg.icon;
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${cfg.bg} ${cfg.text} ${cfg.border}`}
     >
-      <Icon size={12} />
+      <Icon name={cfg.icon} size={12} />
       {cfg.label}
     </span>
   );
@@ -177,7 +160,10 @@ function StatusBadge({ status }: { status: SubscriptionStatus }) {
 
 function SectionCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-border bg-card p-6 ${className}`}>
+    <div
+      className={`rounded-2xl border border-border bg-card p-6 ${className}`}
+      style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
+    >
       {children}
     </div>
   );
@@ -190,7 +176,7 @@ function FeatureChip({ label, enabled }: { label: string; enabled: boolean }) {
     <span
       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
         enabled
-          ? 'bg-teal/10 text-teal-600 dark:text-teal'
+          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
           : 'bg-muted text-muted-foreground line-through opacity-50'
       }`}
     >
@@ -199,30 +185,35 @@ function FeatureChip({ label, enabled }: { label: string; enabled: boolean }) {
   );
 }
 
+// ─── MetricCell ───────────────────────────────────────────────────────────────
+
+function MetricCell({ label, value, iconName }: { label: string; value: string; iconName: IconName }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Icon name={iconName} size={12} />
+        <span>{label}</span>
+      </div>
+      <p className="text-sm font-semibold text-foreground">{value}</p>
+    </div>
+  );
+}
+
 // ─── Storage Pack Row ─────────────────────────────────────────────────────────
 
 function PackRow({
-  pack,
-  currentQty,
-  isOwner,
-  adding,
-  removing,
-  onAdd,
-  onRemove,
+  pack, currentQty, isOwner, adding, removing, onAdd, onRemove,
 }: {
-  pack: StoragePack;
-  currentQty: number;
-  isOwner: boolean;
-  adding: boolean;
-  removing: boolean;
-  onAdd: () => void;
-  onRemove: () => void;
+  pack: StoragePack; currentQty: number; isOwner: boolean;
+  adding: boolean; removing: boolean; onAdd: () => void; onRemove: () => void;
 }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-muted/30 px-4 py-3 transition-colors hover:bg-muted/50">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-navy/8 dark:bg-sky/10">
-          <HardDrive size={16} className="text-navy dark:text-sky" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl"
+          style={{ background: '#1E4F7A10', color: '#1E4F7A' }}
+          data-dark-style="background: #8FC4E810; color: #8FC4E8">
+          <Icon name="hard-drive" size={16} />
         </div>
         <div>
           <p className="text-sm font-medium text-foreground">{pack.name}</p>
@@ -232,7 +223,7 @@ function PackRow({
 
       <div className="flex items-center gap-2">
         {currentQty > 0 && (
-          <span className="rounded-full bg-sky/10 px-2 py-0.5 text-xs font-semibold text-sky-700 dark:text-sky">
+          <span className="rounded-full bg-capta-tint dark:bg-capta-soft/10 px-2 py-0.5 text-xs font-semibold text-capta-deep dark:text-capta-soft">
             ×{currentQty}
           </span>
         )}
@@ -246,16 +237,20 @@ function PackRow({
                 className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:border-red-500/30 dark:hover:bg-red-500/10 dark:hover:text-red-400"
                 aria-label="Quitar pack"
               >
-                {removing ? <Loader2 size={13} className="animate-spin" /> : <Minus size={13} />}
+                {removing
+                  ? <Icon name="refresh" size={13} className="animate-spin" />
+                  : <Icon name="minus" size={13} />}
               </button>
             )}
             <button
               onClick={onAdd}
               disabled={removing || adding}
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:border-navy/30 hover:bg-navy/5 hover:text-navy disabled:cursor-not-allowed disabled:opacity-50 dark:hover:border-sky/30 dark:hover:bg-sky/10 dark:hover:text-sky"
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:border-capta-deep/30 hover:bg-capta-tint hover:text-capta-deep disabled:cursor-not-allowed disabled:opacity-50 dark:hover:border-capta-soft/30 dark:hover:bg-capta-soft/10 dark:hover:text-capta-soft"
               aria-label="Agregar pack"
             >
-              {adding ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+              {adding
+                ? <Icon name="refresh" size={13} className="animate-spin" />
+                : <Icon name="plus" size={13} />}
             </button>
           </div>
         )}
@@ -273,13 +268,11 @@ export default function SubscriptionPage() {
   const [loading,        setLoading]        = useState(true);
   const [error,          setError]          = useState<string | null>(null);
 
-  // Estados de loading por acción
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading,   setPortalLoading]   = useState(false);
   const [packLoading,     setPackLoading]      = useState<Record<string, 'adding' | 'removing' | null>>({});
   const [actionError,     setActionError]      = useState<string | null>(null);
 
-  // Auto-dismiss del error de acción después de 4 segundos
   useEffect(() => {
     if (!actionError) return;
     const t = setTimeout(() => setActionError(null), 4000);
@@ -287,8 +280,6 @@ export default function SubscriptionPage() {
   }, [actionError]);
 
   const isOwner = userRole === 'OWNER';
-
-  // ── Fetch inicial ────────────────────────────────────────────────────────────
 
   const fetchData = useCallback(async () => {
     try {
@@ -307,7 +298,6 @@ export default function SubscriptionPage() {
   }, []);
 
   useEffect(() => {
-    // Leer rol del usuario desde localStorage
     try {
       const raw = localStorage.getItem('user');
       if (raw) {
@@ -319,14 +309,10 @@ export default function SubscriptionPage() {
     fetchData();
   }, [fetchData]);
 
-  // ── Acciones ─────────────────────────────────────────────────────────────────
-
   const handleChangePlan = async () => {
     if (!subscription) return;
     setCheckoutLoading(true);
     try {
-      // Abre el checkout de Stripe para el plan BUSINESS como default
-      // En producción, el usuario elegiría el plan primero
       const { data } = await api.post<{ url: string }>('/subscriptions/checkout', {
         planType: subscription.plan.type === 'FREE' ? 'BUSINESS' : 'ENTERPRISE',
       });
@@ -374,12 +360,10 @@ export default function SubscriptionPage() {
     }
   };
 
-  // ── Loading / Error ──────────────────────────────────────────────────────────
-
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <Loader2 size={24} className="animate-spin text-muted-foreground" />
+        <Icon name="refresh" size={24} className="animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -388,14 +372,14 @@ export default function SubscriptionPage() {
     return (
       <div className="p-6 lg:p-8">
         <div className="flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
-          <AlertTriangle size={20} className="flex-shrink-0" />
+          <Icon name="alert-triangle" size={20} className="flex-shrink-0" />
           <div>
             <p className="font-medium">{error ?? 'Error desconocido'}</p>
             <button
               onClick={() => { setLoading(true); fetchData(); }}
               className="mt-1 flex items-center gap-1 text-sm underline-offset-2 hover:underline"
             >
-              <RefreshCw size={12} /> Reintentar
+              <Icon name="refresh" size={12} /> Reintentar
             </button>
           </div>
         </div>
@@ -405,14 +389,11 @@ export default function SubscriptionPage() {
 
   const { plan, status, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, totalStorageGb, activeStoragePacks, usedStorageBytes } = subscription;
 
-  // Construir mapa de cantidades activas por packId
   const activePackQty: Record<string, number> = {};
   activeStoragePacks.forEach((p) => { activePackQty[p.id] = p.quantity; });
 
   const showStoragePacks = plan.type !== 'FREE';
   const totalStorageLabel = formatStorage(totalStorageGb);
-
-  // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
@@ -429,7 +410,7 @@ export default function SubscriptionPage() {
         </p>
       </motion.div>
 
-      {/* ── Error de acción (reemplaza los alert() bloqueantes) ── */}
+      {/* ── Error de acción ── */}
       <AnimatePresence>
         {actionError && (
           <motion.div
@@ -439,13 +420,13 @@ export default function SubscriptionPage() {
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className="flex items-center gap-3 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3"
           >
-            <AlertTriangle size={15} className="text-destructive flex-shrink-0" />
+            <Icon name="alert-triangle" size={15} className="text-destructive flex-shrink-0" />
             <p className="flex-1 text-sm text-destructive">{actionError}</p>
             <button
               onClick={() => setActionError(null)}
               className="flex-shrink-0 text-destructive/60 hover:text-destructive transition-colors"
             >
-              <X size={14} />
+              <Icon name="close" size={14} />
             </button>
           </motion.div>
         )}
@@ -458,7 +439,7 @@ export default function SubscriptionPage() {
           animate={{ opacity: 1, scale: 1 }}
           className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10"
         >
-          <AlertTriangle size={18} className="mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+          <Icon name="alert-triangle" size={18} className="mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
           <div>
             <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Pago pendiente</p>
             <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400/80">
@@ -475,7 +456,7 @@ export default function SubscriptionPage() {
           animate={{ opacity: 1, scale: 1 }}
           className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10"
         >
-          <AlertTriangle size={18} className="mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+          <Icon name="alert-triangle" size={18} className="mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
           <div>
             <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Cancelación programada</p>
             <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400/80">
@@ -494,11 +475,9 @@ export default function SubscriptionPage() {
         <SectionCard>
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
 
-            {/* Info del plan */}
             <div className="flex items-start gap-4">
-              {/* Ícono del plan */}
               <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${PLAN_GRADIENT[plan.type]} shadow-sm`}>
-                <CreditCard size={22} className="text-white" />
+                <Icon name="credit-card" size={22} className="text-white" />
               </div>
 
               <div>
@@ -510,15 +489,13 @@ export default function SubscriptionPage() {
                   {formatPrice(plan.price)}
                 </p>
 
-                {/* Período */}
                 {currentPeriodStart && currentPeriodEnd && (
                   <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Calendar size={12} />
+                    <Icon name="calendar" size={12} />
                     <span>Período: {formatDate(currentPeriodStart)} – {formatDate(currentPeriodEnd)}</span>
                   </div>
                 )}
 
-                {/* Features del plan */}
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   <FeatureChip label="Evaluaciones"  enabled={plan.hasEvaluations} />
                   <FeatureChip label="Certificados"  enabled={plan.hasCertificates} />
@@ -529,20 +506,18 @@ export default function SubscriptionPage() {
               </div>
             </div>
 
-            {/* Acciones */}
             {isOwner && (
               <div className="flex flex-col gap-2 sm:flex-shrink-0">
                 {plan.type !== 'ENTERPRISE' && (
                   <button
                     onClick={handleChangePlan}
                     disabled={checkoutLoading}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-navy/90 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-sky dark:hover:bg-sky/90"
+                    className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
                   >
-                    {checkoutLoading ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <Zap size={14} />
-                    )}
+                    {checkoutLoading
+                      ? <Icon name="refresh" size={14} className="animate-spin" />
+                      : <Icon name="zap" size={14} />}
                     {plan.type === 'FREE' ? 'Actualizar plan' : 'Cambiar a Enterprise'}
                   </button>
                 )}
@@ -553,11 +528,9 @@ export default function SubscriptionPage() {
                   className="flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                   title={plan.type === 'FREE' ? 'Disponible en planes de pago' : undefined}
                 >
-                  {portalLoading ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <ExternalLink size={14} />
-                  )}
+                  {portalLoading
+                    ? <Icon name="refresh" size={14} className="animate-spin" />
+                    : <Icon name="external-link" size={14} />}
                   Portal de facturación
                 </button>
               </div>
@@ -566,29 +539,12 @@ export default function SubscriptionPage() {
 
           {/* ── Métricas del plan ── */}
           <div className="mt-6 grid grid-cols-2 gap-3 border-t border-border pt-5 sm:grid-cols-4">
-            <MetricCell
-              label="Almacenamiento total"
-              value={totalStorageLabel}
-              icon={totalStorageGb === -1 ? Infinity : HardDrive}
-            />
-            <MetricCell
-              label="Empresas"
-              value={plan.maxCompanies === -1 ? 'Ilimitadas' : String(plan.maxCompanies)}
-              icon={Package}
-            />
-            <MetricCell
-              label="Empleados"
-              value={plan.maxEmployees === -1 ? 'Ilimitados' : String(plan.maxEmployees)}
-              icon={Package}
-            />
-            <MetricCell
-              label="Almacenamiento base"
-              value={`${plan.storageGb} GB`}
-              icon={HardDrive}
-            />
+            <MetricCell label="Almacenamiento total" value={totalStorageLabel}   iconName={totalStorageGb === -1 ? 'infinity' : 'hard-drive'} />
+            <MetricCell label="Empresas"             value={plan.maxCompanies === -1 ? 'Ilimitadas' : String(plan.maxCompanies)} iconName="package" />
+            <MetricCell label="Empleados"            value={plan.maxEmployees === -1 ? 'Ilimitados' : String(plan.maxEmployees)} iconName="users" />
+            <MetricCell label="Almacenamiento base"  value={`${plan.storageGb} GB`} iconName="hard-drive" />
           </div>
 
-          {/* Barra de uso de storage */}
           <StorageBar usedBytes={usedStorageBytes} totalGb={totalStorageGb} />
         </SectionCard>
       </motion.div>
@@ -609,7 +565,7 @@ export default function SubscriptionPage() {
                 </p>
               </div>
               {activeStoragePacks.length > 0 && (
-                <span className="rounded-full bg-teal/10 px-2.5 py-0.5 text-xs font-semibold text-teal-600 dark:text-teal">
+                <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                   +{activeStoragePacks.reduce((sum, p) => sum + p.extraStorageGb * p.quantity, 0)} GB activos
                 </span>
               )}
@@ -651,7 +607,7 @@ export default function SubscriptionPage() {
           transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.1 }}
           className="rounded-2xl border border-dashed border-border bg-muted/30 p-6 text-center"
         >
-          <Package size={32} className="mx-auto mb-3 text-muted-foreground/50" />
+          <Icon name="package" size={32} className="mx-auto mb-3 text-muted-foreground/50" />
           <p className="text-sm font-medium text-foreground">Desbloquea más funciones</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Los planes Business y Enterprise incluyen evaluaciones, certificados, analíticas y storage add-ons.
@@ -660,37 +616,18 @@ export default function SubscriptionPage() {
             <button
               onClick={handleChangePlan}
               disabled={checkoutLoading}
-              className="mt-4 flex items-center gap-2 rounded-xl bg-navy px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-navy/90 disabled:opacity-60 dark:bg-sky dark:hover:bg-sky/90 mx-auto"
+              className="mt-4 mx-auto flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:scale-[1.02] disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
             >
-              {checkoutLoading ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+              {checkoutLoading
+                ? <Icon name="refresh" size={14} className="animate-spin" />
+                : <Icon name="zap" size={14} />}
               Ver planes
             </button>
           )}
         </motion.div>
       )}
 
-    </div>
-  );
-}
-
-// ─── MetricCell ───────────────────────────────────────────────────────────────
-
-function MetricCell({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string;
-  value: string;
-  icon: React.ElementType;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Icon size={12} />
-        <span>{label}</span>
-      </div>
-      <p className="text-sm font-semibold text-foreground">{value}</p>
     </div>
   );
 }
