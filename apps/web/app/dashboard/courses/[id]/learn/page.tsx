@@ -177,6 +177,24 @@ function LessonViewer({
   const [loadingContent, setLoading]  = useState(false);
   const [fullLesson, setFullLesson]   = useState<Lesson | null>(null);
 
+  // Presigned URL para FILE — se obtiene al seleccionar la lección (no se persiste
+  // en el frontend; caduca en 1h, suficiente para la sesión de visualización).
+  const [fileSignedUrl, setFileSignedUrl] = useState<string | null>(null);
+  const [loadingFile, setLoadingFile]     = useState(false);
+
+  useEffect(() => {
+    if (lesson.type !== 'FILE' || !lesson.fileKey) {
+      setFileSignedUrl(null);
+      return;
+    }
+    setLoadingFile(true);
+    api.get<{ downloadUrl: string }>(`/storage/presigned-download/${lesson.fileKey}`)
+      .then(res => setFileSignedUrl(res.data.downloadUrl))
+      .catch(() => setFileSignedUrl(null))
+      .finally(() => setLoadingFile(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson.id, lesson.fileKey]);
+
   const isCompleted = enrollment?.lessonProgress.some(
     p => p.lessonId === lesson.id && p.completedAt,
   );
@@ -288,36 +306,73 @@ function LessonViewer({
           </div>
         )}
 
-        {/* FILE */}
+        {/* FILE — renderiza según MIME type para máxima usabilidad inline */}
         {lesson.type === 'FILE' && (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-4">
-              <File size={28} className="text-muted-foreground" />
-            </div>
-            <p className="font-medium text-foreground mb-1">{lesson.fileName ?? 'Archivo adjunto'}</p>
-            {lesson.fileSizeBytes && (
-              <p className="text-sm text-muted-foreground mb-4">
-                {(lesson.fileSizeBytes / 1024 / 1024).toFixed(2)} MB
-              </p>
-            )}
-            {lesson.fileKey ? (
-              <a
-                href="#"
-                onClick={async e => {
-                  e.preventDefault();
-                  // Obtener URL firmada usando el fileKey real almacenado en la lección.
-                  // El endpoint acepta el key completo como path param (wildcard *).
-                  const { data } = await api.get<{ downloadUrl: string }>(
-                    `/storage/presigned-download/${lesson.fileKey}`,
-                  );
-                  window.open(data.downloadUrl, '_blank');
-                }}
-                className="flex items-center gap-2 rounded-xl bg-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-navy/90 transition-colors"
-              >
-                <Download size={15} /> Descargar archivo
-              </a>
+          <div className="h-full">
+            {loadingFile ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Loader2 size={28} className="animate-spin text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">Cargando archivo…</p>
+              </div>
+            ) : fileSignedUrl && lesson.fileMimeType?.startsWith('image/') ? (
+              /* Imagen: renderizar inline */
+              <div className="flex flex-col items-center gap-4">
+                <img
+                  src={fileSignedUrl}
+                  alt={lesson.fileName ?? 'Imagen'}
+                  className="max-w-full rounded-2xl border border-border shadow-sm"
+                />
+                <a
+                  href={fileSignedUrl}
+                  download={lesson.fileName}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Download size={14} /> Descargar imagen
+                </a>
+              </div>
+            ) : fileSignedUrl && lesson.fileMimeType === 'application/pdf' ? (
+              /* PDF: iframe inline (soportado en todos los browsers modernos) */
+              <div className="flex flex-col h-full gap-3">
+                <iframe
+                  src={fileSignedUrl}
+                  title={lesson.fileName ?? 'PDF'}
+                  className="w-full flex-1 rounded-2xl border border-border"
+                  style={{ minHeight: '65vh' }}
+                />
+                <div className="flex justify-end">
+                  <a
+                    href={fileSignedUrl}
+                    download={lesson.fileName}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Download size={14} /> Descargar PDF
+                  </a>
+                </div>
+              </div>
             ) : (
-              <p className="text-sm text-muted-foreground italic">Archivo no disponible.</p>
+              /* Otros formatos: botón de descarga estándar */
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-4">
+                  <File size={28} className="text-muted-foreground" />
+                </div>
+                <p className="font-medium text-foreground mb-1">{lesson.fileName ?? 'Archivo adjunto'}</p>
+                {lesson.fileSizeBytes && (
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {(lesson.fileSizeBytes / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                )}
+                {fileSignedUrl ? (
+                  <a
+                    href={fileSignedUrl}
+                    download={lesson.fileName}
+                    className="flex items-center gap-2 rounded-xl bg-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-navy/90 transition-colors"
+                  >
+                    <Download size={15} /> Descargar archivo
+                  </a>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Archivo no disponible.</p>
+                )}
+              </div>
             )}
           </div>
         )}

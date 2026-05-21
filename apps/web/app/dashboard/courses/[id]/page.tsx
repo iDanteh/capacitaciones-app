@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,6 +22,7 @@ interface Lesson {
   isPreview: boolean;
   duration?: number;
   muxStatus?: string;
+  muxPlaybackId?: string;
   fileKey?: string;
   fileName?: string;
   fileSizeBytes?: number;
@@ -94,6 +96,19 @@ function LessonContentDrawer({
 
   // ── Estado TEXT ──
   const [content, setContent] = useState(lesson.content ?? '');
+  const [loadingContent, setLoadingContent] = useState(false);
+
+  // La query del árbol del editor excluye `content` para no transferir Markdown
+  // pesado en cada carga. Cargamos el contenido completo al abrir el drawer.
+  useEffect(() => {
+    if (lesson.type !== 'TEXT' || lesson.content !== undefined) return;
+    setLoadingContent(true);
+    api.get<{ content?: string }>(`/courses/${courseId}/modules/${moduleId}/lessons/${lesson.id}`)
+      .then(res => setContent(res.data.content ?? ''))
+      .catch(() => {})
+      .finally(() => setLoadingContent(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson.id]);
 
   // ── Estado FILE ──
   const [docFile,     setDocFile]     = useState<File | null>(null);
@@ -379,16 +394,24 @@ function LessonContentDrawer({
                 </label>
                 <span className="text-xs text-muted-foreground">{content.length} caracteres</span>
               </div>
-              <textarea
-                value={content}
-                onChange={e => setContent(e.target.value)}
-                rows={18}
-                placeholder={`# Título de la lección\n\nEscribe el contenido aquí...\n\n## Subtítulo\n\nPuedes usar **negrita**, *cursiva*, \`código\`, listas, etc.`}
-                className="w-full resize-y rounded-xl border border-border bg-background px-4 py-3 font-mono text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-sky/40 focus:border-sky transition-all leading-relaxed"
-              />
+              {loadingContent ? (
+                <div className="rounded-xl border border-border bg-background px-4 py-3 space-y-2.5 animate-pulse" style={{ minHeight: '18rem' }}>
+                  {[55, 80, 65, 90, 70, 45].map((w, i) => (
+                    <div key={i} className="h-3 rounded-md bg-muted" style={{ width: `${w}%` }} />
+                  ))}
+                </div>
+              ) : (
+                <textarea
+                  value={content}
+                  onChange={e => setContent(e.target.value)}
+                  rows={18}
+                  placeholder={`# Título de la lección\n\nEscribe el contenido aquí...\n\n## Subtítulo\n\nPuedes usar **negrita**, *cursiva*, \`código\`, listas, etc.`}
+                  className="w-full resize-y rounded-xl border border-border bg-background px-4 py-3 font-mono text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-sky/40 focus:border-sky transition-all leading-relaxed"
+                />
+              )}
               <button
                 onClick={handleTextSave}
-                disabled={saving}
+                disabled={saving || loadingContent}
                 className="flex items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy/90 disabled:opacity-50 transition-all active:scale-[0.97]"
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
@@ -749,6 +772,30 @@ export default function CourseEditorPage() {
   }, [params.id, router]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ── WebSocket: actualizar estado del video sin recargar página ──────────────
+  // Cuando Mux termina de procesar, el admin ve el cambio en tiempo real.
+  const handleVideoReady = useCallback(
+    ({ lessonId, muxPlaybackId }: { lessonId: string; muxPlaybackId: string }) => {
+      const updates = { muxStatus: 'ready', muxPlaybackId };
+      // Actualizar árbol de módulos
+      setCourse(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          modules: prev.modules.map(m => ({
+            ...m,
+            lessons: m.lessons.map(l => l.id === lessonId ? { ...l, ...updates } : l),
+          })),
+        };
+      });
+      // Si el drawer está abierto para esta lección, actualizar también el estado del drawer
+      setEditingLesson(prev => prev?.id === lessonId ? { ...prev, ...updates } : prev);
+    },
+    [],
+  );
+
+  useNotifications({ onVideoReady: handleVideoReady });
 
   if (loading || !course) {
     return (

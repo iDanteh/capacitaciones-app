@@ -53,16 +53,28 @@ export class SubscriptionsService {
   }
 
   async findMySubscription(tenantId: string) {
-    const sub = await this.prisma.subscription.findUnique({
-      where: { tenantId },
-      include: {
-        plan: true,
-        storagePacks: { include: { storagePack: true } },
-      },
-    });
+    const [sub, storageAgg] = await Promise.all([
+      this.prisma.subscription.findUnique({
+        where: { tenantId },
+        include: {
+          plan: true,
+          storagePacks: { include: { storagePack: true } },
+        },
+      }),
+      // Suma de fileSizeBytes de todas las lecciones con archivo en el tenant.
+      // Excluye lecciones eliminadas (soft delete).
+      this.prisma.lesson.aggregate({
+        where: { tenantId, deletedAt: null, fileSizeBytes: { not: null } },
+        _sum: { fileSizeBytes: true },
+      }),
+    ]);
 
     if (!sub) throw new NotFoundException('No se encontró suscripción para este tenant');
-    return sub;
+
+    return {
+      ...sub,
+      usedStorageBytes: storageAgg._sum.fileSizeBytes ?? 0,
+    };
   }
 
   // ── Stripe — Checkout ───────────────────────────────────────────────────────

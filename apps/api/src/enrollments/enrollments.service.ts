@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { EnrollmentResponseDto } from './dto/enrollment-response.dto';
 import { EnrollmentStatus, CourseStatus } from '@prisma/client';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 /**
  * EnrollmentsService — inscripciones y seguimiento de progreso.
@@ -25,7 +26,10 @@ import { EnrollmentStatus, CourseStatus } from '@prisma/client';
 export class EnrollmentsService {
   private readonly logger = new Logger(EnrollmentsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsGateway,
+  ) {}
 
   // ── Inscripción ──────────────────────────────────────────────────────────────
 
@@ -227,6 +231,15 @@ export class EnrollmentsService {
         lessonProgress: true,
       },
     });
+
+    // Emitir en tiempo real cuando el empleado completa el curso
+    if (isCompleted) {
+      this.notifications.emitToTenant(tenantId, 'enrollment.completed', {
+        userId,
+        courseId,
+        courseTitle: updated.course.title,
+      });
+    }
 
     return EnrollmentResponseDto.from(updated);
   }

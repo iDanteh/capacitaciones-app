@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getSocket } from './socket';
 
 /**
  * Instancia de Axios preconfigurada para comunicarse con el API.
@@ -13,8 +14,11 @@ import axios from 'axios';
  *                 Los requests concurrentes se encolan para no lanzar
  *                 múltiples refreshes en paralelo.
  */
+// Fallback a localhost para que la app funcione sin configurar NEXT_PUBLIC_API_URL en dev.
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -74,7 +78,7 @@ api.interceptors.response.use(
 
       // El endpoint /auth/refresh espera { refreshToken } en el body
       const { data } = await axios.post<{ accessToken: string; refreshToken: string }>(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
+        `${API_BASE}/auth/refresh`,
         { refreshToken },
       );
 
@@ -82,6 +86,13 @@ api.interceptors.response.use(
       localStorage.setItem('refresh_token', data.refreshToken);
       api.defaults.headers.common.Authorization = `Bearer ${data.accessToken}`;
       original.headers.Authorization = `Bearer ${data.accessToken}`;
+
+      // Actualizar el token del socket para que la próxima reconexión use el token fresco.
+      // Si el socket está conectado y vuelve a conectar (ej. red inestable), usará el nuevo token.
+      try {
+        const sock = getSocket();
+        (sock.auth as { token?: string }).token = data.accessToken;
+      } catch { /* socket no inicializado todavía — no pasa nada */ }
 
       flushQueue(null, data.accessToken);
       return api(original);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard,
   Package,
@@ -17,6 +17,7 @@ import {
   Calendar,
   Zap,
   Infinity,
+  X,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -58,6 +59,7 @@ interface SubscriptionData {
   cancelAtPeriodEnd: boolean;
   totalStorageGb: number; // -1 = ilimitado
   activeStoragePacks: ActiveStoragePack[];
+  usedStorageBytes: number;
 }
 
 interface StoragePack {
@@ -98,9 +100,62 @@ function formatStorage(gb: number): string {
   return `${gb} GB`;
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 MB';
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
 function formatPrice(usd: number): string {
   if (usd === 0) return 'Gratis';
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(usd) + '/mes';
+}
+
+// ─── Storage bar ──────────────────────────────────────────────────────────────
+
+function StorageBar({ usedBytes, totalGb }: { usedBytes: number; totalGb: number }) {
+  const unlimited = totalGb === -1;
+  const totalBytes = totalGb * 1024 * 1024 * 1024;
+  const pct = unlimited ? 0 : Math.min(100, (usedBytes / totalBytes) * 100);
+
+  const barColor =
+    pct >= 90 ? 'bg-red-500' :
+    pct >= 70 ? 'bg-amber-500' :
+    'bg-teal';
+
+  return (
+    <div className="mt-5 border-t border-border pt-5 space-y-2">
+      <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center gap-1.5 font-medium text-foreground">
+          <HardDrive size={13} className="text-muted-foreground" />
+          Almacenamiento usado
+        </div>
+        <span className="text-muted-foreground">
+          {unlimited
+            ? `${formatBytes(usedBytes)} de Ilimitado`
+            : `${formatBytes(usedBytes)} de ${totalGb} GB`}
+        </span>
+      </div>
+
+      {!unlimited && (
+        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${barColor}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+
+      {!unlimited && pct >= 80 && (
+        <p className={`text-xs font-medium ${pct >= 90 ? 'text-red-500' : 'text-amber-600 dark:text-amber-400'}`}>
+          {pct >= 90
+            ? `⚠ Almacenamiento casi lleno (${pct.toFixed(0)}%). Agrega un storage pack para evitar interrupciones.`
+            : `Estás usando el ${pct.toFixed(0)}% de tu almacenamiento.`}
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ─── Badge de estado ──────────────────────────────────────────────────────────
@@ -222,6 +277,14 @@ export default function SubscriptionPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading,   setPortalLoading]   = useState(false);
   const [packLoading,     setPackLoading]      = useState<Record<string, 'adding' | 'removing' | null>>({});
+  const [actionError,     setActionError]      = useState<string | null>(null);
+
+  // Auto-dismiss del error de acción después de 4 segundos
+  useEffect(() => {
+    if (!actionError) return;
+    const t = setTimeout(() => setActionError(null), 4000);
+    return () => clearTimeout(t);
+  }, [actionError]);
 
   const isOwner = userRole === 'OWNER';
 
@@ -269,7 +332,7 @@ export default function SubscriptionPage() {
       });
       window.location.href = data.url;
     } catch {
-      alert('No se pudo iniciar el proceso de cambio de plan. Asegúrate de tener Stripe configurado.');
+      setActionError('No se pudo iniciar el proceso de cambio de plan. Asegúrate de tener Stripe configurado.');
     } finally {
       setCheckoutLoading(false);
     }
@@ -281,7 +344,7 @@ export default function SubscriptionPage() {
       const { data } = await api.post<{ url: string }>('/subscriptions/portal');
       window.open(data.url, '_blank');
     } catch {
-      alert('No se pudo abrir el portal de facturación.');
+      setActionError('No se pudo abrir el portal de facturación. Verifica que Stripe esté configurado.');
     } finally {
       setPortalLoading(false);
     }
@@ -293,7 +356,7 @@ export default function SubscriptionPage() {
       await api.post('/subscriptions/storage-packs', { packId });
       await fetchData();
     } catch {
-      alert('No se pudo agregar el storage pack.');
+      setActionError('No se pudo agregar el storage pack. Intenta de nuevo.');
     } finally {
       setPackLoading((prev) => ({ ...prev, [packId]: null }));
     }
@@ -305,7 +368,7 @@ export default function SubscriptionPage() {
       await api.delete(`/subscriptions/storage-packs/${packId}`);
       await fetchData();
     } catch {
-      alert('No se pudo quitar el storage pack.');
+      setActionError('No se pudo quitar el storage pack. Intenta de nuevo.');
     } finally {
       setPackLoading((prev) => ({ ...prev, [packId]: null }));
     }
@@ -340,7 +403,7 @@ export default function SubscriptionPage() {
     );
   }
 
-  const { plan, status, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, totalStorageGb, activeStoragePacks } = subscription;
+  const { plan, status, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, totalStorageGb, activeStoragePacks, usedStorageBytes } = subscription;
 
   // Construir mapa de cantidades activas por packId
   const activePackQty: Record<string, number> = {};
@@ -365,6 +428,28 @@ export default function SubscriptionPage() {
           Gestiona tu plan, almacenamiento y facturación.
         </p>
       </motion.div>
+
+      {/* ── Error de acción (reemplaza los alert() bloqueantes) ── */}
+      <AnimatePresence>
+        {actionError && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="flex items-center gap-3 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3"
+          >
+            <AlertTriangle size={15} className="text-destructive flex-shrink-0" />
+            <p className="flex-1 text-sm text-destructive">{actionError}</p>
+            <button
+              onClick={() => setActionError(null)}
+              className="flex-shrink-0 text-destructive/60 hover:text-destructive transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Alerta período de gracia ── */}
       {(status === 'PAST_DUE' || status === 'UNPAID') && (
@@ -502,6 +587,9 @@ export default function SubscriptionPage() {
               icon={HardDrive}
             />
           </div>
+
+          {/* Barra de uso de storage */}
+          <StorageBar usedBytes={usedStorageBytes} totalGb={totalStorageGb} />
         </SectionCard>
       </motion.div>
 

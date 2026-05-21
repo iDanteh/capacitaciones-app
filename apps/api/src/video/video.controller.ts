@@ -6,6 +6,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { MuxService } from './mux.service';
 import { PrismaService } from '../database/prisma.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -28,6 +29,7 @@ export class VideoController {
   constructor(
     private readonly muxService: MuxService,
     private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsGateway,
   ) {}
 
   /**
@@ -100,6 +102,20 @@ export class VideoController {
       });
 
       this.logger.log(`Video listo: asset ${assetId}, playback ${playbackId}`);
+
+      // Notificar en tiempo real a los admins del tenant para que el editor
+      // refleje el cambio de estado sin necesidad de recargar la página.
+      const lesson = await this.prisma.lesson.findFirst({
+        where:  { muxAssetId: assetId },
+        select: { id: true, title: true, tenantId: true },
+      });
+      if (lesson) {
+        this.notifications.emitToTenant(lesson.tenantId, 'video.ready', {
+          lessonId:      lesson.id,
+          lessonTitle:   lesson.title,
+          muxPlaybackId: playbackId,
+        });
+      }
     }
 
     if (type === 'video.asset.errored') {
