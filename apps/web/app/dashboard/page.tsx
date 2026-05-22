@@ -29,9 +29,25 @@ interface Enrollment {
   courseId: string;
 }
 
+interface PlanSummary {
+  planName: string;
+  planType: 'FREE' | 'BUSINESS' | 'ENTERPRISE';
+  price: number;
+  totalStorageGb: number;
+  usedStorageBytes: number;
+  nextBillingDate: string | null;
+}
+
+interface SubscriptionApiResponse {
+  plan: { name: string; type: string; price: number };
+  totalStorageGb: number;
+  usedStorageBytes: number;
+  currentPeriodEnd: string | null;
+}
+
 // ─── Animation variants ───────────────────────────────────────────────────────
 
-const container = { animate: { transition: { staggerChildren: 0.08 } } };
+const container = { animate: { transition: { staggerChildren: 0.07 } } };
 const item = {
   initial: { opacity: 0, y: 14 },
   animate: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 28 } },
@@ -46,48 +62,112 @@ function greeting() {
   return 'Buenas noches';
 }
 
+const DAYS_ES   = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const MONTHS_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+function dateES() {
+  const d = new Date();
+  return `${DAYS_ES[d.getDay()]}, ${d.getDate()} de ${MONTHS_ES[d.getMonth()]}`;
+}
+
+function bytesToReadable(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function formatNextBilling(iso: string | null): string {
+  if (!iso) return '—';
+  return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long' }).format(new Date(iso));
+}
+
+// ─── Sparkline (decorativa) ───────────────────────────────────────────────────
+
+// Los datos de sparkline son patrones decorativos de tendencia, no métricas reales.
+const SPARK_PATTERNS: Record<string, number[]> = {
+  users:    [3, 4, 3, 5, 4, 6, 4],
+  courses:  [1, 1, 2, 2, 1, 1, 1],
+  enrolled: [18, 24, 20, 28, 25, 30, 32],
+  certs:    [2, 3, 4, 4, 5, 5, 6],
+};
+
+function Sparkline({ pattern, color }: { pattern: keyof typeof SPARK_PATTERNS; color: string }) {
+  const data  = SPARK_PATTERNS[pattern];
+  const max   = Math.max(...data);
+  const min   = Math.min(...data);
+  const range = max - min || 1;
+  const w = 76, h = 26;
+  const pts = data.map((v, i) => ({
+    x: (i / (data.length - 1)) * w,
+    y: h - ((v - min) / range) * h * 0.75 - h * 0.08,
+  }));
+  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L ${w} ${h} L 0 ${h} Z`;
+  const uid = color.replace(/[^a-zA-Z0-9]/g, '');
+
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" className="opacity-60">
+      <defs>
+        <linearGradient id={`sg-${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor={color} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={color} stopOpacity="0"    />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#sg-${uid})`} />
+      <path d={linePath} stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, iconName, accent, loading }: {
+function StatCard({
+  label, value, iconName, accent, loading, spark,
+}: {
   label: string;
   value: string | number;
   iconName: import('@/components/capta-icon').IconName;
   accent: string;
   loading?: boolean;
+  spark?: keyof typeof SPARK_PATTERNS;
 }) {
   return (
     <motion.div
       variants={item}
       className="col-span-12 sm:col-span-6 lg:col-span-3 group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition-all duration-200 hover:-translate-y-0.5"
-      style={{
-        boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)',
-      }}
+      style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
     >
-      {/* Accent glow en hover */}
       <div
         className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-20"
         style={{ background: accent }}
       />
 
-      {/* Ícono */}
       <div
-        className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl"
+        className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl"
         style={{ background: `${accent}18`, color: accent, border: `1px solid ${accent}22` }}
       >
         <Icon name={iconName} size={16} />
       </div>
 
-      <div className={`text-2xl font-semibold tracking-tight text-foreground ${loading ? 'animate-pulse-soft opacity-40' : ''}`}>
+      <div className={`text-2xl font-semibold tracking-tight text-foreground ${loading ? 'opacity-30' : ''}`}>
         {loading ? '—' : value}
       </div>
-      <div className="mt-1 text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-xs font-medium text-muted-foreground">{label}</div>
+
+      {spark && !loading && (
+        <div className="mt-3 -mx-1">
+          <Sparkline pattern={spark} color={accent} />
+        </div>
+      )}
     </motion.div>
   );
 }
 
-// ─── Quick action ─────────────────────────────────────────────────────────────
+// ─── Quick Action ─────────────────────────────────────────────────────────────
 
-function QuickAction({ href, label, desc, iconName, accent = '#1E4F7A' }: {
+function QuickAction({
+  href, label, desc, iconName, accent = '#1E4F7A',
+}: {
   href: string;
   label: string;
   desc: string;
@@ -97,20 +177,112 @@ function QuickAction({ href, label, desc, iconName, accent = '#1E4F7A' }: {
   return (
     <Link
       href={href}
-      className="group flex items-center gap-4 rounded-xl border border-border bg-background p-4 transition-all hover:-translate-y-0.5 hover:border-capta-soft/40 hover:shadow-sm"
+      className="group flex flex-col gap-2.5 rounded-xl border border-border bg-background p-4 transition-all hover:-translate-y-0.5 hover:border-capta-soft/40 hover:shadow-sm"
     >
       <div
-        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-all"
-        style={{ background: `${accent}12`, color: accent, border: `1px solid ${accent}18` }}
+        className="flex h-9 w-9 items-center justify-center rounded-xl"
+        style={{ background: `${accent}12`, color: accent, border: `1px solid ${accent}1A` }}
       >
         <Icon name={iconName} size={16} />
       </div>
-      <div className="min-w-0 flex-1">
+      <div>
         <p className="text-sm font-semibold text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground/70">{desc}</p>
+        <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground/70">{desc}</p>
       </div>
-      <Icon name="arrow-right" size={14} className="flex-shrink-0 text-muted-foreground/25 transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-muted-foreground/60" />
     </Link>
+  );
+}
+
+// ─── Plan Card ────────────────────────────────────────────────────────────────
+
+function PlanCard({ data, loading }: { data: PlanSummary | null; loading: boolean }) {
+  const usedGb  = data ? data.usedStorageBytes / (1024 * 1024 * 1024) : 0;
+  const totalGb = data?.totalStorageGb ?? 1;
+  const unlimited = totalGb === -1;
+  const pct = unlimited ? 0 : Math.min(100, (usedGb / totalGb) * 100);
+  const barColor = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#8FC4E8';
+
+  const PLAN_LABEL: Record<string, string> = {
+    FREE: 'Free', BUSINESS: 'Business', ENTERPRISE: 'Enterprise',
+  };
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl p-5 h-full"
+      style={{ background: 'linear-gradient(150deg, #1E4F7A 0%, #0B2840 100%)' }}
+    >
+      {/* Ambient glow */}
+      <div
+        className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full opacity-15 blur-3xl"
+        style={{ background: '#8FC4E8' }}
+      />
+
+      {/* Plan header */}
+      <div className="mb-4 flex items-start justify-between">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/40">Plan actual</p>
+        {!loading && data && (
+          <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white/90">
+            {PLAN_LABEL[data.planType] ?? data.planType}
+          </span>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="space-y-2 animate-pulse">
+          <div className="h-8 w-20 rounded bg-white/10" />
+          <div className="h-3 w-32 rounded bg-white/10" />
+        </div>
+      ) : data ? (
+        <>
+          {/* Price */}
+          <div className="mb-0.5">
+            {!data.price ? (
+              <span className="text-2xl font-bold text-white">Gratis</span>
+            ) : (
+              <>
+                <span className="text-3xl font-bold text-white">
+                  ${data.price.toLocaleString('en-US')}
+                </span>
+                <span className="ml-1 text-sm font-normal text-white/50">/mes</span>
+              </>
+            )}
+          </div>
+          {data.nextBillingDate && (
+            <p className="mb-4 text-[11px] text-white/35">
+              Próxima factura el {formatNextBilling(data.nextBillingDate)}
+            </p>
+          )}
+
+          {/* Storage bar */}
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[11px] text-white/50">Almacenamiento</span>
+            <span className="text-[11px] font-medium text-white/80">
+              {unlimited
+                ? `${bytesToReadable(data.usedStorageBytes)} de Ilimitado`
+                : `${bytesToReadable(data.usedStorageBytes)} de ${totalGb} GB`}
+            </span>
+          </div>
+          {!unlimited && (
+            <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${barColor}, ${barColor}CC)` }}
+              />
+            </div>
+          )}
+
+          {/* CTA */}
+          <Link
+            href="/dashboard/subscription"
+            className="mt-4 block w-full rounded-xl border border-white/20 bg-white/10 py-2 text-center text-xs font-semibold text-white transition-all hover:bg-white/15 active:scale-[0.98]"
+          >
+            Gestionar plan →
+          </Link>
+        </>
+      ) : (
+        <p className="text-sm text-white/40 italic">Sin datos de plan.</p>
+      )}
+    </div>
   );
 }
 
@@ -123,6 +295,8 @@ export default function DashboardPage() {
   const [publishedCourses, setPublished]   = useState(0);
   const [totalEnrolled,    setEnrolled]    = useState(0);
   const [enrollments,      setEnrollments] = useState<Enrollment[]>([]);
+  const [planData,         setPlanData]    = useState<PlanSummary | null>(null);
+  const [planLoading,      setPlanLoading] = useState(false);
 
   useEffect(() => {
     try {
@@ -142,6 +316,22 @@ export default function DashboardPage() {
           setPublished(coursesRes.data.filter(c => c.status === 'PUBLISHED').length);
           setEnrolled(coursesRes.data.reduce((s, c) => s + (c.enrollmentCount ?? 0), 0));
         }).finally(() => setLoading(false));
+
+        // Suscripción — solo para OWNER
+        if (u.role === 'OWNER') {
+          setPlanLoading(true);
+          api.get<SubscriptionApiResponse>('/subscriptions/me')
+            .then(res => setPlanData({
+              planName:       res.data.plan.name,
+              planType:       res.data.plan.type as PlanSummary['planType'],
+              price:          res.data.plan.price,
+              totalStorageGb: res.data.totalStorageGb,
+              usedStorageBytes: res.data.usedStorageBytes,
+              nextBillingDate:  res.data.currentPeriodEnd,
+            }))
+            .catch(() => {})
+            .finally(() => setPlanLoading(false));
+        }
       } else {
         api.get<Enrollment[]>('/enrollments/my')
           .then(res => setEnrollments(res.data))
@@ -151,11 +341,12 @@ export default function DashboardPage() {
     } catch { setLoading(false); }
   }, []);
 
-  const isAdmin      = user ? ['OWNER', 'ADMIN', 'MANAGER'].includes(user.role) : false;
-  const inProgress   = enrollments.filter(e => e.status === 'ACTIVE' && e.progress > 0 && e.progress < 100).length;
-  const completed    = enrollments.filter(e => e.status === 'COMPLETED').length;
-  const notStarted   = enrollments.filter(e => e.progress === 0).length;
-  const topCourses   = enrollments
+  const isAdmin    = user ? ['OWNER', 'ADMIN', 'MANAGER'].includes(user.role) : false;
+  const isOwner    = user?.role === 'OWNER';
+  const inProgress = enrollments.filter(e => e.status === 'ACTIVE' && e.progress > 0 && e.progress < 100).length;
+  const completed  = enrollments.filter(e => e.status === 'COMPLETED').length;
+  const notStarted = enrollments.filter(e => e.progress === 0).length;
+  const topCourses = enrollments
     .filter(e => e.status === 'ACTIVE' && e.progress > 0)
     .sort((a, b) => b.progress - a.progress)
     .slice(0, 4);
@@ -163,30 +354,38 @@ export default function DashboardPage() {
   return (
     <div className="p-6 lg:p-8">
 
-      {/* ── Header ── */}
-      <div className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
-            {greeting()}, {user?.firstName ?? '…'}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {isAdmin ? 'Resumen general de tu plataforma.' : 'Tu progreso de hoy.'}
-          </p>
-        </div>
+      {/* ── Page header ── */}
+      <div className="mb-8">
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground/40">
+          {dateES()}
+        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              {greeting()},{' '}
+              <span className="text-capta-deep dark:text-capta-soft">
+                {user?.firstName ?? '…'}
+              </span>
+            </h1>
+            {isAdmin ? (
+              <p className="mt-1.5 text-sm text-muted-foreground/70">
+                Resumen general · {usersCount > 0 ? `${usersCount} colaboradores activos` : 'Cargando…'}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-sm text-muted-foreground/70">Tu progreso de hoy.</p>
+            )}
+          </div>
 
-        {isAdmin && (
-          <Link
-            href="/dashboard/courses/new"
-            className="hidden sm:flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.03] hover:shadow-md active:scale-[0.97]"
-            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
-          >
-            <Icon name="plus" size={15} />
-            Nuevo curso
-          </Link>
-        )}
+          {isAdmin && (
+            <button className="hidden sm:flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:border-capta-deep/20 hover:bg-muted hover:text-foreground">
+              <Icon name="chart-bar" size={14} />
+              Exportar reporte
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* ── Grid ── */}
+      {/* ── Bento grid ── */}
       <motion.div
         className="grid grid-cols-12 gap-4"
         variants={container}
@@ -194,124 +393,144 @@ export default function DashboardPage() {
         animate="animate"
       >
 
-        {/* Stat cards */}
+        {/* ── Stat cards ── */}
         {isAdmin ? (
           <>
-            <StatCard label="Usuarios activos"     value={usersCount}        iconName="users"       accent="#1E4F7A"  loading={loading} />
-            <StatCard label="Cursos publicados"     value={publishedCourses}  iconName="book-open"   accent="#7FD1AE"  loading={loading} />
-            <StatCard label="Total inscripciones"   value={totalEnrolled}     iconName="chart-line"  accent="#8FC4E8"  loading={loading} />
-            <StatCard label="Certificados emitidos" value="—"                 iconName="certificate" accent="#F59E0B"  loading={false}   />
+            <StatCard label="Usuarios registrados" value={usersCount}        iconName="users"       accent="#1E4F7A" loading={loading} spark="users"    />
+            <StatCard label="Cursos publicados"     value={publishedCourses}  iconName="book-open"   accent="#7FD1AE" loading={loading} spark="courses"  />
+            <StatCard label="Total inscripciones"   value={totalEnrolled}     iconName="chart-line"  accent="#8FC4E8" loading={loading} spark="enrolled" />
+            <StatCard label="Certificados emitidos" value="—"                 iconName="certificate" accent="#F59E0B" loading={false}   spark="certs"    />
           </>
         ) : (
           <>
-            <StatCard label="Cursos inscritos" value={enrollments.length} iconName="book-open"   accent="#1E4F7A"  loading={loading} />
-            <StatCard label="En progreso"      value={inProgress}         iconName="play"        accent="#7FD1AE"  loading={loading} />
-            <StatCard label="Completados"      value={completed}          iconName="check"       accent="#8FC4E8"  loading={loading} />
-            <StatCard label="Sin comenzar"     value={notStarted}         iconName="clock"       accent="#F59E0B"  loading={loading} />
+            <StatCard label="Cursos inscritos" value={enrollments.length} iconName="book-open"   accent="#1E4F7A" loading={loading} spark="courses"  />
+            <StatCard label="En progreso"      value={inProgress}         iconName="play"        accent="#7FD1AE" loading={loading} spark="enrolled" />
+            <StatCard label="Completados"      value={completed}          iconName="check"       accent="#8FC4E8" loading={loading} spark="certs"    />
+            <StatCard label="Sin comenzar"     value={notStarted}         iconName="clock"       accent="#F59E0B" loading={loading}                  />
           </>
         )}
 
-        {/* Acciones rápidas */}
-        <motion.div
-          variants={item}
-          className="col-span-12 lg:col-span-8 rounded-2xl border border-border bg-card p-5"
-          style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
-        >
-          <h2 className="mb-4 text-sm font-semibold text-foreground">Acciones rápidas</h2>
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {isAdmin ? (
-              <>
-                <QuickAction href="/dashboard/courses/new" label="Crear nuevo curso"  desc="Sube contenido y asigna empleados"    iconName="plus"       accent="#1E4F7A" />
-                <QuickAction href="/dashboard/users"       label="Gestionar usuarios" desc="Invita, edita roles y accesos"        iconName="users"      accent="#7FD1AE" />
-                <QuickAction href="/dashboard/courses"     label="Ver catálogo"       desc="Administra todos los cursos"          iconName="book-open"  accent="#8FC4E8" />
-                <QuickAction href="/dashboard/analytics"  label="Ver analíticas"     desc="Progreso y métricas del equipo"       iconName="chart-bar"  accent="#F59E0B" />
-              </>
-            ) : (
-              <>
-                <QuickAction href="/dashboard/courses" label="Explorar cursos"       desc="Descubre nuevos cursos disponibles"  iconName="search"  accent="#1E4F7A" />
-                <QuickAction href="/dashboard/courses" label="Continuar aprendiendo" desc="Retoma donde lo dejaste"            iconName="play"    accent="#7FD1AE" />
-              </>
-            )}
-          </div>
-        </motion.div>
+        {/* ── Admin: Acciones + Plan card (OWNER) ── */}
+        {isAdmin && (
+          <>
+            {/* Acciones rápidas */}
+            <motion.div
+              variants={item}
+              className={`col-span-12 ${isOwner ? 'lg:col-span-8' : ''} rounded-2xl border border-border bg-card p-5`}
+              style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
+            >
+              <h2 className="mb-4 text-sm font-semibold text-foreground">Acciones rápidas</h2>
+              <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+                <QuickAction href="/dashboard/courses/new" label="Crear curso"      desc="Video, PDF o quiz"       iconName="plus"        accent="#1E4F7A" />
+                <QuickAction href="/dashboard/users"       label="Invitar personas" desc="Email o SSO"             iconName="user-plus"   accent="#7FD1AE" />
+                <QuickAction href="/dashboard/analytics"   label="Ver analíticas"   desc="Progreso del equipo"     iconName="chart-bar"   accent="#8FC4E8" />
+                <QuickAction href="/dashboard/subscription" label="Facturación"     desc="Plan y almacenamiento"   iconName="credit-card" accent="#F59E0B" />
+              </div>
+            </motion.div>
 
-        {/* Panel lateral */}
-        <motion.div
-          variants={item}
-          className="col-span-12 lg:col-span-4 rounded-2xl border border-border bg-card p-5"
-          style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
-        >
-          {isAdmin ? (
-            <>
-              <h2 className="mb-4 text-sm font-semibold text-foreground">Actividad reciente</h2>
-              <div className="flex flex-col items-center justify-center py-8 text-center">
+            {/* Plan card — solo OWNER */}
+            {isOwner && (
+              <motion.div
+                variants={item}
+                className="col-span-12 lg:col-span-4"
+              >
+                <PlanCard data={planData} loading={planLoading} />
+              </motion.div>
+            )}
+
+            {/* Actividad reciente */}
+            <motion.div
+              variants={item}
+              className="col-span-12 rounded-2xl border border-border bg-card p-5"
+              style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-foreground">Actividad reciente</h2>
+                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-emerald-500">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  En vivo
+                </span>
+              </div>
+              <div className="flex flex-col items-center justify-center py-10 text-center">
                 <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-muted">
                   <Icon name="clock" size={20} className="text-muted-foreground/30" />
                 </div>
                 <p className="text-sm font-medium text-muted-foreground">Sin actividad aún</p>
-                <p className="mt-1 max-w-[160px] text-xs leading-relaxed text-muted-foreground/60">
+                <p className="mt-1 max-w-[200px] text-xs leading-relaxed text-muted-foreground/60">
                   Aparecerá aquí cuando tu equipo comience a capacitarse.
                 </p>
               </div>
-            </>
-          ) : topCourses.length > 0 ? (
-            <>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-foreground">Mis cursos</h2>
-                <Link
-                  href="/dashboard/courses"
-                  className="text-xs font-semibold text-capta-deep hover:text-capta-deep/70 dark:text-capta-soft dark:hover:text-capta-soft/70 transition-colors"
-                >
-                  Ver todos
-                </Link>
+            </motion.div>
+          </>
+        )}
+
+        {/* ── Employee: Acciones + Mis cursos ── */}
+        {!isAdmin && (
+          <>
+            <motion.div
+              variants={item}
+              className="col-span-12 lg:col-span-8 rounded-2xl border border-border bg-card p-5"
+              style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
+            >
+              <h2 className="mb-4 text-sm font-semibold text-foreground">Acciones rápidas</h2>
+              <div className="grid gap-3 grid-cols-2">
+                <QuickAction href="/dashboard/courses" label="Explorar cursos"       desc="Descubre nuevos cursos disponibles"  iconName="search" accent="#1E4F7A" />
+                <QuickAction href="/dashboard/courses" label="Continuar aprendiendo" desc="Retoma donde lo dejaste"             iconName="play"   accent="#7FD1AE" />
               </div>
-              <div className="space-y-2.5">
-                {topCourses.map(e => (
-                  <Link
-                    key={e.courseId}
-                    href={`/dashboard/courses/${e.courseId}/learn`}
-                    className="group flex flex-col gap-2 rounded-xl border border-border bg-background p-3 transition-all hover:border-capta-soft/40"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-xs font-semibold text-foreground">{e.courseTitle}</p>
-                      <span className="flex-shrink-0 text-xs font-bold" style={{ color: '#7FD1AE' }}>
-                        {e.progress}%
-                      </span>
+            </motion.div>
+
+            <motion.div
+              variants={item}
+              className="col-span-12 lg:col-span-4 rounded-2xl border border-border bg-card p-5"
+              style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
+            >
+              {topCourses.length > 0 ? (
+                <>
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-foreground">Mis cursos</h2>
+                    <Link href="/dashboard/courses" className="text-xs font-semibold text-capta-deep hover:text-capta-deep/70 dark:text-capta-soft dark:hover:text-capta-soft/70 transition-colors">
+                      Ver todos
+                    </Link>
+                  </div>
+                  <div className="space-y-2.5">
+                    {topCourses.map(e => (
+                      <Link
+                        key={e.courseId}
+                        href={`/dashboard/courses/${e.courseId}/learn`}
+                        className="group flex flex-col gap-2 rounded-xl border border-border bg-background p-3 transition-all hover:border-capta-soft/40"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-xs font-semibold text-foreground">{e.courseTitle}</p>
+                          <span className="flex-shrink-0 text-xs font-bold" style={{ color: '#7FD1AE' }}>{e.progress}%</span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${e.progress}%`, background: 'linear-gradient(90deg, #1F5C4D, #7FD1AE)' }}
+                          />
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="mb-4 text-sm font-semibold text-foreground">Mis cursos</h2>
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-muted">
+                      <Icon name="book-open" size={20} className="text-muted-foreground/30" />
                     </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${e.progress}%`,
-                          background: 'linear-gradient(90deg, #1F5C4D, #7FD1AE)',
-                        }}
-                      />
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <h2 className="mb-4 text-sm font-semibold text-foreground">Mis cursos</h2>
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-muted">
-                  <Icon name="book-open" size={20} className="text-muted-foreground/30" />
-                </div>
-                <p className="text-sm font-medium text-muted-foreground">Sin cursos todavía</p>
-                <p className="mt-1 max-w-[150px] text-xs leading-relaxed text-muted-foreground/60">
-                  Inscríbete en un curso para empezar.
-                </p>
-                <Link
-                  href="/dashboard/courses"
-                  className="mt-4 flex items-center gap-1.5 text-xs font-bold text-capta-deep dark:text-capta-soft hover:underline transition-colors"
-                >
-                  Ver cursos <Icon name="arrow-right" size={11} />
-                </Link>
-              </div>
-            </>
-          )}
-        </motion.div>
+                    <p className="text-sm font-medium text-muted-foreground">Sin cursos todavía</p>
+                    <p className="mt-1 max-w-[150px] text-xs leading-relaxed text-muted-foreground/60">Inscríbete en un curso para empezar.</p>
+                    <Link href="/dashboard/courses" className="mt-4 flex items-center gap-1.5 text-xs font-bold text-capta-deep dark:text-capta-soft hover:underline transition-colors">
+                      Ver cursos <Icon name="arrow-right" size={11} />
+                    </Link>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </>
+        )}
 
       </motion.div>
     </div>

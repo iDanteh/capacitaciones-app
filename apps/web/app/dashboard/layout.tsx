@@ -19,17 +19,22 @@ interface UserData {
   tenantSlug: string;
 }
 
-// ─── Navigation config ────────────────────────────────────────────────────────
+// ─── Navigation ───────────────────────────────────────────────────────────────
 
-const NAV_ITEMS = [
-  { label: 'Inicio',      icon: 'home'        as IconName, href: '/dashboard',              roles: [] },
-  { label: 'Cursos',      icon: 'book-open'   as IconName, href: '/dashboard/courses',      roles: [] },
-  { label: 'Usuarios',    icon: 'users'       as IconName, href: '/dashboard/users',        roles: ['OWNER', 'ADMIN', 'MANAGER'] },
-  { label: 'Analíticas',  icon: 'chart-bar'   as IconName, href: '/dashboard/analytics',   roles: ['OWNER', 'ADMIN', 'MANAGER'] },
-  { label: 'Suscripción', icon: 'credit-card' as IconName, href: '/dashboard/subscription', roles: ['OWNER'] },
+const NAV_PLATFORM = [
+  { label: 'Inicio',     icon: 'home'      as IconName, href: '/dashboard',           roles: [] },
+  { label: 'Cursos',     icon: 'book-open' as IconName, href: '/dashboard/courses',   roles: [] },
+  { label: 'Equipos',    icon: 'users'     as IconName, href: '/dashboard/users',     roles: ['OWNER', 'ADMIN', 'MANAGER'] },
+  { label: 'Analíticas', icon: 'chart-bar' as IconName, href: '/dashboard/analytics', roles: ['OWNER', 'ADMIN', 'MANAGER'] },
 ] as const;
 
-type NavItem = (typeof NAV_ITEMS)[number];
+const NAV_COMPANY = [
+  { label: 'Plan y facturación', icon: 'credit-card' as IconName, href: '/dashboard/subscription', roles: ['OWNER'] },
+] as const;
+
+type PlatformItem = (typeof NAV_PLATFORM)[number];
+type CompanyItem  = (typeof NAV_COMPANY)[number];
+type AnyNavItem   = PlatformItem | CompanyItem;
 
 // ─── Role labels ──────────────────────────────────────────────────────────────
 
@@ -44,7 +49,7 @@ const ROLE_LABELS: Record<string, string> = {
 // ─── Nav item ─────────────────────────────────────────────────────────────────
 
 function NavItem({ item, active, onClick }: {
-  item: NavItem; active: boolean; onClick?: () => void;
+  item: AnyNavItem; active: boolean; onClick?: () => void;
 }) {
   return (
     <Link
@@ -56,7 +61,6 @@ function NavItem({ item, active, onClick }: {
           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       }`}
     >
-      {/* Indicador lateral activo */}
       {active && (
         <span
           className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full"
@@ -91,8 +95,15 @@ function SidebarContent({ user, pathname, onNavClick }: {
     ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
     : '?';
 
-  const visibleItems = NAV_ITEMS.filter(item =>
+  const tenantLabel = user?.tenantSlug
+    ? user.tenantSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    : '—';
+
+  const visiblePlatform = NAV_PLATFORM.filter(item =>
     item.roles.length === 0 || (user?.role && item.roles.includes(user.role as never)),
+  );
+  const visibleCompany = NAV_COMPANY.filter(item =>
+    user?.role && item.roles.includes(user.role as never),
   );
 
   return (
@@ -103,30 +114,70 @@ function SidebarContent({ user, pathname, onNavClick }: {
         <CaptaLogo markSize={26} showText />
       </div>
 
-      {/* ── Nav ── */}
-      <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-4">
-        <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/40">
-          Plataforma
-        </p>
-        <div className="space-y-0.5">
-          {visibleItems.map((item) => (
-            <NavItem
-              key={item.href}
-              item={item}
-              active={
-                item.href === '/dashboard'
-                  ? pathname === '/dashboard'
-                  : pathname === item.href || pathname.startsWith(item.href + '/')
-              }
-              onClick={onNavClick}
-            />
-          ))}
+      {/* ── Tenant selector ── */}
+      {user && (
+        <div className="mx-3 mt-3 flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 px-3 py-2.5 cursor-default">
+          <div
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white"
+            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+          >
+            {tenantLabel.charAt(0)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold leading-tight text-foreground">{tenantLabel}</p>
+            <p className="text-[10px] text-muted-foreground/60">{ROLE_LABELS[user.role] ?? user.role}</p>
+          </div>
+          <Icon name="chevron-down" size={12} className="flex-shrink-0 text-muted-foreground/30" />
         </div>
+      )}
+
+      {/* ── Nav ── */}
+      <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-4 space-y-5">
+
+        {/* PLATAFORMA */}
+        <div>
+          <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/40">
+            Plataforma
+          </p>
+          <div className="space-y-0.5">
+            {visiblePlatform.map((navItem) => (
+              <NavItem
+                key={navItem.href}
+                item={navItem}
+                active={
+                  navItem.href === '/dashboard'
+                    ? pathname === '/dashboard'
+                    : pathname === navItem.href || pathname.startsWith(navItem.href + '/')
+                }
+                onClick={onNavClick}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* EMPRESA */}
+        {visibleCompany.length > 0 && (
+          <div>
+            <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/40">
+              Empresa
+            </p>
+            <div className="space-y-0.5">
+              {visibleCompany.map((navItem) => (
+                <NavItem
+                  key={navItem.href}
+                  item={navItem}
+                  active={pathname === navItem.href || pathname.startsWith(navItem.href + '/')}
+                  onClick={onNavClick}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
       </nav>
 
-      {/* ── Bottom: usuario + acciones ── */}
-      <div className="flex-shrink-0 border-t border-border p-3 space-y-1">
-        {/* User */}
+      {/* ── Bottom: usuario ── */}
+      <div className="flex-shrink-0 border-t border-border p-3">
         <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
           <div
             className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
@@ -138,25 +189,70 @@ function SidebarContent({ user, pathname, onNavClick }: {
             <p className="truncate text-sm font-semibold leading-tight text-foreground">
               {user ? `${user.firstName} ${user.lastName}` : '—'}
             </p>
-            <p className="truncate text-[11px] text-muted-foreground/70">
+            <p className="truncate text-[11px] text-muted-foreground/60">
               {user?.role ? (ROLE_LABELS[user.role] ?? user.role) : '—'}
             </p>
           </div>
-        </div>
-
-        {/* Acciones */}
-        <div className="flex items-center justify-between px-3 py-1">
-          <ThemeToggle />
           <button
             onClick={handleLogout}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/50 transition-all hover:bg-destructive/10 hover:text-destructive"
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive"
             aria-label="Cerrar sesión"
           >
-            <Icon name="logout" size={15} />
+            <Icon name="logout" size={14} />
           </button>
         </div>
       </div>
+
     </div>
+  );
+}
+
+// ─── Desktop header ───────────────────────────────────────────────────────────
+
+function DesktopHeader({ user }: { user: UserData | null }) {
+  const isAdmin = user ? ['OWNER', 'ADMIN', 'MANAGER'].includes(user.role) : false;
+
+  return (
+    <header className="hidden lg:flex h-[60px] flex-shrink-0 items-center gap-3 border-b border-border bg-card/80 backdrop-blur-md px-6">
+
+      {/* Search bar */}
+      <div className="flex flex-1 max-w-sm items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 py-2 text-sm text-muted-foreground/60 hover:border-capta-deep/20 transition-colors cursor-text select-none">
+        <Icon name="search" size={13} className="flex-shrink-0" />
+        <span className="flex-1 text-[13px]">Buscar cursos, personas, certificados...</span>
+        <kbd className="hidden sm:flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/50 font-mono">⌘K</kbd>
+      </div>
+
+      {/* Right actions */}
+      <div className="ml-auto flex items-center gap-2">
+
+        {/* Notification bell */}
+        <button
+          className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground/60 transition-all hover:border-capta-deep/20 hover:bg-muted hover:text-foreground"
+          aria-label="Notificaciones"
+        >
+          <Icon name="bell" size={14} />
+        </button>
+
+        {/* Theme toggle */}
+        <ThemeToggle className="border border-border bg-background hover:border-capta-deep/20 rounded-lg" />
+
+        {/* Nuevo curso */}
+        {isAdmin && (
+          <Link
+            href="/dashboard/courses/new"
+            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.97]"
+            style={{
+              background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
+              boxShadow: '0 2px 10px rgba(30,79,122,0.25)',
+            }}
+          >
+            <Icon name="plus" size={14} />
+            Nuevo curso
+          </Link>
+        )}
+
+      </div>
+    </header>
   );
 }
 
@@ -180,7 +276,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setIsReady(true);
   }, [router]);
 
-  // Cerrar drawer al navegar
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   if (!isReady) {
@@ -237,7 +332,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ── Main ── */}
       <div className="flex flex-1 flex-col overflow-hidden">
 
-        {/* Header mobile */}
+        {/* Desktop header (lg+) */}
+        <DesktopHeader user={user} />
+
+        {/* Mobile header */}
         <header className="flex h-[52px] flex-shrink-0 items-center justify-between border-b border-border bg-card/80 backdrop-blur-md px-4 lg:hidden">
           <button
             onClick={() => setSidebarOpen(s => !s)}
@@ -246,9 +344,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           >
             <Icon name={sidebarOpen ? 'close' : 'menu'} size={16} />
           </button>
-
           <CaptaMark size={24} />
-
           <ThemeToggle />
         </header>
 

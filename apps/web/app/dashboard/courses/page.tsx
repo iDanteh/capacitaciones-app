@@ -228,15 +228,6 @@ export default function CoursesPage() {
             Gestiona el contenido de capacitación de tu empresa.
           </p>
         </div>
-        {canCreate && (
-          <Link
-            href="/dashboard/courses/new"
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.03] active:scale-[0.97]"
-            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
-          >
-            <Icon name="plus" size={16} /> Nuevo curso
-          </Link>
-        )}
       </div>
 
       {/* ── Stats Bento ── */}

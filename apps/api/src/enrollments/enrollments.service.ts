@@ -9,6 +9,7 @@ import { PrismaService } from '../database/prisma.service';
 import { EnrollmentResponseDto } from './dto/enrollment-response.dto';
 import { EnrollmentStatus, CourseStatus } from '@prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { CertificatesService } from '../certificates/certificates.service';
 
 /**
  * EnrollmentsService — inscripciones y seguimiento de progreso.
@@ -29,6 +30,7 @@ export class EnrollmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsGateway,
+    private readonly certificates: CertificatesService,
   ) {}
 
   // ── Inscripción ──────────────────────────────────────────────────────────────
@@ -239,6 +241,14 @@ export class EnrollmentsService {
         courseId,
         courseTitle: updated.course.title,
       });
+
+      // Generar certificado automáticamente (solo si el plan lo permite)
+      try {
+        await this.certificates.generateCertificate(tenantId, userId, courseId, enrollmentId);
+      } catch (err) {
+        // No interrumpir el flujo de completado si falla la generación del certificado
+        this.logger.warn(`No se pudo generar certificado para enrollment ${enrollmentId}: ${err}`);
+      }
     }
 
     return EnrollmentResponseDto.from(updated);

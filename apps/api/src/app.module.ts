@@ -12,6 +12,8 @@ import { EnrollmentsModule } from './enrollments/enrollments.module';
 import { StorageModule } from './storage/storage.module';
 import { VideoModule } from './video/video.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { EvaluationsModule } from './evaluations/evaluations.module';
+import { CertificatesModule } from './certificates/certificates.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
@@ -45,10 +47,10 @@ import { validate } from './config/env.validation';
     StorageModule,           // ✓ MinIO presigned URLs (upload/download directo)
     VideoModule,             // ✓ Mux Direct Upload + webhooks de procesamiento
 
-    // Fase 3 — Premium (parcial):
+    // Fase 3 — Premium:
     AnalyticsModule,         // ✓ Reportes: overview, por curso, por empleado
-    // EvaluationsModule     → Evaluaciones y resultados
-    // CertificatesModule    → Generación y descarga de certificados
+    EvaluationsModule,       // ✓ Quizzes: CRUD, scoring, intentos limitados
+    CertificatesModule,      // ✓ Certificados PDF, verificación pública por UUID
 
     // Infraestructura transversal — @Global, disponible en todos los módulos:
     NotificationsModule,     // ✓ WebSocket gateway (Socket.IO) — video.ready, enrollment.completed

@@ -39,16 +39,24 @@ export class PlanFeatureGuard implements CanActivate {
     // Sin @RequireFeature() → el guard es transparente
     if (!feature) return true;
 
-    const req = context.switchToHttp().getRequest<{ tenantId?: string }>();
+    // El tenantId viene del JWT payload que Passport asigna a req.user.
+    // TenantMiddleware asigna req.tenant (el objeto), pero para el guard
+    // usamos req.user.tenantId que es más confiable (viene del token firmado).
+    const req = context.switchToHttp().getRequest<{
+      user?: { tenantId?: string };
+      tenant?: { id?: string };
+    }>();
 
-    if (!req.tenantId) {
+    const tenantId = req.user?.tenantId ?? req.tenant?.id;
+
+    if (!tenantId) {
       throw new ForbiddenException(
-        'No se pudo determinar el tenant. Asegúrate de enviar el header X-Tenant-Slug.',
+        'No se pudo determinar el tenant. Asegúrate de estar autenticado y de enviar el header X-Tenant-Slug.',
       );
     }
 
     const subscription = await this.prisma.subscription.findUnique({
-      where:   { tenantId: req.tenantId },
+      where:   { tenantId },
       include: { plan: true },
     });
 

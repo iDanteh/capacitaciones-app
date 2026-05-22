@@ -357,8 +357,9 @@ model Lesson {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  module   CourseModule    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  progress LessonProgress[]
+  module     CourseModule    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress   LessonProgress[]
+  evaluation Evaluation?
 
   @@index([moduleId])
   @@map("lessons")
@@ -383,6 +384,7 @@ model Enrollment {
   user           User             @relation(fields: [userId], references: [id])
   course         Course           @relation(fields: [courseId], references: [id])
   lessonProgress LessonProgress[]
+  certificate    Certificate?
 
   @@unique([tenantId, userId, courseId])
   @@index([tenantId])
@@ -414,4 +416,141 @@ model LessonProgress {
   @@index([enrollmentId])
   @@index([userId])
   @@map("lesson_progress")
+}
+
+// ─── FASE 3: EVALUACIONES ─────────────────────────────────────────────────────
+
+/// Evaluación (quiz) vinculada 1:1 a una lección.
+/// Solo disponible en planes con hasEvaluations = true.
+model Evaluation {
+  id           String  @id @default(cuid())
+  tenantId     String
+  lessonId     String  @unique // 1 evaluación por lección
+  title        String
+  instructions String? @db.Text
+  /// Porcentaje mínimo para aprobar (0–100).
+  minScore     Int     @default(70)
+  /// Intentos máximos permitidos. -1 = ilimitado.
+  maxAttempts  Int     @default(3)
+  /// Tiempo límite en segundos. null = sin límite.
+  timeLimit    Int?
+  /// Si true, el empleado debe aprobar para continuar al siguiente recurso.
+  isRequired   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lesson    Lesson              @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions Question[]
+  attempts  EvaluationAttempt[]
+
+  @@index([tenantId])
+  @@map("evaluations")
+}
+
+/// Pregunta de opción múltiple dentro de una evaluación.
+model Question {
+  id           String  @id @default(cuid())
+  evaluationId String
+  tenantId     String
+  text         String  @db.Text
+  /// Peso de la pregunta al calcular la puntuación final.
+  points       Int     @default(1)
+  order        Int     @default(0)
+  /// Explicación que aparece al revisar resultados (puede ser null).
+  explanation  String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  evaluation Evaluation       @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  options    QuestionOption[]
+  answers    AttemptAnswer[]
+
+  @@index([evaluationId])
+  @@map("questions")
+}
+
+/// Opción de respuesta para una pregunta.
+model QuestionOption {
+  id         String  @id @default(cuid())
+  questionId String
+  text       String
+  isCorrect  Boolean @default(false)
+  order      Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  question Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  AttemptAnswer[]
+
+  @@index([questionId])
+  @@map("question_options")
+}
+
+/// Intento de evaluación realizado por un usuario.
+model EvaluationAttempt {
+  id           String   @id @default(cuid())
+  tenantId     String
+  evaluationId String
+  userId       String
+  enrollmentId String
+  /// Porcentaje de aciertos (0–100), calculado por el servidor.
+  score        Int
+  passed       Boolean
+  completedAt  DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  evaluation Evaluation    @relation(fields: [evaluationId], references: [id])
+  answers    AttemptAnswer[]
+
+  @@index([evaluationId, userId])
+  @@index([tenantId])
+  @@map("evaluation_attempts")
+}
+
+/// Respuesta de un usuario a una pregunta específica en un intento.
+model AttemptAnswer {
+  id         String  @id @default(cuid())
+  attemptId  String
+  questionId String
+  optionId   String
+  isCorrect  Boolean
+
+  attempt  EvaluationAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question          @relation(fields: [questionId], references: [id])
+  option   QuestionOption    @relation(fields: [optionId], references: [id])
+
+  @@unique([attemptId, questionId])
+  @@map("attempt_answers")
+}
+
+// ─── FASE 3: CERTIFICADOS ─────────────────────────────────────────────────────
+
+/// Certificado de finalización emitido al completar un curso al 100%.
+/// Se genera automáticamente cuando enrollment.progress = 100.
+model Certificate {
+  id           String   @id @default(cuid())
+  tenantId     String
+  userId       String
+  courseId     String
+  enrollmentId String   @unique // 1 certificado por inscripción
+  /// UUID v4 público para verificación — no derivable del id interno.
+  publicUuid   String   @unique @default(uuid())
+  issuedAt     DateTime @default(now())
+
+  // Snapshot inmutable — preserva los datos aunque cambien el nombre del usuario,
+  // el título del curso o el nombre de la empresa.
+  recipientName String
+  courseTitle   String
+  tenantName    String
+
+  createdAt DateTime @default(now())
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+
+  @@unique([tenantId, userId, courseId])
+  @@index([tenantId])
+  @@map("certificates")
 }

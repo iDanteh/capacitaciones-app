@@ -23,6 +23,7 @@ export class AnalyticsService {
       activeEnrollments,
       completedEnrollments,
       totalLessons,
+      totalCertificates,
     ] = await Promise.all([
       this.prisma.course.count({ where: { tenantId, deletedAt: null } }),
       this.prisma.course.count({ where: { tenantId, deletedAt: null, status: 'PUBLISHED' } }),
@@ -32,6 +33,7 @@ export class AnalyticsService {
       this.prisma.enrollment.count({ where: { tenantId, status: 'ACTIVE' } }),
       this.prisma.enrollment.count({ where: { tenantId, status: 'COMPLETED' } }),
       this.prisma.lesson.count({ where: { tenantId, deletedAt: null } }),
+      this.prisma.certificate.count({ where: { tenantId } }),
     ]);
 
     const totalEnrollments = activeEnrollments + completedEnrollments;
@@ -47,6 +49,7 @@ export class AnalyticsService {
       completedEnrollments,
       completionRate,
       totalLessons,
+      totalCertificates,
     };
   }
 

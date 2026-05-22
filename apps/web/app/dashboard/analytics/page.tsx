@@ -227,10 +227,10 @@ export default function AnalyticsPage() {
         variants={{ animate: { transition: { staggerChildren: 0.06 } } }}
         className="grid grid-cols-2 lg:grid-cols-4 gap-4"
       >
-        <StatCard label="Cursos publicados"   value={overview.publishedCourses}     sub={`de ${overview.totalCourses} totales`}         iconName="book-open"    accent="#1E4F7A" />
-        <StatCard label="Total inscripciones" value={overview.totalEnrollments}     sub={`${overview.completedEnrollments} completadas`} iconName="trending"     accent="#8FC4E8" />
-        <StatCard label="Tasa de completado"  value={`${overview.completionRate}%`} sub="del total de inscripciones"                    iconName="check-circle" accent="#7FD1AE" />
-        <StatCard label="Empleados activos"   value={overview.totalUsers}           sub={`${overview.totalLessons} lecciones en total`} iconName="users"        accent="#F59E0B" />
+        <StatCard label="Cursos publicados"    value={overview.publishedCourses}     sub={`de ${overview.totalCourses} totales`}         iconName="book-open"    accent="#1E4F7A" />
+        <StatCard label="Total inscripciones"  value={overview.totalEnrollments}     sub={`${overview.completedEnrollments} completadas`} iconName="trending"     accent="#8FC4E8" />
+        <StatCard label="Tasa de completado"   value={`${overview.completionRate}%`} sub="del total de inscripciones"                    iconName="check-circle" accent="#7FD1AE" />
+        <StatCard label="Certificados emitidos" value={(overview as any).totalCertificates ?? 0} sub={`${overview.totalUsers} empleados activos`} iconName="certificate"  accent="#F59E0B" />
       </motion.div>
 
       {/* ── Tabla de cursos ── */}

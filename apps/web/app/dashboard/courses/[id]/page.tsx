@@ -30,7 +30,416 @@ const Upload       = (p: { size?: number; className?: string }) => <Icon name="u
 const AlertCircle  = (p: { size?: number; className?: string }) => <Icon name="alert-circle"  size={p.size} className={p.className} />;
 const RefreshCw    = (p: { size?: number; className?: string }) => <Icon name="refresh"        size={p.size} className={p.className} />;
 const Eye          = (p: { size?: number; className?: string }) => <Icon name="eye"            size={p.size} className={p.className} />;
+const Shield       = (p: { size?: number; className?: string }) => <Icon name="shield"         size={p.size} className={p.className} />;
 import { api } from '@/lib/api';
+
+// ─── Tipos de evaluación (admin) ──────────────────────────────────────────────
+
+interface EvalOption {
+  id:        string;
+  text:      string;
+  isCorrect: boolean;
+  order:     number;
+}
+
+interface EvalQuestion {
+  id:          string;
+  text:        string;
+  points:      number;
+  order:       number;
+  explanation: string | null;
+  options:     EvalOption[];
+}
+
+interface EvaluationAdmin {
+  id:           string;
+  lessonId:     string;
+  title:        string;
+  instructions: string | null;
+  minScore:     number;
+  maxAttempts:  number;
+  timeLimit:    number | null;
+  isRequired:   boolean;
+  questions:    EvalQuestion[];
+}
+
+// ─── Editor de evaluación (tab dentro del drawer) ─────────────────────────────
+
+function EvaluationEditorTab({ lessonId, tenantHasEval }: { lessonId: string; tenantHasEval: boolean }) {
+  const [evaluation,  setEvaluation]  = useState<EvaluationAdmin | null | undefined>(undefined); // undefined = loading
+  const [saving,      setSaving]      = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
+  const [success,     setSuccess]     = useState<string | null>(null);
+
+  // ── Formulario nueva evaluación ──
+  const [newTitle,    setNewTitle]    = useState('');
+  const [minScore,    setMinScore]    = useState(70);
+  const [maxAttempts, setMaxAttempts] = useState(3);
+  const [isRequired,  setIsRequired]  = useState(false);
+  const [creating,    setCreating]    = useState(false);
+
+  // ── Nueva pregunta ──
+  const [addingQ,     setAddingQ]     = useState(false);
+  const [qText,       setQText]       = useState('');
+  const [qExplanation,setQExplanation]= useState('');
+  const [qOptions,    setQOptions]    = useState<{ text: string; isCorrect: boolean }[]>([
+    { text: '', isCorrect: false },
+    { text: '', isCorrect: false },
+  ]);
+  const [savingQ,     setSavingQ]     = useState(false);
+
+  const showSuccess = (msg: string) => {
+    setSuccess(msg);
+    setTimeout(() => setSuccess(null), 2500);
+  };
+
+  // Cargar evaluación al montar
+  useEffect(() => {
+    setEvaluation(undefined);
+    api.get<EvaluationAdmin | null>(`/lessons/${lessonId}/evaluation/admin`)
+      .then(res => setEvaluation(res.data))
+      .catch(() => setEvaluation(null));
+  }, [lessonId]);
+
+  if (!tenantHasEval) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl mb-3"
+          style={{ background: '#f59e0b12', color: '#f59e0b' }}>
+          <Shield size={20} />
+        </div>
+        <p className="font-semibold text-foreground mb-1">Plan no compatible</p>
+        <p className="text-sm text-muted-foreground">
+          Las evaluaciones requieren el plan Business o Enterprise.
+        </p>
+      </div>
+    );
+  }
+
+  if (evaluation === undefined) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 size={20} className="animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // ── Crear evaluación ──
+  const handleCreate = async () => {
+    if (!newTitle.trim()) return;
+    setCreating(true);
+    setError(null);
+    try {
+      const { data } = await api.post<EvaluationAdmin>(`/lessons/${lessonId}/evaluation`, {
+        title: newTitle.trim(),
+        minScore,
+        maxAttempts,
+        isRequired,
+      });
+      setEvaluation(data);
+      showSuccess('Evaluación creada.');
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? 'No se pudo crear la evaluación.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // ── Eliminar evaluación ──
+  const handleDelete = async () => {
+    if (!evaluation || !confirm('¿Eliminar la evaluación y todas sus preguntas?')) return;
+    setSaving(true);
+    try {
+      await api.delete(`/evaluations/${evaluation.id}`);
+      setEvaluation(null);
+      showSuccess('Evaluación eliminada.');
+    } catch {
+      setError('No se pudo eliminar la evaluación.');
+    } finally { setSaving(false); }
+  };
+
+  // ── Agregar pregunta ──
+  const handleAddQuestion = async () => {
+    if (!evaluation || !qText.trim()) return;
+    const hasCorrect = qOptions.some(o => o.isCorrect);
+    if (!hasCorrect) { setError('Debes marcar al menos una opción como correcta.'); return; }
+    const validOptions = qOptions.filter(o => o.text.trim());
+    if (validOptions.length < 2) { setError('Agrega al menos 2 opciones.'); return; }
+
+    setSavingQ(true);
+    setError(null);
+    try {
+      const { data } = await api.post<EvaluationAdmin>(`/evaluations/${evaluation.id}/questions`, {
+        text:        qText.trim(),
+        explanation: qExplanation.trim() || undefined,
+        options:     validOptions.map((o, i) => ({ text: o.text, isCorrect: o.isCorrect, order: i })),
+      });
+      setEvaluation(data);
+      setQText('');
+      setQExplanation('');
+      setQOptions([{ text: '', isCorrect: false }, { text: '', isCorrect: false }]);
+      setAddingQ(false);
+      showSuccess('Pregunta agregada.');
+    } catch {
+      setError('No se pudo guardar la pregunta.');
+    } finally { setSavingQ(false); }
+  };
+
+  // ── Eliminar pregunta ──
+  const handleDeleteQuestion = async (questionId: string) => {
+    if (!evaluation) return;
+    try {
+      await api.delete(`/evaluations/${evaluation.id}/questions/${questionId}`);
+      setEvaluation(prev => prev ? {
+        ...prev,
+        questions: prev.questions.filter(q => q.id !== questionId),
+      } : prev);
+    } catch {
+      setError('No se pudo eliminar la pregunta.');
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+
+      {/* Feedback */}
+      <AnimatePresence>
+        {error && (
+          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+            <AlertCircle size={14} className="text-destructive mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-destructive">{error}</p>
+          </motion.div>
+        )}
+        {success && (
+          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/5 px-4 py-3">
+            <Check size={14} className="text-emerald-600 dark:text-emerald-400" />
+            <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{success}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sin evaluación — formulario de creación */}
+      {!evaluation && (
+        <div className="rounded-2xl border border-dashed border-border p-5 space-y-4">
+          <div className="text-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl mx-auto mb-2"
+              style={{ background: '#1E4F7A10', color: '#1E4F7A' }}>
+              <Shield size={18} />
+            </div>
+            <p className="font-semibold text-foreground text-sm">Sin evaluación</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Crea un quiz para esta lección</p>
+          </div>
+          <div className="space-y-3">
+            <input
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              placeholder="Título del quiz (Ej: Evaluación Módulo 1)"
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Puntuación mínima (%)</label>
+                <input type="number" min="0" max="100" value={minScore}
+                  onChange={e => setMinScore(Number(e.target.value))}
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Intentos máximos (-1=∞)</label>
+                <input type="number" min="-1" value={maxAttempts}
+                  onChange={e => setMaxAttempts(Number(e.target.value))}
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40" />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={isRequired} onChange={e => setIsRequired(e.target.checked)}
+                className="rounded" />
+              <span className="text-sm text-foreground">Obligatoria (bloquea avance hasta aprobar)</span>
+            </label>
+            <button
+              onClick={handleCreate}
+              disabled={!newTitle.trim() || creating}
+              className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.97]"
+              style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+            >
+              {creating ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
+              Crear evaluación
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Evaluación existente */}
+      {evaluation && (
+        <div className="space-y-4">
+          {/* Header de la evaluación */}
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">{evaluation.title}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Mínimo {evaluation.minScore}% ·&nbsp;
+                {evaluation.maxAttempts === -1 ? 'intentos ilimitados' : `${evaluation.maxAttempts} intentos`}
+                {evaluation.isRequired && ' · Obligatoria'}
+              </p>
+            </div>
+            <button
+              onClick={handleDelete}
+              disabled={saving}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              {saving ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+            </button>
+          </div>
+
+          {/* Lista de preguntas */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              Preguntas ({evaluation.questions.length})
+            </h4>
+            {evaluation.questions.length === 0 && (
+              <p className="text-sm text-muted-foreground italic">Sin preguntas. Agrega al menos una.</p>
+            )}
+            {evaluation.questions.map((q, qi) => (
+              <motion.div
+                key={q.id}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="group rounded-xl border border-border bg-background p-3 hover:border-capta-soft/30 transition-colors"
+              >
+                <div className="flex items-start gap-2">
+                  <span className="text-xs font-bold text-muted-foreground/60 mt-0.5 flex-shrink-0">{qi + 1}.</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{q.text}</p>
+                    <div className="mt-2 space-y-1">
+                      {q.options.map(o => (
+                        <div key={o.id} className="flex items-center gap-2">
+                          <div
+                            className="flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-full"
+                            style={{
+                              background:   o.isCorrect ? '#16a34a18' : '#ef444418',
+                              border:       `1.5px solid ${o.isCorrect ? '#16a34a40' : '#ef444440'}`,
+                            }}
+                          >
+                            {o.isCorrect && <div className="h-1.5 w-1.5 rounded-full bg-emerald-600" />}
+                          </div>
+                          <span className={`text-xs ${o.isCorrect ? 'font-semibold text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                            {o.text}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {q.explanation && (
+                      <p className="mt-2 text-xs text-muted-foreground/70 italic border-l-2 border-border pl-2">{q.explanation}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleDeleteQuestion(q.id)}
+                    className="opacity-0 group-hover:opacity-100 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Agregar pregunta */}
+          <AnimatePresence>
+            {addingQ ? (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="rounded-xl border border-capta-soft/30 bg-capta-soft/5 p-4 space-y-3"
+              >
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Nueva pregunta</p>
+                <textarea
+                  value={qText}
+                  onChange={e => setQText(e.target.value)}
+                  rows={2}
+                  placeholder="Texto de la pregunta…"
+                  className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft"
+                />
+
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Opciones (marca la correcta con ✓)</p>
+                  {qOptions.map((opt, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setQOptions(prev => prev.map((o, idx) => ({ ...o, isCorrect: idx === i })))
+                        }
+                        className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all"
+                        style={{
+                          borderColor: opt.isCorrect ? '#16a34a' : undefined,
+                          background:  opt.isCorrect ? '#16a34a' : 'transparent',
+                        }}
+                        title="Marcar como correcta"
+                      >
+                        {opt.isCorrect && <div className="h-2 w-2 rounded-full bg-white" />}
+                      </button>
+                      <input
+                        value={opt.text}
+                        onChange={e =>
+                          setQOptions(prev => prev.map((o, idx) => idx === i ? { ...o, text: e.target.value } : o))
+                        }
+                        placeholder={`Opción ${i + 1}`}
+                        className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-capta-soft/40"
+                      />
+                      {qOptions.length > 2 && (
+                        <button type="button" onClick={() => setQOptions(prev => prev.filter((_, idx) => idx !== i))}
+                          className="text-muted-foreground hover:text-destructive">
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setQOptions(prev => [...prev, { text: '', isCorrect: false }])}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-capta-deep dark:hover:text-capta-soft transition-colors"
+                  >
+                    <Plus size={12} /> Agregar opción
+                  </button>
+                </div>
+
+                <textarea
+                  value={qExplanation}
+                  onChange={e => setQExplanation(e.target.value)}
+                  rows={2}
+                  placeholder="Explicación (opcional — se muestra al revisar resultados)"
+                  className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-capta-soft/40"
+                />
+
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setAddingQ(false)} className="text-sm text-muted-foreground hover:text-foreground px-3 py-1.5">Cancelar</button>
+                  <button
+                    onClick={handleAddQuestion}
+                    disabled={!qText.trim() || savingQ}
+                    className="flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50 transition-all"
+                    style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                  >
+                    {savingQ ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                    Guardar pregunta
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <button
+                onClick={() => { setAddingQ(true); setError(null); }}
+                className="flex w-full items-center gap-2 rounded-xl border-2 border-dashed border-border px-3 py-2.5 text-sm text-muted-foreground hover:border-capta-soft/50 hover:text-capta-soft transition-all"
+              >
+                <Plus size={14} /> Agregar pregunta
+              </button>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -96,13 +505,18 @@ function LessonContentDrawer({
   moduleId,
   onClose,
   onUpdated,
+  tenantHasEval = true,
 }: {
   lesson: Lesson;
   courseId: string;
   moduleId: string;
   onClose: () => void;
   onUpdated: (updated: Partial<Lesson>) => void;
+  tenantHasEval?: boolean;
 }) {
+  type DrawerTab = 'content' | 'evaluation';
+  const [activeTab, setActiveTab] = useState<DrawerTab>('content');
+
   // ── Estado compartido ──
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState<string | null>(null);
@@ -282,8 +696,36 @@ function LessonContentDrawer({
           </button>
         </div>
 
+        {/* Tab switcher */}
+        <div className="flex border-b border-border px-5 gap-1 flex-shrink-0">
+          {([
+            { key: 'content',    label: 'Contenido', icon: 'file' },
+            { key: 'evaluation', label: 'Evaluación', icon: 'shield' },
+          ] as const).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 transition-all -mb-px ${
+                activeTab === tab.key
+                  ? 'border-capta-deep text-capta-deep dark:border-capta-soft dark:text-capta-soft'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Icon name={tab.icon as any} size={12} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* Contenido del drawer */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* Tab: Evaluación */}
+          {activeTab === 'evaluation' && (
+            <EvaluationEditorTab lessonId={lesson.id} tenantHasEval={tenantHasEval} />
+          )}
+
+          {/* Tab: Contenido — visible solo cuando activeTab === 'content' */}
+          <div className={activeTab === 'content' ? 'contents' : 'hidden'}>
 
           {/* Feedback de error */}
           <AnimatePresence>
@@ -441,7 +883,7 @@ function LessonContentDrawer({
           )}
 
           {/* ── FILE ──────────────────────────────────────────────────────── */}
-          {lesson.type === 'FILE' && (
+          {activeTab === 'content' && lesson.type === 'FILE' && (
             <div className="space-y-4">
               {/* Archivo actual */}
               {lesson.fileKey && (
@@ -517,6 +959,7 @@ function LessonContentDrawer({
               </div>
             </div>
           )}
+          </div>{/* fin div de contenido del tab */}
         </div>
       </motion.aside>
     </>
