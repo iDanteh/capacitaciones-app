@@ -100,6 +100,7 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount,   setUnreadCount]   = useState(0);
   const [loading,       setLoading]       = useState(false);
+  const [panelPos,      setPanelPos]      = useState({ top: 0, right: 0 });
 
   const panelRef  = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -177,7 +178,13 @@ export function NotificationBell() {
       {/* Botón de campana */}
       <button
         ref={buttonRef}
-        onClick={() => setOpen(o => !o)}
+        onClick={() => {
+          if (!open && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setPanelPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+          }
+          setOpen(o => !o);
+        }}
         className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground/60 transition-all hover:border-capta-deep/20 hover:bg-muted hover:text-foreground"
         aria-label="Notificaciones"
       >
@@ -201,7 +208,7 @@ export function NotificationBell() {
         </AnimatePresence>
       </button>
 
-      {/* Panel desplegable */}
+      {/* Panel desplegable — fixed para escapar overflow:hidden del layout */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -210,8 +217,12 @@ export function NotificationBell() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-            className="absolute right-0 top-10 z-50 w-[360px] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-border bg-card overflow-hidden"
-            style={{ boxShadow: '0 8px 40px rgba(11,31,42,0.14), 0 2px 8px rgba(11,31,42,0.06)' }}
+            className="fixed z-[300] w-[360px] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-border bg-card overflow-hidden"
+            style={{
+              top:       panelPos.top,
+              right:     panelPos.right,
+              boxShadow: '0 8px 40px rgba(11,31,42,0.14), 0 2px 8px rgba(11,31,42,0.06)',
+            }}
           >
             {/* Cabecera del panel */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">

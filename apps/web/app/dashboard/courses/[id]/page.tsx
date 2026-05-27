@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/capta-icon';
@@ -1167,6 +1167,7 @@ function LessonContentDrawer({
   onClose,
   onUpdated,
   tenantHasEval = true,
+  initialTab    = 'content',
 }: {
   lesson: Lesson;
   courseId: string;
@@ -1174,9 +1175,10 @@ function LessonContentDrawer({
   onClose: () => void;
   onUpdated: (updated: Partial<Lesson>) => void;
   tenantHasEval?: boolean;
+  initialTab?: 'content' | 'evaluation';
 }) {
   type DrawerTab = 'content' | 'evaluation';
-  const [activeTab, setActiveTab] = useState<DrawerTab>('content');
+  const [activeTab, setActiveTab] = useState<DrawerTab>(initialTab);
 
   const { success: toastSuccess, error: toastError } = useToast();
 
@@ -1883,8 +1885,9 @@ function ModuleAccordion({
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function CourseEditorPage() {
-  const params = useParams<{ id: string }>();
-  const router = useRouter();
+  const params       = useParams<{ id: string }>();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
 
   const [course,       setCourse]       = useState<Course | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -1901,8 +1904,9 @@ export default function CourseEditorPage() {
   const [editingInfo,  setEditingInfo]  = useState(false);
 
   // Estado del drawer de edición de lección
-  const [editingLesson,   setEditingLesson]   = useState<Lesson | null>(null);
-  const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
+  const [editingLesson,    setEditingLesson]    = useState<Lesson | null>(null);
+  const [editingModuleId,  setEditingModuleId]  = useState<string | null>(null);
+  const [drawerInitialTab, setDrawerInitialTab] = useState<'content' | 'evaluation'>('content');
 
   const load = useCallback(() => {
     api.get<Course>(`/courses/${params.id}`)
@@ -1910,10 +1914,26 @@ export default function CourseEditorPage() {
         setCourse(res.data);
         setEditTitle(res.data.title);
         setEditDesc(res.data.description ?? '');
+
+        // Si la URL incluye ?lesson=...&tab=evaluation (desde notificación de reset)
+        // abrir automáticamente el drawer en la pestaña correcta
+        const targetLessonId = searchParams.get('lesson');
+        const targetTab      = searchParams.get('tab') as 'content' | 'evaluation' | null;
+        if (targetLessonId) {
+          for (const m of res.data.modules) {
+            const found = m.lessons.find(l => l.id === targetLessonId);
+            if (found) {
+              setEditingLesson(found);
+              setEditingModuleId(m.id);
+              setDrawerInitialTab(targetTab === 'evaluation' ? 'evaluation' : 'content');
+              break;
+            }
+          }
+        }
       })
       .catch(() => router.push('/dashboard/courses'))
       .finally(() => setLoading(false));
-  }, [params.id, router]);
+  }, [params.id, router, searchParams]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -2261,6 +2281,11 @@ export default function CourseEditorPage() {
           </div>
         </motion.div>
 
+        {/* ── Inscritos ── */}
+        {(course.status === 'PUBLISHED' || (course.enrollmentCount ?? 0) > 0) && (
+          <EnrolleesSection courseId={course.id} />
+        )}
+
         {/* ── Estructura del curso ── */}
         <div>
           <div className="flex items-center justify-between mb-4">
@@ -2332,6 +2357,7 @@ export default function CourseEditorPage() {
                   onLessonDelete={handleLessonDelete}
                   onLessonAdd={handleLessonAdd}
                   onLessonEdit={(lesson, moduleId) => {
+                    setDrawerInitialTab('content');
                     setEditingLesson(lesson);
                     setEditingModuleId(moduleId);
                   }}
@@ -2340,11 +2366,6 @@ export default function CourseEditorPage() {
             )}
           </div>
         </div>
-
-        {/* ── Inscritos ── */}
-        {(course.status === 'PUBLISHED' || (course.enrollmentCount ?? 0) > 0) && (
-          <EnrolleesSection courseId={course.id} />
-        )}
 
       </div>
 
@@ -2355,7 +2376,8 @@ export default function CourseEditorPage() {
             lesson={editingLesson}
             courseId={course.id}
             moduleId={editingModuleId}
-            onClose={() => { setEditingLesson(null); setEditingModuleId(null); }}
+            initialTab={drawerInitialTab}
+            onClose={() => { setEditingLesson(null); setEditingModuleId(null); setDrawerInitialTab('content'); }}
             onUpdated={updates => {
               handleLessonUpdated(editingLesson.id, editingModuleId, updates);
               setEditingLesson(prev => prev ? { ...prev, ...updates } : prev);
