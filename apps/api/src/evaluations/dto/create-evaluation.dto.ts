@@ -1,5 +1,6 @@
 import {
   IsString, IsOptional, IsInt, IsBoolean, Min, Max, MaxLength,
+  IsArray, ArrayNotEmpty, ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -47,6 +48,9 @@ export class CreateQuestionDto {
   explanation?: string;
 
   @ApiProperty({ type: [CreateOptionDto] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @ValidateNested({ each: true })
   @Type(() => CreateOptionDto)
   options: CreateOptionDto[];
 }
@@ -129,4 +133,54 @@ export class UpdateEvaluationDto {
   @IsOptional()
   @IsBoolean()
   isRequired?: boolean;
+}
+
+/**
+ * DTO para editar una pregunta existente.
+ * Si se envían `options`, reemplaza todas las opciones existentes.
+ * El servicio rechazará el cambio de opciones si ya existen intentos registrados.
+ */
+export class UpdateQuestionDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  text?: string;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  points?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  explanation?: string | null;
+
+  @ApiPropertyOptional({ type: [CreateOptionDto], description: 'Si se envía, reemplaza todas las opciones.' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateOptionDto)
+  options?: CreateOptionDto[];
+}
+
+/** DTO para reordenar preguntas de una evaluación. */
+export class ReorderQuestionsDto {
+  @ApiProperty({ type: [String], description: 'IDs de preguntas en el nuevo orden.' })
+  @IsArray()
+  @ArrayNotEmpty()
+  orderedIds: string[];
+}
+
+/** DTO para que un estudiante solicite reinicio de intentos. */
+export class CreateResetRequestDto {
+  @ApiPropertyOptional({ description: 'Mensaje opcional del estudiante al admin.', maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  message?: string;
 }

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon, type IconName } from '@/components/capta-icon';
 import { api } from '@/lib/api';
+import { useToast } from '@/components/toast';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -262,6 +263,7 @@ function PackRow({
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function SubscriptionPage() {
+  const { error: toastError } = useToast();
   const [subscription,   setSubscription]   = useState<SubscriptionData | null>(null);
   const [availablePacks, setAvailablePacks] = useState<StoragePack[]>([]);
   const [userRole,       setUserRole]       = useState<string>('');
@@ -271,13 +273,6 @@ export default function SubscriptionPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading,   setPortalLoading]   = useState(false);
   const [packLoading,     setPackLoading]      = useState<Record<string, 'adding' | 'removing' | null>>({});
-  const [actionError,     setActionError]      = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!actionError) return;
-    const t = setTimeout(() => setActionError(null), 4000);
-    return () => clearTimeout(t);
-  }, [actionError]);
 
   const isOwner = userRole === 'OWNER';
 
@@ -318,7 +313,7 @@ export default function SubscriptionPage() {
       });
       window.location.href = data.url;
     } catch {
-      setActionError('No se pudo iniciar el proceso de cambio de plan. Asegúrate de tener Stripe configurado.');
+      toastError('No se pudo iniciar el proceso de cambio de plan.', 'Asegúrate de tener Stripe configurado.');
     } finally {
       setCheckoutLoading(false);
     }
@@ -330,7 +325,7 @@ export default function SubscriptionPage() {
       const { data } = await api.post<{ url: string }>('/subscriptions/portal');
       window.open(data.url, '_blank');
     } catch {
-      setActionError('No se pudo abrir el portal de facturación. Verifica que Stripe esté configurado.');
+      toastError('No se pudo abrir el portal de facturación.', 'Verifica que Stripe esté configurado.');
     } finally {
       setPortalLoading(false);
     }
@@ -342,7 +337,7 @@ export default function SubscriptionPage() {
       await api.post('/subscriptions/storage-packs', { packId });
       await fetchData();
     } catch {
-      setActionError('No se pudo agregar el storage pack. Intenta de nuevo.');
+      toastError('No se pudo agregar el storage pack. Intenta de nuevo.');
     } finally {
       setPackLoading((prev) => ({ ...prev, [packId]: null }));
     }
@@ -354,7 +349,7 @@ export default function SubscriptionPage() {
       await api.delete(`/subscriptions/storage-packs/${packId}`);
       await fetchData();
     } catch {
-      setActionError('No se pudo quitar el storage pack. Intenta de nuevo.');
+      toastError('No se pudo quitar el storage pack. Intenta de nuevo.');
     } finally {
       setPackLoading((prev) => ({ ...prev, [packId]: null }));
     }
@@ -409,28 +404,6 @@ export default function SubscriptionPage() {
           Gestiona tu plan, almacenamiento y facturación.
         </p>
       </motion.div>
-
-      {/* ── Error de acción ── */}
-      <AnimatePresence>
-        {actionError && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="flex items-center gap-3 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3"
-          >
-            <Icon name="alert-triangle" size={15} className="text-destructive flex-shrink-0" />
-            <p className="flex-1 text-sm text-destructive">{actionError}</p>
-            <button
-              onClick={() => setActionError(null)}
-              className="flex-shrink-0 text-destructive/60 hover:text-destructive transition-colors"
-            >
-              <Icon name="close" size={14} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ── Alerta período de gracia ── */}
       {(status === 'PAST_DUE' || status === 'UNPAID') && (

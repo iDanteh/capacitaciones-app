@@ -40,9 +40,21 @@ const listItem = {
 
 // ─── Componente CourseCard ────────────────────────────────────────────────────
 
-function CourseCard({ course, role }: { course: Course; role: string }) {
+function CourseCard({ course, role, onDelete }: { course: Course; role: string; onDelete: (id: string) => Promise<void> }) {
   const status = STATUS_CONFIG[course.status];
   const canEdit = ['OWNER', 'ADMIN'].includes(role);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await onDelete(course.id);
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm(false);
+    }
+  };
 
   return (
     <motion.div
@@ -129,35 +141,69 @@ function CourseCard({ course, role }: { course: Course; role: string }) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-2 border-t border-border">
-          {course.authorName && (
-            <span className="text-xs text-muted-foreground truncate max-w-[60%]">
-              {course.authorName}
-            </span>
-          )}
-          <div className="flex items-center gap-2 ml-auto">
-            {canEdit && (
-              <Link
-                href={`/dashboard/courses/${course.id}`}
-                className="flex items-center gap-1 text-xs font-medium text-capta-deep dark:text-capta-soft hover:underline"
-              >
-                Editar <Icon name="arrow-right" size={12} />
-              </Link>
+        <div className="space-y-2 pt-2 border-t border-border">
+          <div className="flex items-center justify-between">
+            {course.authorName && (
+              <span className="text-xs text-muted-foreground truncate max-w-[60%]">
+                {course.authorName}
+              </span>
             )}
-            {course.status === 'PUBLISHED' && (
-              <Link
-                href={`/dashboard/courses/${course.id}/learn`}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:scale-[1.03]"
-                style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 8px rgba(30,79,122,0.25)' }}
-              >
-                {course.isEnrolled ? (
-                  <><Icon name="play" size={11} /> {course.myProgress === 100 ? 'Ver de nuevo' : course.myProgress && course.myProgress > 0 ? 'Continuar' : 'Iniciar'}</>
-                ) : (
-                  <><Icon name="play" size={11} /> Ver curso</>
-                )}
-              </Link>
-            )}
+            <div className="flex items-center gap-2 ml-auto">
+              {canEdit && !deleteConfirm && (
+                <button
+                  onClick={() => setDeleteConfirm(true)}
+                  className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  title="Eliminar curso"
+                >
+                  <Icon name="trash" size={12} />
+                </button>
+              )}
+              {canEdit && (
+                <Link
+                  href={`/dashboard/courses/${course.id}`}
+                  className="flex items-center gap-1 text-xs font-medium text-capta-deep dark:text-capta-soft hover:underline"
+                >
+                  Editar <Icon name="arrow-right" size={12} />
+                </Link>
+              )}
+              {course.status === 'PUBLISHED' && (
+                <Link
+                  href={`/dashboard/courses/${course.id}/learn`}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:scale-[1.03]"
+                  style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 8px rgba(30,79,122,0.25)' }}
+                >
+                  {course.isEnrolled ? (
+                    <><Icon name="play" size={11} /> {course.myProgress === 100 ? 'Ver de nuevo' : course.myProgress && course.myProgress > 0 ? 'Continuar' : 'Iniciar'}</>
+                  ) : (
+                    <><Icon name="play" size={11} /> Ver curso</>
+                  )}
+                </Link>
+              )}
+            </div>
           </div>
+
+          {/* Confirmación de eliminación inline */}
+          {deleteConfirm && (
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2">
+              <p className="text-xs text-destructive font-medium">¿Eliminar curso?</p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setDeleteConfirm(false)}
+                  className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded transition-colors"
+                >
+                  No
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-white bg-destructive hover:bg-destructive/90 disabled:opacity-60 transition-all"
+                >
+                  {deleting ? <Icon name="refresh" size={10} className="animate-spin" /> : null}
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
@@ -201,6 +247,11 @@ export default function CoursesPage() {
       .catch(() => setError('No se pudieron cargar los cursos.'))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleDeleteCourse = async (id: string) => {
+    await api.delete(`/courses/${id}`);
+    setCourses(prev => prev.filter(c => c.id !== id));
+  };
 
   const canCreate = ['OWNER', 'ADMIN'].includes(role);
 
@@ -326,7 +377,7 @@ export default function CoursesPage() {
           className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
         >
           {filtered.map(course => (
-            <CourseCard key={course.id} course={course} role={role} />
+            <CourseCard key={course.id} course={course} role={role} onDelete={handleDeleteCourse} />
           ))}
         </motion.div>
       )}

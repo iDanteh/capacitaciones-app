@@ -63,10 +63,12 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       client.data.tenantId = payload.tenantId;
       client.data.userId   = payload.sub;
 
-      // Cada cliente queda aislado en la room de su tenant
+      // Room del tenant — para broadcast general (video.ready, enrollment.completed)
       await client.join(`tenant:${payload.tenantId}`);
+      // Room personal — para notificaciones dirigidas al usuario específico
+      await client.join(`user:${payload.sub}`);
 
-      this.logger.debug(`WS conectado: ${client.id} (tenant: ${payload.tenantId})`);
+      this.logger.debug(`WS conectado: ${client.id} (tenant: ${payload.tenantId}, user: ${payload.sub})`);
     } catch {
       this.logger.warn(`WS rechazado (token inválido): ${client.id}`);
       client.disconnect();
@@ -79,10 +81,19 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
   /**
    * Emite un evento a todos los sockets conectados del tenant.
-   * Llamado desde VideoController y EnrollmentsService — no desde el cliente.
+   * Usado para eventos generales: video.ready, enrollment.completed.
    */
   emitToTenant(tenantId: string, event: string, data: unknown): void {
     this.server?.to(`tenant:${tenantId}`).emit(event, data);
     this.logger.debug(`WS emit → tenant:${tenantId} | ${event}`);
+  }
+
+  /**
+   * Emite un evento al socket personal del usuario.
+   * Usado para notificaciones dirigidas: notification.new, reset_approved, etc.
+   */
+  emitToUser(userId: string, event: string, data: unknown): void {
+    this.server?.to(`user:${userId}`).emit(event, data);
+    this.logger.debug(`WS emit → user:${userId} | ${event}`);
   }
 }

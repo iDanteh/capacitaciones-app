@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Put,
   Delete,
   Body,
   Param,
@@ -16,6 +17,9 @@ import {
   CreateEvaluationDto,
   UpdateEvaluationDto,
   CreateQuestionDto,
+  UpdateQuestionDto,
+  ReorderQuestionsDto,
+  CreateResetRequestDto,
 } from './dto/create-evaluation.dto';
 import { SubmitAttemptDto } from './dto/submit-attempt.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -122,6 +126,31 @@ export class EvaluationsController {
     return this.service.removeQuestion(user.tenantId, id, questionId);
   }
 
+  @Patch('evaluations/:id/questions/:questionId')
+  @ApiOperation({ summary: 'Editar texto, puntos, explicación u opciones de una pregunta' })
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  updateQuestion(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Param('questionId') questionId: string,
+    @Body() dto: UpdateQuestionDto,
+  ) {
+    return this.service.updateQuestion(user.tenantId, id, questionId, dto);
+  }
+
+  @Put('evaluations/:id/questions/reorder')
+  @ApiOperation({ summary: 'Reordenar preguntas de una evaluación' })
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  reorderQuestions(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: ReorderQuestionsDto,
+  ) {
+    return this.service.reorderQuestions(user.tenantId, id, dto.orderedIds);
+  }
+
   // ── Rutas de consumo (todos los usuarios autenticados) ────────────────────
 
   @Get('lessons/:lessonId/evaluation')
@@ -150,5 +179,54 @@ export class EvaluationsController {
     @Param('id') id: string,
   ) {
     return this.service.getMyAttempts(user.tenantId, user.sub, id);
+  }
+
+  // ── Solicitudes de reinicio de intentos ─────────────────────────────────
+
+  @Post('evaluations/:id/reset-requests')
+  @ApiOperation({ summary: 'Solicitar reinicio de intentos (estudiante)' })
+  createResetRequest(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: CreateResetRequestDto,
+  ) {
+    return this.service.createResetRequest(user.tenantId, user.sub, id, dto.message);
+  }
+
+  @Get('evaluations/:id/reset-requests')
+  @ApiOperation({ summary: 'Listar solicitudes de reinicio pendientes (admin)' })
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  listPendingResets(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.service.listPendingResets(user.tenantId, id);
+  }
+
+  @Post('evaluations/:id/reset-requests/:reqId/approve')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Aprobar solicitud — reinicia intentos del usuario' })
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  approveReset(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Param('reqId') reqId: string,
+  ) {
+    return this.service.approveReset(user.tenantId, id, reqId, user.sub);
+  }
+
+  @Post('evaluations/:id/reset-requests/:reqId/deny')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Rechazar solicitud de reinicio' })
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  denyReset(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Param('reqId') reqId: string,
+  ) {
+    return this.service.denyReset(user.tenantId, id, reqId, user.sub);
   }
 }

@@ -61,6 +61,21 @@ enum EnrollmentStatus {
   DROPPED   // Abandonó el curso
 }
 
+enum ResetRequestStatus {
+  PENDING  // Esperando revisión del admin
+  APPROVED // Aprobada — intentos del usuario fueron reiniciados
+  DENIED   // Rechazada por el admin
+}
+
+enum NotificationType {
+  RESET_REQUEST    // Admin: estudiante solicita nueva oportunidad en quiz
+  ENROLLMENT       // Admin: usuario se inscribe en un curso
+  COURSE_COMPLETED // Admin: usuario completó un curso
+  VIDEO_READY      // Usuario: su video terminó de procesar en Mux
+  RESET_APPROVED   // Estudiante: admin aprobó su solicitud de reinicio
+  RESET_DENIED     // Estudiante: admin rechazó su solicitud de reinicio
+}
+
 // ─── MODELS ───────────────────────────────────────────────────────────────────
 
 /// Planes de suscripción disponibles en la plataforma.
@@ -440,9 +455,10 @@ model Evaluation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  lesson    Lesson              @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  questions Question[]
-  attempts  EvaluationAttempt[]
+  lesson        Lesson                @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions     Question[]
+  attempts      EvaluationAttempt[]
+  resetRequests AttemptResetRequest[]
 
   @@index([tenantId])
   @@map("evaluations")
@@ -524,6 +540,50 @@ model AttemptAnswer {
 
   @@unique([attemptId, questionId])
   @@map("attempt_answers")
+}
+
+/// Solicitud de reinicio de intentos.
+/// El estudiante la crea cuando agota sus intentos; el admin la aprueba o rechaza.
+/// Al aprobar, se eliminan todos los EvaluationAttempt del usuario para esa evaluación.
+model AttemptResetRequest {
+  id           String             @id @default(cuid())
+  tenantId     String
+  evaluationId String
+  userId       String
+  /// Mensaje opcional del estudiante explicando por qué necesita otra oportunidad.
+  message      String?            @db.Text
+  status       ResetRequestStatus @default(PENDING)
+  requestedAt  DateTime           @default(now())
+  processedAt  DateTime?
+  /// userId del admin que procesó la solicitud.
+  processedBy  String?
+
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  @@index([evaluationId, tenantId])
+  @@index([userId])
+  @@map("attempt_reset_requests")
+}
+
+/// Notificación persistente — se entrega también en tiempo real por WebSocket.
+/// `data` contiene el contexto de navegación (courseId, lessonId, etc.) para el redirect al hacer click.
+model Notification {
+  id        String           @id @default(cuid())
+  tenantId  String
+  /// ID del usuario receptor de la notificación.
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  /// JSON con contexto de navegación: courseId, lessonId, evaluationId, etc.
+  data      Json?
+  /// null = no leída. Populated = ya leída.
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, tenantId])
+  @@index([userId, readAt])
+  @@map("notifications")
 }
 
 // ─── FASE 3: CERTIFICADOS ─────────────────────────────────────────────────────

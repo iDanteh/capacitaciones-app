@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { CaptaLogo, CaptaMark } from '@/components/capta-logo';
 import { Icon, type IconName } from '@/components/capta-icon';
+import { NotificationBell } from '@/components/notification-bell';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -225,13 +226,8 @@ function DesktopHeader({ user }: { user: UserData | null }) {
       {/* Right actions */}
       <div className="ml-auto flex items-center gap-2">
 
-        {/* Notification bell */}
-        <button
-          className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground/60 transition-all hover:border-capta-deep/20 hover:bg-muted hover:text-foreground"
-          aria-label="Notificaciones"
-        >
-          <Icon name="bell" size={14} />
-        </button>
+        {/* Notification bell — funcional */}
+        <NotificationBell />
 
         {/* Theme toggle */}
         <ThemeToggle className="border border-border bg-background hover:border-capta-deep/20 rounded-lg" />

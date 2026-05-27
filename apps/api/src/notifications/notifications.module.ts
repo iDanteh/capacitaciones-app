@@ -2,17 +2,20 @@ import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { NotificationsGateway } from './notifications.gateway';
+import { NotificationsService } from './notifications.service';
+import { NotificationsController } from './notifications.controller';
 
 /**
- * NotificationsModule — gestión de conexiones WebSocket en tiempo real.
- * @Global garantiza una única instancia del gateway en toda la aplicación.
+ * NotificationsModule — WebSocket en tiempo real + notificaciones persistentes.
  *
- * Exporta NotificationsGateway para que otros módulos puedan inyectarlo
- * y emitir eventos a sus tenants sin acoplarse al transport layer.
+ * @Global garantiza una única instancia en toda la aplicación.
  *
- * Patrón: otros módulos importan NotificationsModule y reciben el gateway
- * listo para usar. Esto evita la dependencia circular al no re-exportar
- * toda la infraestructura WS, solo el gateway.
+ * Exporta tanto el Gateway como el Service:
+ *  - NotificationsGateway: para emit directo de eventos WS (video, enrollment).
+ *  - NotificationsService: para crear/persistir notificaciones desde cualquier módulo.
+ *
+ * Patrón: módulos que quieran notificar a usuarios inyectan NotificationsService
+ * sin importar este módulo (gracias al @Global).
  */
 @Global()
 @Module({
@@ -25,7 +28,8 @@ import { NotificationsGateway } from './notifications.gateway';
       }),
     }),
   ],
-  providers: [NotificationsGateway],
-  exports:   [NotificationsGateway],
+  controllers: [NotificationsController],
+  providers:   [NotificationsGateway, NotificationsService],
+  exports:     [NotificationsGateway, NotificationsService],
 })
 export class NotificationsModule {}

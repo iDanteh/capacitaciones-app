@@ -9,7 +9,9 @@ import { PrismaService } from '../database/prisma.service';
 import { EnrollmentResponseDto } from './dto/enrollment-response.dto';
 import { EnrollmentStatus, CourseStatus } from '@prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CertificatesService } from '../certificates/certificates.service';
+import { NotificationType } from '@prisma/client';
 
 /**
  * EnrollmentsService — inscripciones y seguimiento de progreso.
@@ -28,9 +30,10 @@ export class EnrollmentsService {
   private readonly logger = new Logger(EnrollmentsService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly notifications: NotificationsGateway,
-    private readonly certificates: CertificatesService,
+    private readonly prisma:         PrismaService,
+    private readonly gateway:        NotificationsGateway,
+    private readonly notifService:   NotificationsService,
+    private readonly certificates:   CertificatesService,
   ) {}
 
   // ── Inscripción ──────────────────────────────────────────────────────────────
@@ -72,6 +75,20 @@ export class EnrollmentsService {
         lessonProgress: true,
       },
     });
+
+    // Notificar a los admins sobre la nueva inscripción (fire-and-forget)
+    this.prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, lastName: true } })
+      .then(student => {
+        const studentName = student ? `${student.firstName} ${student.lastName}` : 'Un usuario';
+        return this.notifService.createForAdmins(
+          tenantId,
+          NotificationType.ENROLLMENT,
+          'Nueva inscripción',
+          `${studentName} se inscribió en "${course.title}"`,
+          { courseId, courseTitle: course.title, userId, studentName },
+        );
+      })
+      .catch(err => this.logger.warn(`No se pudo crear notificación de inscripción: ${err}`));
 
     this.logger.log(`Usuario ${userId} inscrito en curso ${courseId}`);
     return EnrollmentResponseDto.from(enrollment);
@@ -234,13 +251,27 @@ export class EnrollmentsService {
       },
     });
 
-    // Emitir en tiempo real cuando el empleado completa el curso
+    // Emitir en tiempo real y persistir notificación cuando el empleado completa el curso
     if (isCompleted) {
-      this.notifications.emitToTenant(tenantId, 'enrollment.completed', {
+      this.gateway.emitToTenant(tenantId, 'enrollment.completed', {
         userId,
         courseId,
         courseTitle: updated.course.title,
       });
+
+      // Notificación persistente para admins
+      this.prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, lastName: true } })
+        .then(student => {
+          const studentName = student ? `${student.firstName} ${student.lastName}` : 'Un usuario';
+          return this.notifService.createForAdmins(
+            tenantId,
+            NotificationType.COURSE_COMPLETED,
+            'Curso completado',
+            `${studentName} completó el curso "${updated.course.title}"`,
+            { courseId, courseTitle: updated.course.title, userId, studentName },
+          );
+        })
+        .catch(err => this.logger.warn(`No se pudo crear notificación de completado: ${err}`));
 
       // Generar certificado automáticamente (solo si el plan lo permite)
       try {

@@ -395,6 +395,18 @@ const icons = {
       <path d="M12 9v4M12 17h.01" />
     </>
   ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 16v-4M12 8h.01" />
+    </>
+  ),
+  'pin': (
+    <>
+      <path d="M12 2a5 5 0 0 1 5 5c0 4-5 10-5 10S7 11 7 7a5 5 0 0 1 5-5z" />
+      <circle cx="12" cy="7" r="1.8" />
+    </>
+  ),
 };
 
 export type IconName = keyof typeof icons;

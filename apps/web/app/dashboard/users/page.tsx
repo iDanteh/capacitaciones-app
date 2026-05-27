@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon, type IconName } from '@/components/capta-icon';
 import { api } from '@/lib/api';
+import { useToast } from '@/components/toast';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -238,8 +239,9 @@ function UserRow({
   user: UserItem; onUpdate: (id: string, data: Partial<UserItem>) => void;
   onDelete: (id: string) => void; currentUserId: string;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [menuOpen,       setMenuOpen]       = useState(false);
+  const [loading,        setLoading]        = useState(false);
+  const [deleteConfirm,  setDeleteConfirm]  = useState(false);
   const isMe = user.id === currentUserId;
   const isOwner = user.role === 'OWNER';
 
@@ -255,8 +257,8 @@ function UserRow({
   };
 
   const handleDelete = async () => {
-    if (!confirm(`¿Eliminar a ${user.firstName} ${user.lastName}? Esta acción no se puede deshacer.`)) return;
     setLoading(true);
+    setDeleteConfirm(false);
     try {
       await api.delete(`/users/${user.id}`);
       onDelete(user.id);
@@ -312,25 +314,65 @@ function UserRow({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -4 }}
               transition={{ duration: 0.1 }}
-              className="absolute right-0 top-9 z-30 min-w-[168px] rounded-xl border border-border bg-card p-1 shadow-xl"
+              className="absolute right-0 top-9 z-30 min-w-[180px] rounded-xl border border-border bg-card p-1 shadow-xl"
             >
-              <button
-                onClick={handleToggleActive}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted"
-              >
-                {user.isActive
-                  ? <><Icon name="user-minus" size={14} className="text-muted-foreground" /> Desactivar</>
-                  : <><Icon name="check-circle" size={14} className="text-emerald-500" /> Activar</>
-                }
-              </button>
-              <div className="my-1 h-px bg-border" />
-              <button
-                onClick={handleDelete}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-destructive/8"
-              >
-                <Icon name="close" size={14} />
-                Eliminar usuario
-              </button>
+              {/* Toggle activar / desactivar */}
+              {!deleteConfirm && (
+                <button
+                  onClick={handleToggleActive}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted"
+                >
+                  {user.isActive
+                    ? <><Icon name="user-minus" size={14} className="text-muted-foreground" /> Desactivar</>
+                    : <><Icon name="check-circle" size={14} className="text-emerald-500" /> Activar</>
+                  }
+                </button>
+              )}
+
+              {/* Eliminar */}
+              <AnimatePresence mode="wait">
+                {deleteConfirm ? (
+                  <motion.div
+                    key="confirm"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-3 py-2 rounded-lg bg-destructive/5 border border-destructive/20 m-0.5 space-y-2">
+                      <p className="text-xs font-semibold text-destructive leading-snug">
+                        ¿Eliminar a {user.firstName}?
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">Esta acción no se puede deshacer.</p>
+                      <div className="flex gap-1.5 pt-0.5">
+                        <button
+                          onClick={() => setDeleteConfirm(false)}
+                          className="flex-1 rounded-lg py-1 text-xs text-muted-foreground hover:bg-muted transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={handleDelete}
+                          className="flex-1 rounded-lg py-1 text-xs font-semibold text-white bg-destructive hover:bg-destructive/90 transition-colors"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div key="btn" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    <div className="my-1 h-px bg-border" />
+                    <button
+                      onClick={() => setDeleteConfirm(true)}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-destructive/8"
+                    >
+                      <Icon name="trash" size={14} />
+                      Eliminar usuario
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>
@@ -342,12 +384,12 @@ function UserRow({
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function UsersPage() {
+  const { success: toastSuccess } = useToast();
   const [data, setData]               = useState<PaginatedUsers | null>(null);
   const [invites, setInvites]         = useState<PendingInvite[]>([]);
   const [page, setPage]               = useState(1);
   const [loading, setLoading]         = useState(true);
   const [inviteModal, setInviteModal] = useState(false);
-  const [successMsg, setSuccessMsg]   = useState<string | null>(null);
   const [tab, setTab]                 = useState<'users' | 'invites'>('users');
 
   const [currentUserId] = useState(() => {
@@ -395,9 +437,8 @@ export default function UsersPage() {
 
   const handleInviteSuccess = () => {
     setInviteModal(false);
-    setSuccessMsg('Invitación enviada correctamente');
+    toastSuccess('Invitación enviada correctamente');
     void fetchInvites();
-    setTimeout(() => setSuccessMsg(null), 4000);
   };
 
   const handleCancelInvite = async (id: string) => {
@@ -437,21 +478,6 @@ export default function UsersPage() {
           Invitar usuario
         </button>
       </motion.div>
-
-      {/* ── Toast de éxito ── */}
-      <AnimatePresence>
-        {successMsg && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400"
-          >
-            <Icon name="check-circle" size={15} />
-            {successMsg}
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ── Stats rápidas ── */}
       {data && (

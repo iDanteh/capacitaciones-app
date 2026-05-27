@@ -40,6 +40,8 @@ export class EvaluationForStudentDto {
   /// Mejor puntuación obtenida (null si no hay intentos)
   bestScore:    number | null;
   passed:       boolean;
+  /// Si el usuario ya tiene una solicitud de reinicio PENDING para esta evaluación
+  hasPendingResetRequest: boolean;
 }
 
 // ─── Evaluación para admin/owner (con respuestas correctas) ───────────────────
@@ -72,6 +74,19 @@ export class EvaluationForAdminDto {
   questions:    QuestionForAdminDto[];
   createdAt:    Date;
   updatedAt:    Date;
+  /// Número de intentos registrados. Si > 0, no se pueden reemplazar opciones.
+  attemptCount: number;
+}
+
+// ─── Solicitud de reinicio de intentos ───────────────────────────────────────
+
+export class ResetRequestDto {
+  id:          string;
+  userId:      string;
+  userName:    string;
+  userEmail:   string;
+  message:     string | null;
+  requestedAt: Date;
 }
 
 // ─── Resultado de un intento ──────────────────────────────────────────────────

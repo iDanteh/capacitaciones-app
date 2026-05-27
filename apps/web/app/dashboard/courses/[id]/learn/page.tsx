@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,7 +11,6 @@ import { api } from '@/lib/api';
 const ArrowLeft    = (p: { size?: number; className?: string }) => <Icon name="arrow-left"    size={p.size} className={p.className} />;
 const BookOpen     = (p: { size?: number; className?: string }) => <Icon name="book-open"     size={p.size} className={p.className} />;
 const CheckCircle2 = (p: { size?: number; className?: string }) => <Icon name="check-circle" size={p.size} className={p.className} />;
-const Circle       = (p: { size?: number; className?: string }) => <Icon name="circle"        size={p.size} className={p.className} />;
 const ChevronDown  = (p: { size?: number; className?: string }) => <Icon name="chevron-down"  size={p.size} className={p.className} />;
 const ChevronRight = (p: { size?: number; className?: string }) => <Icon name="chevron-right" size={p.size} className={p.className} />;
 const Video        = (p: { size?: number; className?: string }) => <Icon name="video"         size={p.size} className={p.className} />;
@@ -104,6 +103,7 @@ interface EvaluationData {
   attemptsUsed: number;
   bestScore: number | null;
   passed: boolean;
+  hasPendingResetRequest: boolean;
 }
 
 interface AnswerResult {
@@ -168,6 +168,14 @@ function getFileCategory(mime?: string): FileCategory {
 
 // ─── Panel de Quiz ────────────────────────────────────────────────────────────
 
+type QuizPhase = 'start' | 'taking' | 'result';
+
+function formatTimer(secs: number): string {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 function QuizPanel({
   evaluation,
   enrollmentId,
@@ -177,41 +185,77 @@ function QuizPanel({
   enrollmentId: string;
   onAttemptComplete: (result: AttemptResult) => void;
 }) {
+  const [evalData,        setEvalData]        = useState(evaluation);
+  const [phase,           setPhase]           = useState<QuizPhase>(evaluation.passed ? 'result' : 'start');
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [submitting,      setSubmitting]      = useState(false);
   const [result,          setResult]          = useState<AttemptResult | null>(null);
-  const [expanded,        setExpanded]        = useState(true);
-  const [evalData,        setEvalData]        = useState(evaluation);
+  const [timeRemaining,   setTimeRemaining]   = useState<number | null>(null);
+  const [confirmSubmit,   setConfirmSubmit]   = useState(false);
 
-  // Limpiar al cambiar de evaluación
+  // ── Solicitud de nueva oportunidad ──
+  const [showResetForm,   setShowResetForm]   = useState(false);
+  const [resetMessage,    setResetMessage]    = useState('');
+  const [sendingReset,    setSendingReset]    = useState(false);
+  const [resetSent,       setResetSent]       = useState(evaluation.hasPendingResetRequest);
+
+  // Reset completo al cambiar de evaluación (nueva lección)
   useEffect(() => {
+    setEvalData(evaluation);
+    setPhase(evaluation.passed ? 'result' : 'start');
     setSelectedAnswers({});
     setResult(null);
-    setExpanded(true);
-    setEvalData(evaluation);
-  }, [evaluation.id]);
+    setTimeRemaining(null);
+    setConfirmSubmit(false);
+    setShowResetForm(false);
+    setResetMessage('');
+    setResetSent(evaluation.hasPendingResetRequest);
+  }, [evaluation.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Countdown — se activa solo cuando phase==='taking' y hay timeLimit
+  useEffect(() => {
+    if (phase !== 'taking' || timeRemaining === null) return;
+    if (timeRemaining <= 0) {
+      // Tiempo agotado: enviamos lo que haya respondido
+      void doSubmit();
+      return;
+    }
+    const id = setInterval(() => setTimeRemaining(prev => (prev !== null ? prev - 1 : null)), 1000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, timeRemaining]);
 
   const attemptsRemaining = evalData.maxAttempts === -1
     ? null
     : Math.max(0, evalData.maxAttempts - evalData.attemptsUsed);
 
-  const canAttempt = !evalData.passed && (attemptsRemaining === null || attemptsRemaining > 0);
-  const allAnswered = evalData.questions.every(q => selectedAnswers[q.id]);
+  const canAttempt     = !evalData.passed && (attemptsRemaining === null || attemptsRemaining > 0);
+  const answeredCount  = Object.keys(selectedAnswers).length;
+  const allAnswered    = answeredCount === evalData.questions.length;
+  const isTimeWarning  = timeRemaining !== null && timeRemaining <= 60;
 
-  const handleSubmit = async () => {
-    if (!allAnswered || submitting) return;
+  // Lookup de texto de opción desde evalData (disponible tras recibir result)
+  const getOptionText = (questionId: string, optionId: string) =>
+    evalData.questions.find(q => q.id === questionId)?.options.find(o => o.id === optionId)?.text ?? '';
+
+  const handleStart = () => {
+    setSelectedAnswers({});
+    setResult(null);
+    setConfirmSubmit(false);
+    setTimeRemaining(evalData.timeLimit ?? null);
+    setPhase('taking');
+  };
+
+  const doSubmit = async () => {
+    if (submitting) return;
+    setConfirmSubmit(false);
     setSubmitting(true);
+    setTimeRemaining(null); // detener timer
     try {
-      const { data } = await api.post<AttemptResult>(
-        `/evaluations/${evalData.id}/attempt`,
-        {
-          enrollmentId,
-          answers: Object.entries(selectedAnswers).map(([questionId, optionId]) => ({
-            questionId,
-            optionId,
-          })),
-        },
-      );
+      const { data } = await api.post<AttemptResult>(`/evaluations/${evalData.id}/attempt`, {
+        enrollmentId,
+        answers: Object.entries(selectedAnswers).map(([questionId, optionId]) => ({ questionId, optionId })),
+      });
       setResult(data);
       setEvalData(prev => ({
         ...prev,
@@ -219,276 +263,585 @@ function QuizPanel({
         bestScore:    Math.max(prev.bestScore ?? 0, data.score),
         passed:       prev.passed || data.passed,
       }));
+      setPhase('result');
       onAttemptComplete(data);
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
 
-  const handleRetry = () => {
-    setResult(null);
-    setSelectedAnswers({});
+  const handleSendResetRequest = async () => {
+    setSendingReset(true);
+    try {
+      await api.post(`/evaluations/${evalData.id}/reset-requests`, {
+        message: resetMessage.trim() || undefined,
+      });
+      setResetSent(true);
+      setShowResetForm(false);
+      setResetMessage('');
+    } catch {
+      // La solicitud duplicada (409) o error de servidor — mostramos estado conservador
+      setResetSent(true); // asumimos enviada para no confundir al usuario
+    } finally { setSendingReset(false); }
   };
 
-  return (
-    <div
+  // ─── Fase: Inicio ────────────────────────────────────────────────────────────
+  const renderStart = () => (
+    <motion.div
+      key="start"
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
       className="mt-6 rounded-2xl border border-border overflow-hidden"
       style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 16px rgba(11,31,42,0.05)' }}
     >
-      {/* Header del quiz */}
-      <button
-        onClick={() => setExpanded(p => !p)}
-        className="flex w-full items-center justify-between px-5 py-4 bg-card hover:bg-muted/40 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-xl flex-shrink-0"
-            style={{ background: '#1E4F7A12', color: '#1E4F7A', border: '1px solid #1E4F7A1A' }}
-          >
-            <Shield size={15} />
+      {/* Cabecera */}
+      <div className="flex items-start gap-3 px-5 py-4 bg-card border-b border-border">
+        <div
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
+          style={{ background: '#1E4F7A12', color: '#1E4F7A', border: '1px solid #1E4F7A1A' }}
+        >
+          <Shield size={16} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground">{evalData.title}</h3>
+            {evalData.isRequired && (
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide flex-shrink-0"
+                style={{ background: '#f59e0b18', color: '#f59e0b' }}>
+                Obligatoria
+              </span>
+            )}
+            {evalData.passed && (
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide flex-shrink-0"
+                style={{ background: '#16a34a18', color: '#16a34a' }}>
+                Aprobado
+              </span>
+            )}
           </div>
-          <div className="text-left">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-foreground">{evalData.title}</span>
-              {evalData.passed && (
-                <span
-                  className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-                  style={{ background: '#16a34a18', color: '#16a34a' }}
-                >
-                  Aprobado
-                </span>
-              )}
-              {!evalData.passed && evalData.attemptsUsed > 0 && (
-                <span
-                  className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-                  style={{ background: '#f59e0b18', color: '#f59e0b' }}
-                >
-                  Mejor: {evalData.bestScore}%
-                </span>
-              )}
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {evalData.questions.length} {evalData.questions.length === 1 ? 'pregunta' : 'preguntas'} ·
+            Mínimo {evalData.minScore}%
+            {evalData.maxAttempts !== -1 && ` · ${attemptsRemaining} ${attemptsRemaining === 1 ? 'intento restante' : 'intentos restantes'}`}
+            {evalData.timeLimit && ` · ${Math.round(evalData.timeLimit / 60)} min`}
+          </p>
+        </div>
+      </div>
+
+      {/* Cuerpo */}
+      <div className="px-5 py-4 bg-background space-y-3">
+        {evalData.instructions && (
+          <p className="text-sm text-muted-foreground leading-relaxed italic border-l-2 border-capta-soft/40 pl-3">
+            {evalData.instructions}
+          </p>
+        )}
+
+        {/* Tiempo límite */}
+        {evalData.timeLimit && (
+          <div className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-4 py-2.5">
+            <Icon name="clock" size={13} className="text-muted-foreground flex-shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              Tendrás <span className="font-semibold text-foreground">{Math.round(evalData.timeLimit / 60)} minutos</span> para completar esta evaluación.
+            </p>
+          </div>
+        )}
+
+        {/* Historial de intentos */}
+        {evalData.attemptsUsed > 0 && !evalData.passed && (
+          <div className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-4 py-2.5">
+            <Icon name="refresh" size={13} className="text-muted-foreground flex-shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              Intento {evalData.attemptsUsed}{evalData.maxAttempts !== -1 ? ` de ${evalData.maxAttempts}` : ''} ·{' '}
+              Mejor puntaje: <span className="font-semibold" style={{ color: '#d97706' }}>{evalData.bestScore}%</span>
+            </p>
+          </div>
+        )}
+
+        {/* Sin intentos disponibles — flujo de solicitud */}
+        {!canAttempt && !evalData.passed && (
+          <div className="space-y-2">
+            <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-900/10 px-4 py-3">
+              <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-foreground">Intentos agotados</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Has usado todos los intentos disponibles ({evalData.maxAttempts}).
+                  Puedes solicitar una nueva oportunidad al administrador.
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Mínimo {evalData.minScore}% · {evalData.questions.length} preguntas
-              {evalData.maxAttempts !== -1 && ` · ${evalData.attemptsUsed}/${evalData.maxAttempts} intentos`}
+
+            {resetSent ? (
+              <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-900/10 px-4 py-3">
+                <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                  Tu solicitud fue enviada. El administrador la revisará pronto.
+                </p>
+              </div>
+            ) : showResetForm ? (
+              <div className="rounded-xl border border-border bg-background p-3 space-y-2">
+                <p className="text-xs font-medium text-foreground">
+                  Motivo de tu solicitud <span className="text-muted-foreground font-normal">(opcional)</span>
+                </p>
+                <textarea
+                  value={resetMessage}
+                  onChange={e => setResetMessage(e.target.value)}
+                  rows={2}
+                  maxLength={300}
+                  placeholder="Ej: Necesito repasar el material antes de intentarlo de nuevo…"
+                  className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-capta-soft/40"
+                />
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] text-muted-foreground">{resetMessage.length}/300</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setShowResetForm(false); setResetMessage(''); }}
+                      className="text-xs text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleSendResetRequest}
+                      disabled={sendingReset}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60"
+                      style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                    >
+                      {sendingReset
+                        ? <Loader2 size={11} className="animate-spin" />
+                        : <Icon name="check" size={11} />}
+                      Enviar solicitud
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowResetForm(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                <Icon name="refresh" size={14} />
+                Solicitar nueva oportunidad
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* CTA */}
+        {canAttempt ? (
+          <button
+            onClick={handleStart}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.97]"
+            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
+          >
+            <Zap size={14} />
+            {evalData.attemptsUsed > 0 ? 'Intentar de nuevo' : 'Comenzar evaluación'}
+          </button>
+        ) : evalData.passed ? (
+          <button
+            onClick={() => setPhase('result')}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold border border-border bg-background hover:bg-muted transition-colors"
+          >
+            <Icon name="eye" size={14} />
+            Ver mi resultado
+          </button>
+        ) : null}
+      </div>
+    </motion.div>
+  );
+
+  // ─── Fase: Tomando el quiz ────────────────────────────────────────────────────
+  const renderTaking = () => (
+    <motion.div
+      key="taking"
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="mt-6 space-y-4"
+    >
+      {/* Barra de quiz: título + timer */}
+      <div
+        className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3"
+        style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 2px 8px rgba(11,31,42,0.04)' }}
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg"
+            style={{ background: '#1E4F7A12', color: '#1E4F7A' }}>
+            <Shield size={13} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-foreground">{evalData.title}</p>
+            <p className="text-[10px] text-muted-foreground tabular-nums">
+              {answeredCount}/{evalData.questions.length} respondidas
             </p>
           </div>
         </div>
-        <ChevronDown size={16} className={`text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
-      </button>
-
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            exit={{ height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
+        {timeRemaining !== null && (
+          <div
+            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-bold tabular-nums transition-all"
+            style={{
+              color:      isTimeWarning ? '#ef4444' : 'hsl(var(--foreground))',
+              background: isTimeWarning ? '#ef444412' : 'transparent',
+              border:     isTimeWarning ? '1px solid #ef444430' : '1px solid transparent',
+            }}
           >
-            <div className="px-5 pb-5 border-t border-border bg-background">
+            <Icon name="clock" size={13} />
+            {formatTimer(timeRemaining)}
+          </div>
+        )}
+      </div>
 
-              {/* Instrucciones */}
-              {evalData.instructions && (
-                <p className="mt-4 text-sm text-muted-foreground leading-relaxed italic border-l-2 border-capta-soft pl-3">
-                  {evalData.instructions}
-                </p>
-              )}
+      {/* Barra de progreso de respuestas */}
+      <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+        <motion.div
+          className="h-full rounded-full"
+          animate={{ width: `${(answeredCount / Math.max(evalData.questions.length, 1)) * 100}%` }}
+          transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+          style={{ background: 'linear-gradient(90deg, #1E4F7A, #8FC4E8)' }}
+        />
+      </div>
 
-              {/* Sin intentos disponibles y no aprobado */}
-              {!canAttempt && !evalData.passed && (
-                <div className="mt-4 flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
-                  <AlertCircle size={16} className="text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-muted-foreground">
-                    Has agotado todos los intentos disponibles. Contacta al administrador para más información.
-                  </p>
-                </div>
-              )}
-
-              {/* Estado: ya aprobado */}
-              {evalData.passed && !result && (
-                <div
-                  className="mt-4 flex items-center gap-3 rounded-xl p-4"
-                  style={{ background: '#16a34a10', border: '1px solid #16a34a20' }}
-                >
-                  <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                      ¡Ya aprobaste esta evaluación!
-                    </p>
-                    <p className="text-xs text-emerald-600/80 dark:text-emerald-500/80 mt-0.5">
-                      Mejor puntuación: {evalData.bestScore}% · Mínimo requerido: {evalData.minScore}%
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Resultado del intento */}
-              {result && (
-                <div className="mt-4 space-y-4">
-                  {/* Score card */}
-                  <motion.div
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="rounded-xl p-5 text-center"
-                    style={{
-                      background: result.passed
-                        ? 'linear-gradient(135deg, #16a34a10, #16a34a05)'
-                        : 'linear-gradient(135deg, #f59e0b10, #f59e0b05)',
-                      border: `1px solid ${result.passed ? '#16a34a25' : '#f59e0b25'}`,
-                    }}
-                  >
-                    <div
-                      className="text-5xl font-bold mb-2"
-                      style={{ color: result.passed ? '#16a34a' : '#d97706' }}
-                    >
-                      {result.score}%
-                    </div>
-                    <p
-                      className="text-sm font-semibold mb-1"
-                      style={{ color: result.passed ? '#16a34a' : '#d97706' }}
-                    >
-                      {result.passed ? '¡Aprobado!' : 'No aprobado'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{result.message}</p>
-                  </motion.div>
-
-                  {/* Revisión de respuestas */}
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                      Revisión de respuestas
-                    </h4>
-                    {result.answers.map((ans, i) => (
-                      <div
-                        key={ans.questionId}
-                        className="rounded-xl border border-border p-4"
-                        style={{
-                          background: ans.isCorrect ? '#16a34a06' : '#ef444406',
-                          borderColor: ans.isCorrect ? '#16a34a20' : '#ef444420',
-                        }}
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <div
-                            className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full mt-0.5 text-[10px] font-bold"
-                            style={{
-                              background: ans.isCorrect ? '#16a34a18' : '#ef444418',
-                              color:      ans.isCorrect ? '#16a34a'   : '#ef4444',
-                            }}
-                          >
-                            {ans.isCorrect ? '✓' : '✗'}
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-foreground">
-                              {i + 1}. {ans.questionText}
-                            </p>
-                            {ans.explanation && (
-                              <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed border-l-2 border-border pl-2">
-                                {ans.explanation}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Acciones post-resultado */}
-                  {!result.passed && result.attemptsRemaining !== 0 && (
-                    <button
-                      onClick={handleRetry}
-                      className="w-full rounded-xl border border-border bg-background py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
-                    >
-                      Intentar de nuevo
-                      {result.attemptsRemaining !== null && (
-                        <span className="text-muted-foreground font-normal ml-1">
-                          ({result.attemptsRemaining} {result.attemptsRemaining === 1 ? 'intento' : 'intentos'} restante{result.attemptsRemaining === 1 ? '' : 's'})
-                        </span>
-                      )}
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Preguntas del quiz */}
-              {canAttempt && !result && (
-                <div className="mt-4 space-y-5">
-                  {evalData.questions.map((question, qi) => (
-                    <motion.div
-                      key={question.id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: qi * 0.05 }}
-                      className="space-y-2.5"
-                    >
-                      <p className="text-sm font-semibold text-foreground">
-                        <span className="text-muted-foreground font-normal mr-1">{qi + 1}.</span>
-                        {question.text}
-                        {question.points > 1 && (
-                          <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60">
-                            {question.points} pts
-                          </span>
-                        )}
-                      </p>
-                      <div className="space-y-1.5">
-                        {question.options.map(option => {
-                          const selected = selectedAnswers[question.id] === option.id;
-                          return (
-                            <button
-                              key={option.id}
-                              onClick={() =>
-                                setSelectedAnswers(prev => ({ ...prev, [question.id]: option.id }))
-                              }
-                              className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition-all ${
-                                selected
-                                  ? 'border-capta-soft/60 bg-capta-tint/60 text-capta-deep dark:border-capta-soft/40 dark:bg-capta-soft/10 dark:text-capta-soft'
-                                  : 'border-border bg-card hover:border-border/80 hover:bg-muted/40 text-foreground'
-                              }`}
-                            >
-                              <div
-                                className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all"
-                                style={{
-                                  borderColor: selected ? '#1E4F7A' : undefined,
-                                  background:  selected ? '#1E4F7A' : 'transparent',
-                                }}
-                              >
-                                {selected && (
-                                  <div className="h-1.5 w-1.5 rounded-full bg-white" />
-                                )}
-                              </div>
-                              <span className="flex-1">{option.text}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
-                  ))}
-
-                  {/* Contador de preguntas respondidas */}
-                  <div className="flex items-center justify-between pt-1">
-                    <p className="text-xs text-muted-foreground">
-                      {Object.keys(selectedAnswers).length}/{evalData.questions.length} preguntas respondidas
-                    </p>
-                    <button
-                      onClick={handleSubmit}
-                      disabled={!allAnswered || submitting}
-                      className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
-                    >
-                      {submitting ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        <Zap size={14} />
-                      )}
-                      {submitting ? 'Enviando…' : 'Enviar respuestas'}
-                    </button>
-                  </div>
-                </div>
+      {/* Preguntas */}
+      <div className="space-y-4">
+        {evalData.questions.map((question, qi) => (
+          <motion.div
+            key={question.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: qi * 0.04 }}
+            className="rounded-2xl border border-border bg-card overflow-hidden"
+            style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 2px 8px rgba(11,31,42,0.03)' }}
+          >
+            {/* Enunciado */}
+            <div className="flex items-start gap-2.5 px-4 py-3 border-b border-border/60">
+              <span
+                className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 transition-colors"
+                style={{
+                  background: selectedAnswers[question.id] ? '#1E4F7A20' : 'hsl(var(--muted))',
+                  color:      selectedAnswers[question.id] ? '#1E4F7A'   : 'hsl(var(--muted-foreground))',
+                }}
+              >
+                {qi + 1}
+              </span>
+              <p className="text-sm font-medium text-foreground leading-relaxed flex-1">{question.text}</p>
+              {question.points > 1 && (
+                <span className="text-[10px] font-bold text-muted-foreground/60 flex-shrink-0 mt-0.5 tabular-nums">
+                  {question.points}pts
+                </span>
               )}
             </div>
+            {/* Opciones */}
+            <div className="p-3 space-y-2">
+              {question.options.map(option => {
+                const selected = selectedAnswers[question.id] === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => setSelectedAnswers(prev => ({ ...prev, [question.id]: option.id }))}
+                    className={`flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-left text-sm transition-all ${
+                      selected
+                        ? 'border-capta-soft/60 bg-capta-tint/60 dark:border-capta-soft/40 dark:bg-capta-soft/10'
+                        : 'border-border bg-background hover:border-border/80 hover:bg-muted/30'
+                    }`}
+                  >
+                    <div
+                      className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all"
+                      style={{
+                        borderColor: selected ? '#1E4F7A' : undefined,
+                        background:  selected ? '#1E4F7A' : 'transparent',
+                      }}
+                    >
+                      {selected && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+                    </div>
+                    <span className={`flex-1 ${selected ? 'text-capta-deep dark:text-capta-soft font-medium' : 'text-foreground'}`}>
+                      {option.text}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        ))}
+      </div>
+
+      {/* Sección de envío */}
+      <div className="space-y-2">
+        <AnimatePresence>
+          {confirmSubmit && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3"
+            >
+              <p className="text-sm text-foreground">¿Confirmas que deseas enviar tus respuestas?</p>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button onClick={() => setConfirmSubmit(false)}
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                  Cancelar
+                </button>
+                <button
+                  onClick={doSubmit}
+                  disabled={submitting}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60"
+                  style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                >
+                  {submitting ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
+                  Enviar
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            {answeredCount}/{evalData.questions.length} respondidas
+            {!allAnswered && (
+              <span className="ml-1 text-amber-600 dark:text-amber-400">· Responde todas para enviar</span>
+            )}
+          </p>
+          <button
+            onClick={() => allAnswered && !confirmSubmit && setConfirmSubmit(true)}
+            disabled={!allAnswered || submitting || confirmSubmit}
+            className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
+          >
+            {submitting ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+            {submitting ? 'Enviando…' : 'Enviar respuestas'}
+          </button>
+        </div>
+      </div>
+    </motion.div>
   );
+
+  // ─── Fase: Resultado ─────────────────────────────────────────────────────────
+  const renderResult = () => (
+    <motion.div
+      key="result"
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="mt-6 space-y-4"
+    >
+      {/* Score card */}
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="rounded-2xl p-6 text-center"
+        style={{
+          background: (result?.passed ?? evalData.passed)
+            ? 'linear-gradient(135deg, #16a34a10, #16a34a04)'
+            : 'linear-gradient(135deg, #f59e0b10, #f59e0b04)',
+          border: `1px solid ${(result?.passed ?? evalData.passed) ? '#16a34a25' : '#f59e0b25'}`,
+        }}
+      >
+        {result ? (
+          <>
+            <div className="text-5xl font-bold mb-2 tabular-nums"
+              style={{ color: result.passed ? '#16a34a' : '#d97706' }}>
+              {result.score}%
+            </div>
+            <p className="text-sm font-semibold mb-1" style={{ color: result.passed ? '#16a34a' : '#d97706' }}>
+              {result.passed ? '¡Aprobado!' : 'No aprobado'}
+            </p>
+            <p className="text-xs text-muted-foreground">{result.message}</p>
+          </>
+        ) : (
+          /* Vista cuando ya pasó pero no tiene result del intento actual */
+          <>
+            <CheckCircle2 size={36} className="text-emerald-600 dark:text-emerald-400 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">¡Evaluación aprobada!</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Mejor puntaje: <span className="font-semibold">{evalData.bestScore}%</span> · Mínimo: {evalData.minScore}%
+            </p>
+          </>
+        )}
+      </motion.div>
+
+      {/* Revisión detallada por pregunta */}
+      {result && (
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            Revisión de respuestas
+          </h4>
+          {result.answers.map((ans, i) => {
+            const selectedText = ans.selectedOptionId
+              ? getOptionText(ans.questionId, ans.selectedOptionId)
+              : null;
+            const correctText = getOptionText(ans.questionId, ans.correctOptionId);
+
+            return (
+              <div
+                key={ans.questionId}
+                className="rounded-2xl border overflow-hidden"
+                style={{
+                  borderColor: ans.isCorrect ? '#16a34a25' : '#ef444425',
+                  background:  ans.isCorrect ? '#16a34a04' : '#ef444404',
+                }}
+              >
+                {/* Pregunta */}
+                <div className="flex items-start gap-2.5 px-4 py-3 border-b"
+                  style={{ borderColor: ans.isCorrect ? '#16a34a15' : '#ef444415' }}>
+                  <div
+                    className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5"
+                    style={{
+                      background: ans.isCorrect ? '#16a34a18' : '#ef444418',
+                      color:      ans.isCorrect ? '#16a34a'   : '#ef4444',
+                    }}
+                  >
+                    {ans.isCorrect ? '✓' : '✗'}
+                  </div>
+                  <p className="text-sm font-medium text-foreground flex-1 leading-snug">
+                    {i + 1}. {ans.questionText}
+                  </p>
+                </div>
+                {/* Detalle de respuestas */}
+                <div className="px-4 py-3 space-y-1.5">
+                  {selectedText && (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60 w-[4.5rem] flex-shrink-0">
+                        Tu resp.
+                      </span>
+                      <span className={`text-xs flex-1 ${
+                        ans.isCorrect
+                          ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+                          : 'text-red-500 dark:text-red-400 line-through'
+                      }`}>
+                        {selectedText}
+                      </span>
+                    </div>
+                  )}
+                  {!ans.isCorrect && correctText && (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60 w-[4.5rem] flex-shrink-0">
+                        Correcta
+                      </span>
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex-1">
+                        {correctText}
+                      </span>
+                    </div>
+                  )}
+                  {ans.explanation && (
+                    <div className="flex items-start gap-2 mt-1.5 pt-2 border-t border-border/40">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60 w-[4.5rem] flex-shrink-0 mt-0.5">
+                        Nota
+                      </span>
+                      <p className="text-xs text-muted-foreground leading-relaxed flex-1">{ans.explanation}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Acciones */}
+      <div className="flex items-center justify-between pt-1">
+        <button
+          onClick={() => setPhase('start')}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Icon name="arrow-left" size={12} /> Ver detalles
+        </button>
+        {result && !result.passed && (result.attemptsRemaining === null || result.attemptsRemaining > 0) && (
+          <button
+            onClick={() => { setResult(null); setPhase('start'); }}
+            className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
+          >
+            <Icon name="refresh" size={13} />
+            Intentar de nuevo
+            {result.attemptsRemaining !== null && (
+              <span className="text-muted-foreground font-normal text-xs">
+                ({result.attemptsRemaining} {result.attemptsRemaining === 1 ? 'intento' : 'intentos'})
+              </span>
+            )}
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
+
+  return (
+    <AnimatePresence mode="wait">
+      {phase === 'start'  && renderStart()}
+      {phase === 'taking' && renderTaking()}
+      {phase === 'result' && renderResult()}
+    </AnimatePresence>
+  );
+}
+
+// ─── Renderer de Markdown inline ─────────────────────────────────────────────
+// Soporta: h1-h3, listas (-/*), código inline (`code`), negrita (**), cursiva (*),
+// separador (---), líneas vacías y párrafos normales.
+
+function renderInline(text: string): React.ReactNode[] {
+  // Tokeniza negrita, cursiva y código inline
+  const tokens = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
+  return tokens.map((tok, i) => {
+    if (tok.startsWith('**') && tok.endsWith('**'))
+      return <strong key={i}>{tok.slice(2, -2)}</strong>;
+    if (tok.startsWith('*') && tok.endsWith('*'))
+      return <em key={i}>{tok.slice(1, -1)}</em>;
+    if (tok.startsWith('`') && tok.endsWith('`'))
+      return (
+        <code key={i}
+          className="rounded px-1 py-0.5 text-[0.8em] font-mono"
+          style={{ background: 'hsl(var(--muted))', color: 'hsl(var(--foreground))' }}>
+          {tok.slice(1, -1)}
+        </code>
+      );
+    return tok;
+  });
+}
+
+function MarkdownRenderer({ content }: { content: string }) {
+  const lines = content.split('\n');
+  const elements: React.ReactNode[] = [];
+  let listItems: React.ReactNode[] = [];
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={`ul-${elements.length}`} className="ml-5 space-y-1 list-disc marker:text-muted-foreground/60">
+          {listItems}
+        </ul>,
+      );
+      listItems = [];
+    }
+  };
+
+  lines.forEach((line, i) => {
+    if (line.startsWith('# ')) {
+      flushList();
+      elements.push(<h1 key={i} className="text-2xl font-bold mt-7 mb-3 text-foreground">{renderInline(line.slice(2))}</h1>);
+    } else if (line.startsWith('## ')) {
+      flushList();
+      elements.push(<h2 key={i} className="text-xl font-semibold mt-5 mb-2 text-foreground">{renderInline(line.slice(3))}</h2>);
+    } else if (line.startsWith('### ')) {
+      flushList();
+      elements.push(<h3 key={i} className="text-base font-semibold mt-4 mb-1 text-foreground">{renderInline(line.slice(4))}</h3>);
+    } else if (line.startsWith('- ') || line.startsWith('* ')) {
+      listItems.push(<li key={i} className="text-sm leading-relaxed">{renderInline(line.slice(2))}</li>);
+    } else if (line.match(/^\d+\.\s/)) {
+      flushList();
+      elements.push(
+        <ol key={i} className="ml-5 list-decimal marker:text-muted-foreground/60">
+          <li className="text-sm leading-relaxed">{renderInline(line.replace(/^\d+\.\s/, ''))}</li>
+        </ol>,
+      );
+    } else if (line.trim() === '---' || line.trim() === '***') {
+      flushList();
+      elements.push(<hr key={i} className="my-4 border-border" />);
+    } else if (line.trim() === '') {
+      flushList();
+      elements.push(<div key={i} className="h-2" />);
+    } else {
+      flushList();
+      elements.push(<p key={i} className="text-sm leading-relaxed text-foreground">{renderInline(line)}</p>);
+    }
+  });
+  flushList();
+
+  return <div className="space-y-1">{elements}</div>;
 }
 
 // ─── Árbol de lecciones ───────────────────────────────────────────────────────
@@ -553,7 +906,7 @@ function LessonTree({
                     >
                       {completed
                         ? <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                        : <Circle size={14} className="flex-shrink-0 opacity-40" />
+                        : <div className="h-3.5 w-3.5 rounded-full border-2 border-current flex-shrink-0 opacity-30" />
                       }
                       <LessonIcon size={13} className="flex-shrink-0 opacity-70" />
                       <span className="text-xs font-medium truncate flex-1">{lesson.title}</span>
@@ -886,16 +1239,7 @@ function LessonViewer({
                 ))}
               </div>
             ) : fullLesson?.content ? (
-              <div className="space-y-4 text-sm text-foreground leading-relaxed">
-                {fullLesson.content.split('\n').map((line, i) => {
-                  if (line.startsWith('# '))   return <h1 key={i} className="text-2xl font-bold mt-6 mb-3">{line.slice(2)}</h1>;
-                  if (line.startsWith('## '))  return <h2 key={i} className="text-xl font-semibold mt-5 mb-2">{line.slice(3)}</h2>;
-                  if (line.startsWith('### ')) return <h3 key={i} className="text-lg font-semibold mt-4 mb-1">{line.slice(4)}</h3>;
-                  if (line.startsWith('- ') || line.startsWith('* ')) return <li key={i} className="ml-4 list-disc">{line.slice(2)}</li>;
-                  if (line.trim() === '') return <br key={i} />;
-                  return <p key={i}>{line}</p>;
-                })}
-              </div>
+              <MarkdownRenderer content={fullLesson.content} />
             ) : (
               <p className="text-muted-foreground italic">Esta lección no tiene contenido.</p>
             )}

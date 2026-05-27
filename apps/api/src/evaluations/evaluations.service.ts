@@ -2,14 +2,19 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '@prisma/client';
 import {
   CreateEvaluationDto,
   UpdateEvaluationDto,
   CreateQuestionDto,
+  UpdateQuestionDto,
+  ReorderQuestionsDto,
 } from './dto/create-evaluation.dto';
 import { SubmitAttemptDto } from './dto/submit-attempt.dto';
 import {
@@ -21,6 +26,7 @@ import {
   QuestionForAdminDto,
   OptionForStudentDto,
   OptionForAdminDto,
+  ResetRequestDto,
 } from './dto/evaluation-response.dto';
 
 /**
@@ -39,7 +45,10 @@ import {
 export class EvaluationsService {
   private readonly logger = new Logger(EvaluationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma:         PrismaService,
+    private readonly notifications:  NotificationsService,
+  ) {}
 
   // ── CRUD (ADMIN/OWNER) ───────────────────────────────────────────────────────
 
@@ -218,6 +227,12 @@ export class EvaluationsService {
     const bestScore    = attemptsUsed > 0 ? Math.max(...attempts.map(a => a.score)) : null;
     const passed       = attempts.some(a => a.passed);
 
+    // Verificar si ya hay una solicitud de reinicio pendiente para este usuario
+    const pendingReset = await this.prisma.attemptResetRequest.findFirst({
+      where: { evaluationId: evaluation.id, userId, status: 'PENDING' },
+    });
+    const hasPendingResetRequest = pendingReset !== null;
+
     // Mezclar el orden de las preguntas para dificultar memorización
     const questions: QuestionForStudentDto[] = evaluation.questions.map(q => ({
       id:          q.id,
@@ -244,6 +259,7 @@ export class EvaluationsService {
       attemptsUsed,
       bestScore,
       passed,
+      hasPendingResetRequest,
     };
   }
 
@@ -398,6 +414,211 @@ export class EvaluationsService {
     }));
   }
 
+  // ── Solicitudes de reinicio de intentos ────────────────────────────────────
+
+  /**
+   * El estudiante solicita una nueva oportunidad cuando ha agotado sus intentos.
+   * Solo se permite una solicitud PENDING por usuario+evaluación.
+   */
+  async createResetRequest(
+    tenantId: string,
+    userId: string,
+    evaluationId: string,
+    message?: string,
+  ): Promise<{ id: string }> {
+    const evaluation = await this.prisma.evaluation.findFirst({
+      where: { id: evaluationId, tenantId },
+    });
+    if (!evaluation) throw new NotFoundException('Evaluación no encontrada');
+
+    if (evaluation.maxAttempts === -1) {
+      throw new BadRequestException('Esta evaluación tiene intentos ilimitados.');
+    }
+
+    const attemptCount = await this.prisma.evaluationAttempt.count({
+      where: { evaluationId, userId, tenantId },
+    });
+    if (attemptCount < evaluation.maxAttempts) {
+      throw new BadRequestException('Aún tienes intentos disponibles.');
+    }
+
+    const existing = await this.prisma.attemptResetRequest.findFirst({
+      where: { evaluationId, userId, status: 'PENDING' },
+    });
+    if (existing) {
+      throw new ConflictException('Ya tienes una solicitud pendiente para esta evaluación.');
+    }
+
+    const req = await this.prisma.attemptResetRequest.create({
+      data: { tenantId, evaluationId, userId, message },
+    });
+
+    // Obtener contexto de la evaluación para la notificación
+    const evalWithContext = await this.prisma.evaluation.findUnique({
+      where: { id: evaluationId },
+      include: {
+        lesson: {
+          include: {
+            module: { include: { course: { select: { id: true, title: true } } } },
+          },
+        },
+      },
+    });
+    const student = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true, lastName: true },
+    });
+
+    const studentName = student ? `${student.firstName} ${student.lastName}` : 'Un estudiante';
+    const courseId    = evalWithContext?.lesson.module.course.id;
+    const lessonId    = evalWithContext?.lessonId;
+
+    await this.notifications.createForAdmins(
+      tenantId,
+      NotificationType.RESET_REQUEST,
+      'Solicitud de nueva oportunidad',
+      `${studentName} solicita repetir la evaluación "${evalWithContext?.title ?? ''}"`,
+      { courseId, lessonId, evaluationId, studentName },
+    );
+
+    this.logger.log(`Solicitud de reinicio creada — usuario ${userId}, evaluación ${evaluationId}`);
+    return { id: req.id };
+  }
+
+  /** Admin: lista todas las solicitudes PENDING de una evaluación con datos del usuario. */
+  async listPendingResets(tenantId: string, evaluationId: string): Promise<ResetRequestDto[]> {
+    await this.ensureEvaluationAccess(tenantId, evaluationId);
+
+    const requests = await this.prisma.attemptResetRequest.findMany({
+      where: { evaluationId, tenantId, status: 'PENDING' },
+      orderBy: { requestedAt: 'asc' },
+    });
+
+    if (requests.length === 0) return [];
+
+    const userIds = [...new Set(requests.map(r => r.userId))];
+    const users   = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, firstName: true, lastName: true, email: true },
+    });
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    return requests.map(r => {
+      const u = userMap.get(r.userId);
+      return {
+        id:          r.id,
+        userId:      r.userId,
+        userName:    u ? `${u.firstName} ${u.lastName}` : 'Usuario desconocido',
+        userEmail:   u?.email ?? '',
+        message:     r.message,
+        requestedAt: r.requestedAt,
+      };
+    });
+  }
+
+  /**
+   * Admin aprueba la solicitud: elimina TODOS los intentos del usuario
+   * para esa evaluación y marca la solicitud como APPROVED.
+   */
+  async approveReset(
+    tenantId: string,
+    evaluationId: string,
+    requestId: string,
+    adminId: string,
+  ): Promise<void> {
+    const request = await this.prisma.attemptResetRequest.findFirst({
+      where: { id: requestId, evaluationId, tenantId, status: 'PENDING' },
+    });
+    if (!request) throw new NotFoundException('Solicitud no encontrada');
+
+    // Obtener datos de la evaluación para la notificación antes de la transacción
+    const evalWithContext = await this.prisma.evaluation.findFirst({
+      where: { id: evaluationId },
+      include: {
+        lesson: {
+          include: {
+            module: { include: { course: { select: { id: true } } } },
+          },
+        },
+      },
+    });
+
+    await this.prisma.$transaction([
+      this.prisma.evaluationAttempt.deleteMany({
+        where: { evaluationId, userId: request.userId, tenantId },
+      }),
+      this.prisma.attemptResetRequest.update({
+        where: { id: requestId },
+        data: { status: 'APPROVED', processedAt: new Date(), processedBy: adminId },
+      }),
+    ]);
+
+    // Notificar al estudiante que su solicitud fue aprobada
+    await this.notifications.createForUser(
+      request.userId,
+      tenantId,
+      NotificationType.RESET_APPROVED,
+      '¡Nueva oportunidad aprobada!',
+      `Puedes volver a intentar la evaluación "${evalWithContext?.title ?? ''}"`,
+      {
+        courseId:    evalWithContext?.lesson.module.course.id,
+        lessonId:    evalWithContext?.lessonId,
+        evaluationId,
+      },
+    );
+
+    this.logger.log(
+      `Reinicio aprobado — admin ${adminId}, usuario ${request.userId}, evaluación ${evaluationId}`,
+    );
+  }
+
+  /** Admin rechaza la solicitud y la marca como DENIED. */
+  async denyReset(
+    tenantId: string,
+    evaluationId: string,
+    requestId: string,
+    adminId: string,
+  ): Promise<void> {
+    const request = await this.prisma.attemptResetRequest.findFirst({
+      where: { id: requestId, evaluationId, tenantId, status: 'PENDING' },
+    });
+    if (!request) throw new NotFoundException('Solicitud no encontrada');
+
+    const evalWithContext = await this.prisma.evaluation.findFirst({
+      where: { id: evaluationId },
+      include: {
+        lesson: {
+          include: {
+            module: { include: { course: { select: { id: true } } } },
+          },
+        },
+      },
+    });
+
+    await this.prisma.attemptResetRequest.update({
+      where: { id: requestId },
+      data: { status: 'DENIED', processedAt: new Date(), processedBy: adminId },
+    });
+
+    // Notificar al estudiante que su solicitud fue rechazada
+    await this.notifications.createForUser(
+      request.userId,
+      tenantId,
+      NotificationType.RESET_DENIED,
+      'Solicitud no aprobada',
+      `Tu solicitud para repetir la evaluación "${evalWithContext?.title ?? ''}" fue rechazada`,
+      {
+        courseId:    evalWithContext?.lesson.module.course.id,
+        lessonId:    evalWithContext?.lessonId,
+        evaluationId,
+      },
+    );
+
+    this.logger.log(
+      `Reinicio rechazado — admin ${adminId}, usuario ${request.userId}, evaluación ${evaluationId}`,
+    );
+  }
+
   // ── Helpers privados ─────────────────────────────────────────────────────────
 
   private async ensureEvaluationAccess(tenantId: string, evaluationId: string) {
@@ -408,6 +629,89 @@ export class EvaluationsService {
     return evaluation;
   }
 
+  // ── Editar pregunta ──────────────────────────────────────────────────────────
+
+  async updateQuestion(
+    tenantId: string,
+    evaluationId: string,
+    questionId: string,
+    dto: UpdateQuestionDto,
+  ): Promise<EvaluationForAdminDto> {
+    await this.ensureEvaluationAccess(tenantId, evaluationId);
+
+    const question = await this.prisma.question.findFirst({
+      where: { id: questionId, evaluationId, tenantId },
+    });
+    if (!question) throw new NotFoundException('Pregunta no encontrada');
+
+    // Proteger integridad: no permitir reemplazar opciones si ya hay intentos.
+    // Los AttemptAnswer tienen FK a QuestionOption; cambiarlas invalidaría el historial.
+    if (dto.options !== undefined) {
+      const attemptCount = await this.prisma.evaluationAttempt.count({
+        where: { evaluationId, tenantId },
+      });
+      if (attemptCount > 0) {
+        throw new BadRequestException(
+          'No se pueden modificar las opciones de respuesta porque ya existen intentos registrados para esta evaluación.',
+        );
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.question.update({
+        where: { id: questionId },
+        data: {
+          ...(dto.text        !== undefined && { text:        dto.text }),
+          ...(dto.points      !== undefined && { points:      dto.points }),
+          ...(dto.explanation !== undefined && { explanation: dto.explanation }),
+        },
+      });
+
+      if (dto.options !== undefined) {
+        await tx.questionOption.deleteMany({ where: { questionId } });
+        await tx.questionOption.createMany({
+          data: dto.options.map((o, i) => ({
+            questionId,
+            text:      o.text,
+            isCorrect: o.isCorrect,
+            order:     o.order ?? i,
+          })),
+        });
+      }
+    });
+
+    const updated = await this.prisma.evaluation.findUnique({
+      where: { id: evaluationId },
+      include: this.adminInclude(),
+    });
+    return this.toAdminDto(updated!);
+  }
+
+  // ── Reordenar preguntas ──────────────────────────────────────────────────────
+
+  async reorderQuestions(
+    tenantId: string,
+    evaluationId: string,
+    orderedIds: string[],
+  ): Promise<EvaluationForAdminDto> {
+    await this.ensureEvaluationAccess(tenantId, evaluationId);
+
+    await this.prisma.$transaction(
+      orderedIds.map((id, index) =>
+        this.prisma.question.update({
+          where: { id },
+          data: { order: index },
+        }),
+      ),
+    );
+
+    const updated = await this.prisma.evaluation.findUnique({
+      where: { id: evaluationId },
+      include: this.adminInclude(),
+    });
+    return this.toAdminDto(updated!);
+  }
+
   private adminInclude() {
     return {
       questions: {
@@ -415,6 +719,9 @@ export class EvaluationsService {
         include: {
           options: { orderBy: { order: 'asc' as const } },
         },
+      },
+      _count: {
+        select: { attempts: true },
       },
     };
   }
@@ -431,6 +738,7 @@ export class EvaluationsService {
       isRequired:   evaluation.isRequired,
       createdAt:    evaluation.createdAt,
       updatedAt:    evaluation.updatedAt,
+      attemptCount: evaluation._count?.attempts ?? 0,
       questions:    evaluation.questions.map((q: any): QuestionForAdminDto => ({
         id:          q.id,
         text:        q.text,
