@@ -6,15 +6,17 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/capta-icon';
 
 // Icon aliases for inline usage
-const ArrowLeft = (p: { size?: number; className?: string }) => <Icon name="arrow-left" size={p.size} className={p.className} />;
-const BookOpen  = (p: { size?: number; className?: string }) => <Icon name="book-open"  size={p.size} className={p.className} />;
-const Upload    = (p: { size?: number; className?: string }) => <Icon name="upload"     size={p.size} className={p.className} />;
-const X         = (p: { size?: number; className?: string }) => <Icon name="close"      size={p.size} className={p.className} />;
-const Loader2   = (p: { size?: number; className?: string }) => <Icon name="refresh"    size={p.size} className={p.className} />;
+const ArrowLeft   = (p: { size?: number; className?: string }) => <Icon name="arrow-left"    size={p.size} className={p.className} />;
+const Upload      = (p: { size?: number; className?: string }) => <Icon name="upload"        size={p.size} className={p.className} />;
+const X           = (p: { size?: number; className?: string }) => <Icon name="close"         size={p.size} className={p.className} />;
+const Loader2     = (p: { size?: number; className?: string }) => <Icon name="refresh"       size={p.size} className={p.className} />;
+const Check       = (p: { size?: number; className?: string }) => <Icon name="check"         size={p.size} className={p.className} />;
+const AlertCircle = (p: { size?: number; className?: string }) => <Icon name="alert-circle"  size={p.size} className={p.className} />;
+const BookOpen    = (p: { size?: number; className?: string }) => <Icon name="book-open"     size={p.size} className={p.className} />;
 import { api } from '@/lib/api';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -31,21 +33,21 @@ type FormData = z.infer<typeof schema>;
 
 export default function NewCoursePage() {
   const router = useRouter();
-  const [thumbnail,       setThumbnail]       = useState<File | null>(null);
-  const [thumbnailPreview,setThumbnailPreview] = useState<string | null>(null);
-  const [uploadingThumb,  setUploadingThumb]   = useState(false);
-  const [serverError,     setServerError]      = useState<string | null>(null);
+  const [thumbnail,        setThumbnail]        = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [uploadingThumb,   setUploadingThumb]   = useState(false);
+  const [serverError,      setServerError]      = useState<string | null>(null);
+  const [dragOver,         setDragOver]         = useState(false);
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { status: 'DRAFT' },
   });
 
-  // ── Thumbnail preview ──────────────────────────────────────────────────────
+  // ── Thumbnail ──────────────────────────────────────────────────────────────
 
-  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleThumbnailFile = (file: File) => {
+    if (!file.type.startsWith('image/')) return;
     setThumbnail(file);
     setThumbnailPreview(URL.createObjectURL(file));
   };
@@ -59,7 +61,6 @@ export default function NewCoursePage() {
 
   const onSubmit = async (data: FormData) => {
     setServerError(null);
-
     try {
       let thumbnailKey: string | undefined;
       let thumbnailUrl: string | undefined;
@@ -75,15 +76,13 @@ export default function NewCoursePage() {
           fileName:    thumbnail.name,
           folder:      'thumbnails',
           contentType: thumbnail.type,
-          isPublic:    true, // Las miniaturas son accesibles públicamente (prefijo public/)
+          isPublic:    true,
         });
-
         await fetch(presigned.uploadUrl, {
           method:  'PUT',
           body:    thumbnail,
           headers: { 'Content-Type': thumbnail.type },
         });
-
         thumbnailKey = presigned.key;
         thumbnailUrl = presigned.publicUrl;
         setUploadingThumb(false);
@@ -105,154 +104,264 @@ export default function NewCoursePage() {
     }
   };
 
-  const isLoading = isSubmitting || uploadingThumb;
+  const isLoading    = isSubmitting || uploadingThumb;
+  const statusValue  = watch('status');
 
   return (
-    <div className="min-h-screen bg-background p-6 lg:p-8">
-      <div className="mx-auto max-w-2xl">
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-2xl px-4 py-6 lg:py-10">
 
         {/* ── Breadcrumb ── */}
-        <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-          <Link href="/dashboard/courses" className="flex items-center gap-1 hover:text-foreground transition-colors">
+        <div className="mb-8 flex items-center gap-2 text-sm text-muted-foreground">
+          <Link
+            href="/dashboard/courses"
+            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+          >
             <ArrowLeft size={14} /> Cursos
           </Link>
-          <span>/</span>
+          <span className="text-border">/</span>
           <span className="text-foreground font-medium">Nuevo curso</span>
         </div>
 
+        {/* ── Card ── */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="rounded-2xl border border-border bg-card shadow-sm p-6 lg:p-8"
+          className="rounded-2xl border border-border bg-card overflow-hidden"
+          style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
         >
-          {/* ── Icono + título ── */}
-          <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky/20 to-navy/20">
-              <BookOpen size={20} className="text-capta-deep dark:text-capta-soft" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">Nuevo curso</h1>
-              <p className="text-sm text-muted-foreground">Completa los datos básicos para comenzar.</p>
-            </div>
-          </div>
+          {/* Acento superior con gradiente de marca */}
+          <div
+            className="h-1 w-full"
+            style={{ background: 'linear-gradient(90deg, #1E4F7A 0%, #2D6FA0 50%, #7FD1AE 100%)' }}
+          />
 
-          {serverError && (
-            <div className="mb-5 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
-              <p className="text-sm text-destructive">{serverError}</p>
-            </div>
-          )}
+          <div className="p-6 lg:p-8">
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-
-            {/* Título */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-foreground">
-                Título del curso <span className="text-destructive">*</span>
-              </label>
-              <input
-                {...register('title')}
-                placeholder="Ej: Introducción a Excel"
-                className={`w-full rounded-xl border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft transition-all ${
-                  errors.title ? 'border-destructive/60 bg-destructive/5' : 'border-border hover:border-navy/30'
-                }`}
-              />
-              {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
-            </div>
-
-            {/* Descripción */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-foreground">Descripción</label>
-              <textarea
-                {...register('description')}
-                rows={4}
-                placeholder="Describe qué aprenderán los empleados en este curso..."
-                className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft transition-all hover:border-navy/30"
-              />
-              {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
-            </div>
-
-            {/* Thumbnail */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-foreground">Miniatura del curso</label>
-              {thumbnailPreview ? (
-                <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-border">
-                  <img src={thumbnailPreview} alt="Preview" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={removeThumbnail}
-                    className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-gray-900/70 text-white hover:bg-gray-900 transition-colors"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-full aspect-video rounded-xl border-2 border-dashed border-border bg-muted/30 hover:border-capta-soft/50 hover:bg-capta-soft/5 transition-all cursor-pointer">
-                  <Upload size={24} className="text-muted-foreground mb-2" />
-                  <p className="text-sm font-medium text-muted-foreground">Arrastra una imagen o haz clic</p>
-                  <p className="text-xs text-muted-foreground/70 mt-0.5">PNG, JPG hasta 5 MB</p>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleThumbnailChange}
-                    className="hidden"
-                  />
-                </label>
-              )}
-            </div>
-
-            {/* Estado inicial */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-foreground">Estado inicial</label>
-              <div className="flex gap-3">
-                {[
-                  { value: 'DRAFT',     label: 'Borrador',   desc: 'Solo visible para administradores' },
-                  { value: 'PUBLISHED', label: 'Publicado',  desc: 'Disponible para inscripción' },
-                ].map(opt => {
-                  const selected = watch('status') === opt.value;
-                  return (
-                    <label
-                      key={opt.value}
-                      className={`flex-1 cursor-pointer rounded-xl border p-4 transition-all ${
-                        selected
-                          ? 'border-navy/40 bg-capta-deep/5 dark:border-capta-soft/40 dark:bg-capta-soft/5'
-                          : 'border-border hover:border-navy/20'
-                      }`}
-                    >
-                      <input {...register('status')} type="radio" value={opt.value} className="sr-only" />
-                      <p className={`text-sm font-semibold ${selected ? 'text-capta-deep dark:text-capta-soft' : 'text-foreground'}`}>
-                        {opt.label}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
-                    </label>
-                  );
-                })}
+            {/* Header */}
+            <div className="mb-7 flex items-center gap-3">
+              <div
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
+                style={{
+                  background: 'linear-gradient(135deg, #DCE9F4 0%, #8FC4E820 100%)',
+                  border:     '1px solid #1E4F7A18',
+                }}
+              >
+                <BookOpen size={18} className="text-capta-deep dark:text-capta-soft" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight text-foreground">Nuevo curso</h1>
+                <p className="text-sm text-muted-foreground">Completa los datos básicos para comenzar</p>
               </div>
             </div>
 
-            {/* Acciones */}
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <Link
-                href="/dashboard/courses"
-                className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-              >
-                Cancelar
-              </Link>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex items-center gap-2 rounded-xl bg-capta-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-capta-deep/90 active:scale-[0.97] transition-all disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isLoading ? (
-                  <><Loader2 size={15} className="animate-spin" /> {uploadingThumb ? 'Subiendo imagen...' : 'Creando...'}</>
-                ) : (
-                  'Crear curso'
-                )}
-              </button>
-            </div>
+            {/* Error de servidor */}
+            <AnimatePresence>
+              {serverError && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  animate={{ opacity: 1, height: 'auto', marginBottom: 20 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  className="flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3"
+                >
+                  <AlertCircle size={14} className="mt-0.5 flex-shrink-0 text-destructive" />
+                  <p className="text-sm text-destructive">{serverError}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          </form>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+
+              {/* ── Título ── */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-semibold text-foreground">
+                  Título del curso <span className="text-destructive">*</span>
+                </label>
+                <input
+                  {...register('title')}
+                  placeholder="Ej: Introducción a Excel para equipos de ventas"
+                  className={`w-full rounded-xl border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft transition-all ${
+                    errors.title
+                      ? 'border-destructive/60 bg-destructive/5'
+                      : 'border-border hover:border-capta-deep/20 dark:hover:border-capta-soft/20'
+                  }`}
+                />
+                {errors.title && (
+                  <p className="flex items-center gap-1 text-xs text-destructive">
+                    <AlertCircle size={11} /> {errors.title.message}
+                  </p>
+                )}
+              </div>
+
+              {/* ── Descripción ── */}
+              <div className="space-y-1.5">
+                <div className="flex items-baseline justify-between">
+                  <label className="block text-sm font-semibold text-foreground">Descripción</label>
+                  <span className="text-xs text-muted-foreground">Opcional</span>
+                </div>
+                <textarea
+                  {...register('description')}
+                  rows={3}
+                  placeholder="¿Qué aprenderán los empleados? ¿Cuál es el objetivo del curso?"
+                  className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft transition-all hover:border-capta-deep/20 dark:hover:border-capta-soft/20"
+                />
+              </div>
+
+              {/* ── Thumbnail ── */}
+              <div className="space-y-2">
+                <div className="flex items-baseline justify-between">
+                  <label className="block text-sm font-semibold text-foreground">Miniatura del curso</label>
+                  <span className="text-xs text-muted-foreground">PNG, JPG · máx. 5 MB</span>
+                </div>
+
+                {thumbnailPreview ? (
+                  <div className="group relative w-full overflow-hidden rounded-xl border border-border" style={{ aspectRatio: '16/9' }}>
+                    <img src={thumbnailPreview} alt="Vista previa" className="h-full w-full object-cover" />
+                    {/* Overlay hover */}
+                    <div className="absolute inset-0 bg-black/0 transition-all group-hover:bg-black/25" />
+                    {/* Badge con nombre del archivo */}
+                    <div className="absolute bottom-3 left-3 max-w-[calc(100%-4rem)] rounded-lg bg-black/60 px-2.5 py-1">
+                      <p className="truncate text-[11px] font-medium text-white">{thumbnail?.name}</p>
+                    </div>
+                    {/* Botón eliminar */}
+                    <button
+                      type="button"
+                      onClick={removeThumbnail}
+                      className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-all hover:bg-black/80 group-hover:opacity-100"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={e => {
+                      e.preventDefault();
+                      setDragOver(false);
+                      const f = e.dataTransfer.files[0];
+                      if (f) handleThumbnailFile(f);
+                    }}
+                    className={`flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 text-center transition-all ${
+                      dragOver
+                        ? 'scale-[1.01] border-capta-soft bg-capta-soft/10'
+                        : 'border-border bg-muted/20 hover:border-capta-soft/40 hover:bg-capta-soft/5'
+                    }`}
+                  >
+                    <div
+                      className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl transition-all"
+                      style={{
+                        background: dragOver ? '#8FC4E820' : '#1E4F7A10',
+                        color:      dragOver ? '#8FC4E8'   : '#1E4F7A',
+                      }}
+                    >
+                      <Upload size={22} />
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {dragOver ? 'Suelta la imagen aquí' : 'Arrastra una imagen aquí'}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">o haz clic para seleccionar desde tu dispositivo</p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleThumbnailFile(f); }}
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* ── Estado inicial ── */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-foreground">Estado inicial</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    {
+                      value: 'DRAFT',
+                      label: 'Borrador',
+                      desc:  'Solo visible para administradores',
+                      icon:  'archive' as const,
+                      color: '#6b7280',
+                    },
+                    {
+                      value: 'PUBLISHED',
+                      label: 'Publicado',
+                      desc:  'Disponible para inscripción inmediata',
+                      icon:  'globe' as const,
+                      color: '#1E4F7A',
+                    },
+                  ].map(opt => {
+                    const selected = statusValue === opt.value;
+                    return (
+                      <label
+                        key={opt.value}
+                        className={`relative flex cursor-pointer flex-col gap-2 rounded-xl border p-4 transition-all ${
+                          selected
+                            ? 'border-capta-deep/40 dark:border-capta-soft/40'
+                            : 'border-border hover:border-border/80 hover:bg-muted/30'
+                        }`}
+                        style={selected ? { background: `${opt.color}07` } : {}}
+                      >
+                        <input {...register('status')} type="radio" value={opt.value} className="sr-only" />
+
+                        {/* Check badge cuando está seleccionado */}
+                        {selected && (
+                          <div
+                            className="absolute right-3 top-3 flex h-4 w-4 items-center justify-center rounded-full"
+                            style={{ background: opt.color }}
+                          >
+                            <Check size={9} className="text-white" />
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="flex h-7 w-7 items-center justify-center rounded-lg"
+                            style={{ background: `${opt.color}15`, color: opt.color }}
+                          >
+                            <Icon name={opt.icon} size={14} />
+                          </div>
+                          <p className={`text-sm font-semibold ${selected ? 'text-capta-deep dark:text-capta-soft' : 'text-foreground'}`}>
+                            {opt.label}
+                          </p>
+                        </div>
+                        <p className="text-xs leading-relaxed text-muted-foreground">{opt.desc}</p>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── Acciones ── */}
+              <div className="flex items-center justify-between border-t border-border pt-5">
+                <Link
+                  href="/dashboard/courses"
+                  className="rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  Cancelar
+                </Link>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 hover:scale-[1.02] active:scale-[0.97] transition-all"
+                  style={{
+                    background:  'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
+                    boxShadow:   '0 2px 10px rgba(30,79,122,0.25)',
+                  }}
+                >
+                  {isLoading ? (
+                    <><Loader2 size={15} className="animate-spin" /> {uploadingThumb ? 'Subiendo imagen…' : 'Creando curso…'}</>
+                  ) : (
+                    <><Check size={14} /> Crear curso</>
+                  )}
+                </button>
+              </div>
+
+            </form>
+          </div>
         </motion.div>
+
       </div>
     </div>
   );

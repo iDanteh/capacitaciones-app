@@ -1140,7 +1140,7 @@ interface Course {
 
 // ─── Iconos y helpers ─────────────────────────────────────────────────────────
 
-const LESSON_ICON = { VIDEO: Video, TEXT: FileText, FILE: File };
+// LESSON_ICON ya no es necesario — LessonRow usa LESSON_TYPE_CONFIG
 
 function formatDuration(seconds?: number): string {
   if (!seconds) return '';
@@ -1591,6 +1591,14 @@ function LessonContentDrawer({
   );
 }
 
+// ─── Config visual por tipo de lección ───────────────────────────────────────
+
+const LESSON_TYPE_CONFIG = {
+  VIDEO: { color: '#1E4F7A', label: 'Video',   iconName: 'video' as const },
+  TEXT:  { color: '#16a34a', label: 'Texto',   iconName: 'file'  as const },
+  FILE:  { color: '#f59e0b', label: 'Archivo', iconName: 'upload' as const },
+};
+
 // ─── Componente: fila de lección ─────────────────────────────────────────────
 
 function LessonRow({
@@ -1606,9 +1614,8 @@ function LessonRow({
   courseId: string;
   moduleId: string;
 }) {
-  const Icon = LESSON_ICON[lesson.type];
-  const [deleting,       setDeleting]       = useState(false);
-  const [deleteConfirm,  setDeleteConfirm]  = useState(false);
+  const [deleting,      setDeleting]      = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -1618,26 +1625,49 @@ function LessonRow({
     } catch { setDeleting(false); setDeleteConfirm(false); }
   };
 
-  // Indicador de si tiene contenido cargado
   const hasContent =
     (lesson.type === 'VIDEO' && lesson.muxStatus === 'ready') ||
     (lesson.type === 'TEXT'  && !!lesson.content) ||
     (lesson.type === 'FILE'  && !!lesson.fileKey);
 
   const isPreparing = lesson.type === 'VIDEO' && lesson.muxStatus === 'preparing';
+  const typeConfig  = LESSON_TYPE_CONFIG[lesson.type];
 
   return (
-    <div className="group flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2.5 hover:border-capta-soft/30 transition-all">
-      <GripVertical size={14} className="text-muted-foreground/40 flex-shrink-0 cursor-grab" />
-      <Icon size={15} className="text-muted-foreground flex-shrink-0" />
+    <div className="group relative flex items-center gap-3 rounded-xl border border-border bg-background pl-3 pr-3 py-2.5 hover:border-capta-soft/30 hover:shadow-sm transition-all overflow-hidden">
+      {/* Borde izquierdo coloreado por tipo */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl"
+        style={{ background: typeConfig.color }}
+      />
+
+      <GripVertical size={14} className="ml-1 text-muted-foreground/40 flex-shrink-0 cursor-grab" />
+
+      {/* Ícono del tipo con fondo sutil */}
+      <div
+        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"
+        style={{ background: `${typeConfig.color}12`, color: typeConfig.color }}
+      >
+        <Icon name={typeConfig.iconName} size={13} />
+      </div>
+
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{lesson.title}</p>
         <div className="flex items-center gap-2 mt-0.5">
+          {/* Tipo */}
+          <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: typeConfig.color }}>
+            {typeConfig.label}
+          </span>
           {lesson.isPreview && (
-            <span className="text-[10px] font-semibold text-capta-soft uppercase tracking-wide">Preview</span>
+            <span className="rounded-full bg-capta-tint px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-capta-deep dark:bg-capta-soft/10 dark:text-capta-soft">
+              Preview
+            </span>
           )}
           {lesson.duration && (
             <span className="text-[10px] text-muted-foreground">{formatDuration(lesson.duration)}</span>
+          )}
+          {lesson.type === 'FILE' && lesson.fileSizeBytes && (
+            <span className="text-[10px] text-muted-foreground">{formatBytes(lesson.fileSizeBytes)}</span>
           )}
           {isPreparing && (
             <span className="flex items-center gap-1 text-[10px] text-amber-500 font-medium">
@@ -1647,12 +1677,17 @@ function LessonRow({
           {lesson.type === 'VIDEO' && lesson.muxStatus === 'errored' && (
             <span className="text-[10px] font-medium text-destructive">Error de video</span>
           )}
-          {/* Indicador de contenido vacío */}
-          {!hasContent && !isPreparing && (
-            <span className="text-[10px] text-muted-foreground/60 italic">Sin contenido</span>
-          )}
         </div>
       </div>
+
+      {/* Dot de estado de contenido */}
+      {!isPreparing && (
+        <div
+          className="h-1.5 w-1.5 flex-shrink-0 rounded-full"
+          title={hasContent ? 'Con contenido' : 'Sin contenido'}
+          style={{ background: hasContent ? '#16a34a' : '#d1d5db' }}
+        />
+      )}
 
       {/* Acciones: editar + eliminar */}
       {deleteConfirm ? (
@@ -1674,20 +1709,20 @@ function LessonRow({
           </button>
         </div>
       ) : (
-        <>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
           <button
             onClick={() => onEdit(lesson)}
-            className="opacity-0 group-hover:opacity-100 flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-capta-deep hover:border-capta-soft/40 dark:hover:text-capta-soft transition-all"
+            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-capta-deep hover:border-capta-soft/40 dark:hover:text-capta-soft transition-all"
           >
             <Edit3 size={11} /> Editar
           </button>
           <button
             onClick={() => setDeleteConfirm(true)}
-            className="opacity-0 group-hover:opacity-100 flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
           >
             <Trash2 size={13} />
           </button>
-        </>
+        </div>
       )}
     </div>
   );
@@ -1697,6 +1732,7 @@ function LessonRow({
 
 function ModuleAccordion({
   module,
+  index,
   courseId,
   onModuleDelete,
   onModuleUpdate,
@@ -1705,6 +1741,7 @@ function ModuleAccordion({
   onLessonEdit,
 }: {
   module: Module;
+  index: number;
   courseId: string;
   onModuleDelete: (id: string) => void;
   onModuleUpdate: (id: string, title: string) => void;
@@ -1712,13 +1749,13 @@ function ModuleAccordion({
   onLessonAdd: (moduleId: string, lesson: Lesson) => void;
   onLessonEdit: (lesson: Lesson, moduleId: string) => void;
 }) {
-  const [expanded,       setExpanded]       = useState(true);
-  const [addingLesson,   setAddingLesson]   = useState(false);
-  const [lessonTitle,    setLessonTitle]    = useState('');
-  const [lessonType,     setLessonType]     = useState<'VIDEO' | 'TEXT' | 'FILE'>('TEXT');
-  const [saving,         setSaving]         = useState(false);
-  const [deleting,       setDeleting]       = useState(false);
-  const [deleteConfirm,  setDeleteConfirm]  = useState(false);
+  const [expanded,      setExpanded]      = useState(true);
+  const [addingLesson,  setAddingLesson]  = useState(false);
+  const [lessonTitle,   setLessonTitle]   = useState('');
+  const [lessonType,    setLessonType]    = useState<'VIDEO' | 'TEXT' | 'FILE'>('TEXT');
+  const [saving,        setSaving]        = useState(false);
+  const [deleting,      setDeleting]      = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const handleAddLesson = async () => {
     if (!lessonTitle.trim()) return;
@@ -1749,26 +1786,69 @@ function ModuleAccordion({
          (l.type === 'FILE'  && l.fileKey),
   ).length;
 
+  const totalCount    = module.lessons.length;
+  const progressPct   = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const moduleNumStr  = String(index + 1).padStart(2, '0');
+
+  // Selector de tipo de lección — visual, reemplaza el <select> nativo
+  const LESSON_TYPES = [
+    { value: 'TEXT'  as const, label: 'Texto',   iconName: 'file'  as const, color: '#16a34a' },
+    { value: 'VIDEO' as const, label: 'Video',   iconName: 'video' as const, color: '#1E4F7A' },
+    { value: 'FILE'  as const, label: 'Archivo', iconName: 'upload' as const, color: '#f59e0b' },
+  ];
+
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      {/* Header del módulo */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-muted/30">
-        <GripVertical size={16} className="text-muted-foreground/40 flex-shrink-0" />
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      {/* ── Header del módulo ── */}
+      <div className="flex items-center gap-3 px-4 py-3" style={{ background: 'rgba(0,0,0,0.02)' }}>
+        <GripVertical size={15} className="text-muted-foreground/30 flex-shrink-0 cursor-grab" />
+
+        {/* Número del módulo */}
+        <div
+          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[11px] font-bold tabular-nums"
+          style={{
+            background: 'linear-gradient(135deg, #1E4F7A18, #2D6FA018)',
+            color:      '#1E4F7A',
+            border:     '1px solid #1E4F7A22',
+          }}
+        >
+          {moduleNumStr}
+        </div>
+
+        {/* Título + mini-barra de progreso */}
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex-1 flex items-center gap-2 text-left"
+          className="flex-1 min-w-0 flex items-center gap-3 text-left"
         >
+          <div className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold text-foreground truncate">{module.title}</span>
+            {totalCount > 0 && (
+              <div className="mt-1 flex items-center gap-2">
+                <div className="h-1 flex-1 max-w-[80px] rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width:      `${progressPct}%`,
+                      background: progressPct === 100
+                        ? 'linear-gradient(90deg, #16a34a, #22c55e)'
+                        : 'linear-gradient(90deg, #1E4F7A, #8FC4E8)',
+                    }}
+                  />
+                </div>
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {completedCount}/{totalCount}
+                </span>
+              </div>
+            )}
+          </div>
+
           {expanded
-            ? <ChevronDown size={16} className="text-muted-foreground" />
-            : <ChevronRight size={16} className="text-muted-foreground" />
+            ? <ChevronDown  size={15} className="flex-shrink-0 text-muted-foreground/60" />
+            : <ChevronRight size={15} className="flex-shrink-0 text-muted-foreground/60" />
           }
-          <span className="text-sm font-semibold text-foreground">{module.title}</span>
-          <span className="ml-auto text-xs text-muted-foreground">
-            {completedCount}/{module.lessons.length} con contenido
-          </span>
         </button>
 
-        {/* Delete: toggle entre ícono y mini-confirmación */}
+        {/* Eliminar: toggle ícono ↔ mini-confirmación */}
         <AnimatePresence mode="wait">
           {deleteConfirm ? (
             <motion.div
@@ -1779,7 +1859,7 @@ function ModuleAccordion({
               transition={{ duration: 0.12 }}
               className="flex items-center gap-1.5 flex-shrink-0"
             >
-              <span className="text-[11px] text-muted-foreground hidden sm:block">¿Eliminar módulo?</span>
+              <span className="hidden text-[11px] text-muted-foreground sm:block">¿Eliminar módulo?</span>
               <button
                 onClick={() => setDeleteConfirm(false)}
                 className="rounded-lg px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted transition-colors"
@@ -1810,17 +1890,17 @@ function ModuleAccordion({
         </AnimatePresence>
       </div>
 
-      {/* Lecciones */}
+      {/* ── Lecciones ── */}
       <AnimatePresence>
         {expanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="p-4 space-y-2">
+            <div className="space-y-2 p-4">
               {module.lessons.map(lesson => (
                 <LessonRow
                   key={lesson.id}
@@ -1832,48 +1912,85 @@ function ModuleAccordion({
                 />
               ))}
 
-              {/* Formulario agregar lección */}
-              {addingLesson ? (
-                <div className="rounded-xl border border-capta-soft/30 bg-capta-soft/5 p-3 space-y-2">
-                  <input
-                    autoFocus
-                    value={lessonTitle}
-                    onChange={e => setLessonTitle(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleAddLesson(); if (e.key === 'Escape') setAddingLesson(false); }}
-                    placeholder="Título de la lección"
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft"
-                  />
-                  <div className="flex gap-2 items-center">
-                    <select
-                      value={lessonType}
-                      onChange={e => setLessonType(e.target.value as typeof lessonType)}
-                      className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-capta-soft/40"
-                    >
-                      <option value="TEXT">Texto / Markdown</option>
-                      <option value="VIDEO">Video (Mux)</option>
-                      <option value="FILE">Archivo descargable</option>
-                    </select>
-                    <div className="flex gap-2 ml-auto">
-                      <button onClick={() => setAddingLesson(false)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1">Cancelar</button>
+              {/* ── Formulario agregar lección ── */}
+              <AnimatePresence mode="wait">
+                {addingLesson ? (
+                  <motion.div
+                    key="form"
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.15 }}
+                    className="rounded-xl border border-capta-soft/30 bg-capta-soft/5 p-3 space-y-3"
+                  >
+                    <input
+                      autoFocus
+                      value={lessonTitle}
+                      onChange={e => setLessonTitle(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddLesson(); if (e.key === 'Escape') setAddingLesson(false); }}
+                      placeholder="Título de la lección"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft"
+                    />
+
+                    {/* Selector visual de tipo */}
+                    <div>
+                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                        Tipo de lección
+                      </p>
+                      <div className="flex gap-2">
+                        {LESSON_TYPES.map(t => {
+                          const active = lessonType === t.value;
+                          return (
+                            <button
+                              key={t.value}
+                              type="button"
+                              onClick={() => setLessonType(t.value)}
+                              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-semibold transition-all hover:scale-[1.02] active:scale-[0.97]"
+                              style={
+                                active
+                                  ? { background: t.color, borderColor: t.color, color: '#fff' }
+                                  : { borderColor: 'var(--border)', color: 'var(--muted-foreground)', background: 'transparent' }
+                              }
+                            >
+                              <Icon name={t.iconName} size={12} />
+                              {t.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => setAddingLesson(false)}
+                        className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 transition-colors"
+                      >
+                        Cancelar
+                      </button>
                       <button
                         onClick={handleAddLesson}
                         disabled={!lessonTitle.trim() || saving}
-                        className="flex items-center gap-1.5 rounded-lg bg-capta-deep px-3 py-1.5 text-xs font-semibold text-white hover:bg-capta-deep/90 disabled:opacity-50 transition-colors"
+                        className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.97]"
+                        style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
                       >
                         {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
-                        Crear
+                        Crear lección
                       </button>
                     </div>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setAddingLesson(true)}
-                  className="flex w-full items-center gap-2 rounded-xl border-2 border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:border-capta-soft/50 hover:text-capta-soft transition-all"
-                >
-                  <Plus size={14} /> Agregar lección
-                </button>
-              )}
+                  </motion.div>
+                ) : (
+                  <motion.button
+                    key="add-btn"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setAddingLesson(true)}
+                    className="flex w-full items-center gap-2 rounded-xl border-2 border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:border-capta-soft/50 hover:text-capta-soft transition-all"
+                  >
+                    <Plus size={14} /> Agregar lección
+                  </motion.button>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         )}
@@ -2221,62 +2338,123 @@ export default function CourseEditorPage() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="rounded-2xl border border-border bg-card shadow-sm p-6"
+          className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden"
+          style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
         >
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div className="flex-1">
-              {editingInfo ? (
-                <div className="space-y-3">
-                  <input
-                    value={editTitle}
-                    onChange={e => setEditTitle(e.target.value)}
-                    className="w-full rounded-xl border border-capta-soft/40 bg-background px-3 py-2 text-lg font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40"
-                  />
-                  <textarea
-                    value={editDesc}
-                    onChange={e => setEditDesc(e.target.value)}
-                    rows={3}
-                    className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40"
-                    placeholder="Descripción del curso…"
-                  />
-                  <div className="flex gap-2">
-                    <button onClick={() => setEditingInfo(false)} className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border">Cancelar</button>
-                    <button
-                      onClick={saveInfo}
-                      disabled={saving}
-                      className="flex items-center gap-1.5 rounded-lg bg-capta-deep px-3 py-1.5 text-xs font-semibold text-white hover:bg-capta-deep/90"
-                    >
-                      {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Guardar
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <h1 className="text-xl font-bold text-foreground">{course.title}</h1>
-                  {course.description && (
-                    <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{course.description}</p>
-                  )}
-                </>
-              )}
-            </div>
-            {!editingInfo && (
-              <button onClick={() => setEditingInfo(true)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0">
+          {/* Thumbnail (si existe) como banner superior */}
+          {course.thumbnailUrl && !editingInfo && (
+            <div className="relative h-36 w-full overflow-hidden">
+              <img
+                src={course.thumbnailUrl}
+                alt={course.title}
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.55) 100%)' }} />
+              {/* Badge de estado sobre el banner */}
+              <div className="absolute bottom-3 left-4">
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge.className}`}>
+                  {badge.label}
+                </span>
+              </div>
+              {/* Botón editar sobre el banner */}
+              <button
+                onClick={() => setEditingInfo(true)}
+                className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-lg bg-black/50 text-white hover:bg-black/70 transition-colors"
+              >
                 <Edit3 size={14} />
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Métricas */}
-          <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
-            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge.className}`}>
-              {badge.label}
-            </span>
-            <span className="text-sm text-muted-foreground">{course.totalLessons} {course.totalLessons === 1 ? 'lección' : 'lecciones'}</span>
-            {course.enrollmentCount !== undefined && course.enrollmentCount > 0 && (
-              <span className="text-sm text-muted-foreground">{course.enrollmentCount} inscritos</span>
-            )}
-            {course.modules.length > 0 && (
-              <span className="text-sm text-muted-foreground">{course.modules.length} módulos</span>
+          <div className="p-5">
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div className="flex-1 min-w-0">
+                {editingInfo ? (
+                  <div className="space-y-3">
+                    <input
+                      value={editTitle}
+                      onChange={e => setEditTitle(e.target.value)}
+                      className="w-full rounded-xl border border-capta-soft/40 bg-background px-3 py-2.5 text-lg font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40"
+                    />
+                    <textarea
+                      value={editDesc}
+                      onChange={e => setEditDesc(e.target.value)}
+                      rows={3}
+                      className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40"
+                      placeholder="Descripción del curso…"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditingInfo(false)}
+                        className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={saveInfo}
+                        disabled={saving}
+                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-all"
+                        style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                      >
+                        {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Guardar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <h1 className="text-xl font-bold tracking-tight text-foreground">{course.title}</h1>
+                    {course.description && (
+                      <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{course.description}</p>
+                    )}
+                  </>
+                )}
+              </div>
+              {/* Botón editar (solo si no hay thumbnail o está en modo no-editar) */}
+              {!editingInfo && !course.thumbnailUrl && (
+                <button
+                  onClick={() => setEditingInfo(true)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0"
+                >
+                  <Edit3 size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Métricas */}
+            {!editingInfo && (
+              <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                {/* Badge de estado (si no hay thumbnail) */}
+                {!course.thumbnailUrl && (
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge.className}`}>
+                    {badge.label}
+                  </span>
+                )}
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Icon name="book-open" size={12} />
+                  {course.totalLessons} {course.totalLessons === 1 ? 'lección' : 'lecciones'}
+                </div>
+                {course.modules.length > 0 && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Icon name="folder" size={12} />
+                    {course.modules.length} {course.modules.length === 1 ? 'módulo' : 'módulos'}
+                  </div>
+                )}
+                {course.enrollmentCount !== undefined && course.enrollmentCount > 0 && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Icon name="users" size={12} />
+                    {course.enrollmentCount} {course.enrollmentCount === 1 ? 'inscrito' : 'inscritos'}
+                  </div>
+                )}
+                {/* Separador + botón editar al final de métricas si hay thumbnail */}
+                {course.thumbnailUrl && (
+                  <button
+                    onClick={() => setEditingInfo(true)}
+                    className="ml-auto flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    <Edit3 size={11} /> Editar info
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </motion.div>
@@ -2288,11 +2466,18 @@ export default function CourseEditorPage() {
 
         {/* ── Estructura del curso ── */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-foreground">Contenido del curso</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Contenido del curso</h2>
+              {course.modules.length > 0 && (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {course.modules.length} {course.modules.length === 1 ? 'módulo' : 'módulos'} · {course.totalLessons} {course.totalLessons === 1 ? 'lección' : 'lecciones'}
+                </p>
+              )}
+            </div>
             <button
               onClick={() => setAddingModule(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:border-navy/40 hover:text-capta-deep dark:hover:text-capta-soft transition-all"
+              className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:border-capta-deep/30 hover:text-capta-deep dark:hover:border-capta-soft/30 dark:hover:text-capta-soft transition-all"
             >
               <Plus size={14} /> Agregar módulo
             </button>
@@ -2307,20 +2492,29 @@ export default function CourseEditorPage() {
                   exit={{ opacity: 0, y: -10 }}
                   className="rounded-2xl border border-capta-soft/30 bg-capta-soft/5 p-4"
                 >
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                    Nombre del módulo
+                  </p>
                   <input
                     autoFocus
                     value={moduleTitle}
                     onChange={e => setModuleTitle(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') handleAddModule(); if (e.key === 'Escape') setAddingModule(false); }}
-                    placeholder="Nombre del módulo (Ej: Módulo 1 — Fundamentos)"
+                    placeholder="Ej: Módulo 1 — Fundamentos básicos"
                     className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft mb-3"
                   />
-                  <div className="flex justify-end gap-2">
-                    <button onClick={() => setAddingModule(false)} className="text-sm text-muted-foreground hover:text-foreground px-3 py-1.5">Cancelar</button>
+                  <div className="flex justify-between items-center">
+                    <button
+                      onClick={() => setAddingModule(false)}
+                      className="text-sm text-muted-foreground hover:text-foreground px-3 py-1.5 transition-colors"
+                    >
+                      Cancelar
+                    </button>
                     <button
                       onClick={handleAddModule}
                       disabled={!moduleTitle.trim()}
-                      className="flex items-center gap-1.5 rounded-xl bg-capta-deep px-4 py-1.5 text-sm font-semibold text-white hover:bg-capta-deep/90 disabled:opacity-50"
+                      className="flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50 hover:opacity-90 active:scale-[0.97] transition-all"
+                      style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
                     >
                       <Check size={14} /> Crear módulo
                     </button>
@@ -2330,22 +2524,29 @@ export default function CourseEditorPage() {
             </AnimatePresence>
 
             {course.modules.length === 0 && !addingModule ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border py-14 text-center">
-                <BookOpen size={32} className="text-muted-foreground/30 mb-3" />
-                <p className="font-medium text-foreground mb-1">Sin módulos todavía</p>
-                <p className="text-sm text-muted-foreground mb-4">Organiza el contenido en módulos y lecciones.</p>
+              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border py-16 text-center">
+                <div
+                  className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"
+                  style={{ background: '#1E4F7A0A', color: '#1E4F7A50' }}
+                >
+                  <BookOpen size={28} />
+                </div>
+                <p className="font-semibold text-foreground mb-1">Sin módulos todavía</p>
+                <p className="text-sm text-muted-foreground mb-5">Organiza el contenido en módulos y lecciones.</p>
                 <button
                   onClick={() => setAddingModule(true)}
-                  className="flex items-center gap-1.5 rounded-xl bg-capta-deep px-4 py-2 text-sm font-semibold text-white hover:bg-capta-deep/90"
+                  className="flex items-center gap-1.5 rounded-xl px-5 py-2 text-sm font-semibold text-white hover:opacity-90 active:scale-[0.97] transition-all"
+                  style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.2)' }}
                 >
                   <Plus size={14} /> Agregar primer módulo
                 </button>
               </div>
             ) : (
-              course.modules.map(module => (
+              course.modules.map((module, idx) => (
                 <ModuleAccordion
                   key={module.id}
                   module={module}
+                  index={idx}
                   courseId={course.id}
                   onModuleDelete={handleModuleDelete}
                   onModuleUpdate={(id, title) =>

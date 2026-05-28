@@ -27,6 +27,18 @@ export class AnalyticsController {
     return this.analyticsService.getCourseStats(user.tenantId);
   }
 
+  @Get('activity')
+  @ApiOperation({ summary: 'Feed de actividad reciente: inscripciones, completados, certificados, nuevos usuarios (últimos 30 días)' })
+  getActivity(@CurrentUser() user: JwtPayload) {
+    return this.analyticsService.getActivity(user.tenantId);
+  }
+
+  @Get('weekly')
+  @ApiOperation({ summary: 'Datos históricos de los últimos 7 días: inscripciones, completados, usuarios, cursos, certificados' })
+  getWeekly(@CurrentUser() user: JwtPayload) {
+    return this.analyticsService.getWeekly(user.tenantId);
+  }
+
   @Get('employees')
   @ApiOperation({ summary: 'Estadísticas por empleado: cursos inscritos, completados, último acceso' })
   getEmployeeStats(@CurrentUser() user: JwtPayload) {

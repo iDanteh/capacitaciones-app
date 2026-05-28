@@ -45,6 +45,25 @@ interface SubscriptionApiResponse {
   currentPeriodEnd: string | null;
 }
 
+interface WeeklyData {
+  labels:       string[];
+  enrollments:  number[];
+  completions:  number[];
+  users:        number[];
+  courses:      number[];
+  certificates: number[];
+}
+
+type ActivityEventType = 'ENROLLMENT' | 'COMPLETION' | 'CERTIFICATE' | 'NEW_USER';
+
+interface ActivityEvent {
+  type:      ActivityEventType;
+  id:        string;
+  userName:  string;
+  detail:    string | null;
+  timestamp: string;
+}
+
 // ─── Animation variants ───────────────────────────────────────────────────────
 
 const container = { animate: { transition: { staggerChildren: 0.07 } } };
@@ -81,35 +100,32 @@ function formatNextBilling(iso: string | null): string {
   return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long' }).format(new Date(iso));
 }
 
-// ─── Sparkline (decorativa) ───────────────────────────────────────────────────
+// ─── Sparkline ────────────────────────────────────────────────────────────────
 
-// Los datos de sparkline son patrones decorativos de tendencia, no métricas reales.
-const SPARK_PATTERNS: Record<string, number[]> = {
-  users:    [3, 4, 3, 5, 4, 6, 4],
-  courses:  [1, 1, 2, 2, 1, 1, 1],
-  enrolled: [18, 24, 20, 28, 25, 30, 32],
-  certs:    [2, 3, 4, 4, 5, 5, 6],
-};
-
-function Sparkline({ pattern, color }: { pattern: keyof typeof SPARK_PATTERNS; color: string }) {
-  const data  = SPARK_PATTERNS[pattern];
+/**
+ * Acepta un array de 7 números reales del endpoint /analytics/weekly.
+ * Si todos los valores son 0 renderiza una línea plana (refleja la realidad).
+ */
+function Sparkline({ data, color }: { data: number[]; color: string }) {
   const max   = Math.max(...data);
   const min   = Math.min(...data);
-  const range = max - min || 1;
+  const range = max - min || 1;          // evitar división por cero
   const w = 76, h = 26;
+
   const pts = data.map((v, i) => ({
     x: (i / (data.length - 1)) * w,
     y: h - ((v - min) / range) * h * 0.75 - h * 0.08,
   }));
+
   const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
   const areaPath = `${linePath} L ${w} ${h} L 0 ${h} Z`;
   const uid = color.replace(/[^a-zA-Z0-9]/g, '');
 
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" className="opacity-60">
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" className="opacity-70">
       <defs>
         <linearGradient id={`sg-${uid}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor={color} stopOpacity="0.35" />
+          <stop offset="0%"   stopColor={color} stopOpacity="0.30" />
           <stop offset="100%" stopColor={color} stopOpacity="0"    />
         </linearGradient>
       </defs>
@@ -122,14 +138,14 @@ function Sparkline({ pattern, color }: { pattern: keyof typeof SPARK_PATTERNS; c
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
 function StatCard({
-  label, value, iconName, accent, loading, spark,
+  label, value, iconName, accent, loading, sparkData,
 }: {
-  label: string;
-  value: string | number;
-  iconName: import('@/components/capta-icon').IconName;
-  accent: string;
-  loading?: boolean;
-  spark?: keyof typeof SPARK_PATTERNS;
+  label:      string;
+  value:      string | number;
+  iconName:   import('@/components/capta-icon').IconName;
+  accent:     string;
+  loading?:   boolean;
+  sparkData?: number[];
 }) {
   return (
     <motion.div
@@ -154,9 +170,10 @@ function StatCard({
       </div>
       <div className="mt-0.5 text-xs font-medium text-muted-foreground">{label}</div>
 
-      {spark && !loading && (
+      {/* Sparkline real — solo cuando hay datos y no está cargando */}
+      {sparkData && !loading && (
         <div className="mt-3 -mx-1">
-          <Sparkline pattern={spark} color={accent} />
+          <Sparkline data={sparkData} color={accent} />
         </div>
       )}
     </motion.div>
@@ -168,11 +185,11 @@ function StatCard({
 function QuickAction({
   href, label, desc, iconName, accent = '#1E4F7A',
 }: {
-  href: string;
-  label: string;
-  desc: string;
+  href:     string;
+  label:    string;
+  desc:     string;
   iconName: import('@/components/capta-icon').IconName;
-  accent?: string;
+  accent?:  string;
 }) {
   return (
     <Link
@@ -193,13 +210,38 @@ function QuickAction({
   );
 }
 
+// ─── Activity Feed ────────────────────────────────────────────────────────────
+
+const ACTIVITY_CFG: Record<ActivityEventType, {
+  icon:    import('@/components/capta-icon').IconName;
+  color:   string;
+  label:   (user: string, detail: string | null) => string;
+}> = {
+  ENROLLMENT:  { icon: 'users',        color: '#1E4F7A', label: (u, d)  => `${u} se inscribió en "${d}"` },
+  COMPLETION:  { icon: 'check-circle', color: '#16a34a', label: (u, d)  => `${u} completó "${d}"` },
+  CERTIFICATE: { icon: 'certificate',  color: '#f59e0b', label: (u, d)  => `${u} obtuvo certificado de "${d}"` },
+  NEW_USER:    { icon: 'user-plus',    color: '#8b5cf6', label: (u, _d) => `${u} se unió a la plataforma` },
+};
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min  = Math.floor(diff / 60_000);
+  if (min < 1)   return 'Ahora mismo';
+  if (min < 60)  return `Hace ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24)    return `Hace ${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7)     return `Hace ${d}d`;
+  return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' }).format(new Date(iso));
+}
+
 // ─── Plan Card ────────────────────────────────────────────────────────────────
 
 function PlanCard({ data, loading }: { data: PlanSummary | null; loading: boolean }) {
-  const usedGb  = data ? data.usedStorageBytes / (1024 * 1024 * 1024) : 0;
-  const totalGb = data?.totalStorageGb ?? 1;
+  const usedGb   = data ? data.usedStorageBytes / (1024 * 1024 * 1024) : 0;
+  const totalGb  = data?.totalStorageGb ?? 1;
   const unlimited = totalGb === -1;
-  const pct = unlimited ? 0 : Math.min(100, (usedGb / totalGb) * 100);
+  const pct      = unlimited ? 0 : Math.min(100, (usedGb / totalGb) * 100);
   const barColor = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#8FC4E8';
 
   const PLAN_LABEL: Record<string, string> = {
@@ -228,13 +270,13 @@ function PlanCard({ data, loading }: { data: PlanSummary | null; loading: boolea
       </div>
 
       {loading ? (
-        <div className="space-y-2 animate-pulse">
+        <div className="animate-pulse space-y-2">
           <div className="h-8 w-20 rounded bg-white/10" />
           <div className="h-3 w-32 rounded bg-white/10" />
         </div>
       ) : data ? (
         <>
-          {/* Price */}
+          {/* Precio */}
           <div className="mb-0.5">
             {!data.price ? (
               <span className="text-2xl font-bold text-white">Gratis</span>
@@ -253,7 +295,7 @@ function PlanCard({ data, loading }: { data: PlanSummary | null; loading: boolea
             </p>
           )}
 
-          {/* Storage bar */}
+          {/* Barra de almacenamiento */}
           <div className="mb-1.5 flex items-center justify-between">
             <span className="text-[11px] text-white/50">Almacenamiento</span>
             <span className="text-[11px] font-medium text-white/80">
@@ -280,7 +322,7 @@ function PlanCard({ data, loading }: { data: PlanSummary | null; loading: boolea
           </Link>
         </>
       ) : (
-        <p className="text-sm text-white/40 italic">Sin datos de plan.</p>
+        <p className="text-sm italic text-white/40">Sin datos de plan.</p>
       )}
     </div>
   );
@@ -294,9 +336,13 @@ export default function DashboardPage() {
   const [usersCount,       setUsersCount]  = useState(0);
   const [publishedCourses, setPublished]   = useState(0);
   const [totalEnrolled,    setEnrolled]    = useState(0);
+  const [totalCerts,       setTotalCerts]  = useState<number | null>(null);
   const [enrollments,      setEnrollments] = useState<Enrollment[]>([]);
   const [planData,         setPlanData]    = useState<PlanSummary | null>(null);
   const [planLoading,      setPlanLoading] = useState(false);
+  const [weekly,           setWeekly]      = useState<WeeklyData | null>(null);
+  const [activity,         setActivity]    = useState<ActivityEvent[] | null>(null);
+  const [activityLoading,  setActivityLoading] = useState(false);
 
   useEffect(() => {
     try {
@@ -311,21 +357,32 @@ export default function DashboardPage() {
         Promise.all([
           api.get<{ data: unknown[]; total: number }>('/users').catch(() => ({ data: { data: [], total: 0 } })),
           api.get<Course[]>('/courses').catch(() => ({ data: [] })),
-        ]).then(([usersRes, coursesRes]) => {
+          api.get<{ totalCertificates: number }>('/analytics/overview').catch(() => ({ data: { totalCertificates: 0 } })),
+          api.get<WeeklyData>('/analytics/weekly').catch(() => ({ data: null })),
+        ]).then(([usersRes, coursesRes, overviewRes, weeklyRes]) => {
           setUsersCount(usersRes.data.total ?? 0);
           setPublished(coursesRes.data.filter(c => c.status === 'PUBLISHED').length);
           setEnrolled(coursesRes.data.reduce((s, c) => s + (c.enrollmentCount ?? 0), 0));
+          setTotalCerts(overviewRes.data.totalCertificates ?? 0);
+          setWeekly(weeklyRes.data);
         }).finally(() => setLoading(false));
+
+        // Actividad reciente — fetch independiente para no bloquear los stats
+        setActivityLoading(true);
+        api.get<ActivityEvent[]>('/analytics/activity')
+          .then(res => setActivity(res.data))
+          .catch(() => setActivity([]))
+          .finally(() => setActivityLoading(false));
 
         // Suscripción — solo para OWNER
         if (u.role === 'OWNER') {
           setPlanLoading(true);
           api.get<SubscriptionApiResponse>('/subscriptions/me')
             .then(res => setPlanData({
-              planName:       res.data.plan.name,
-              planType:       res.data.plan.type as PlanSummary['planType'],
-              price:          res.data.plan.price,
-              totalStorageGb: res.data.totalStorageGb,
+              planName:         res.data.plan.name,
+              planType:         res.data.plan.type as PlanSummary['planType'],
+              price:            res.data.plan.price,
+              totalStorageGb:   res.data.totalStorageGb,
               usedStorageBytes: res.data.usedStorageBytes,
               nextBillingDate:  res.data.currentPeriodEnd,
             }))
@@ -396,17 +453,45 @@ export default function DashboardPage() {
         {/* ── Stat cards ── */}
         {isAdmin ? (
           <>
-            <StatCard label="Usuarios registrados" value={usersCount}        iconName="users"       accent="#1E4F7A" loading={loading} spark="users"    />
-            <StatCard label="Cursos publicados"     value={publishedCourses}  iconName="book-open"   accent="#7FD1AE" loading={loading} spark="courses"  />
-            <StatCard label="Total inscripciones"   value={totalEnrolled}     iconName="chart-line"  accent="#8FC4E8" loading={loading} spark="enrolled" />
-            <StatCard label="Certificados emitidos" value="—"                 iconName="certificate" accent="#F59E0B" loading={false}   spark="certs"    />
+            <StatCard
+              label="Usuarios registrados"
+              value={usersCount}
+              iconName="users"
+              accent="#1E4F7A"
+              loading={loading}
+              sparkData={weekly?.users}
+            />
+            <StatCard
+              label="Cursos publicados"
+              value={publishedCourses}
+              iconName="book-open"
+              accent="#7FD1AE"
+              loading={loading}
+              sparkData={weekly?.courses}
+            />
+            <StatCard
+              label="Total inscripciones"
+              value={totalEnrolled}
+              iconName="chart-line"
+              accent="#8FC4E8"
+              loading={loading}
+              sparkData={weekly?.enrollments}
+            />
+            <StatCard
+              label="Certificados emitidos"
+              value={totalCerts ?? '—'}
+              iconName="certificate"
+              accent="#F59E0B"
+              loading={loading && totalCerts === null}
+              sparkData={weekly?.certificates}
+            />
           </>
         ) : (
           <>
-            <StatCard label="Cursos inscritos" value={enrollments.length} iconName="book-open"   accent="#1E4F7A" loading={loading} spark="courses"  />
-            <StatCard label="En progreso"      value={inProgress}         iconName="play"        accent="#7FD1AE" loading={loading} spark="enrolled" />
-            <StatCard label="Completados"      value={completed}          iconName="check"       accent="#8FC4E8" loading={loading} spark="certs"    />
-            <StatCard label="Sin comenzar"     value={notStarted}         iconName="clock"       accent="#F59E0B" loading={loading}                  />
+            <StatCard label="Cursos inscritos" value={enrollments.length} iconName="book-open"   accent="#1E4F7A" loading={loading} />
+            <StatCard label="En progreso"      value={inProgress}         iconName="play"        accent="#7FD1AE" loading={loading} />
+            <StatCard label="Completados"      value={completed}          iconName="check"       accent="#8FC4E8" loading={loading} />
+            <StatCard label="Sin comenzar"     value={notStarted}         iconName="clock"       accent="#F59E0B" loading={loading} />
           </>
         )}
 
@@ -430,10 +515,7 @@ export default function DashboardPage() {
 
             {/* Plan card — solo OWNER */}
             {isOwner && (
-              <motion.div
-                variants={item}
-                className="col-span-12 lg:col-span-4"
-              >
+              <motion.div variants={item} className="col-span-12 lg:col-span-4">
                 <PlanCard data={planData} loading={planLoading} />
               </motion.div>
             )}
@@ -441,25 +523,89 @@ export default function DashboardPage() {
             {/* Actividad reciente */}
             <motion.div
               variants={item}
-              className="col-span-12 rounded-2xl border border-border bg-card p-5"
+              className="col-span-12 overflow-hidden rounded-2xl border border-border bg-card"
               style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
             >
-              <div className="mb-4 flex items-center justify-between">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-border px-5 py-4">
                 <h2 className="text-sm font-semibold text-foreground">Actividad reciente</h2>
                 <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-emerald-500">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                   En vivo
                 </span>
               </div>
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-muted">
-                  <Icon name="clock" size={20} className="text-muted-foreground/30" />
+
+              {/* Contenido */}
+              {activityLoading ? (
+                /* Skeleton */
+                <div className="divide-y divide-border/60">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3 px-5 py-3.5 animate-pulse">
+                      <div className="h-8 w-8 flex-shrink-0 rounded-xl bg-muted" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3 w-3/4 rounded bg-muted" />
+                        <div className="h-2.5 w-1/3 rounded bg-muted" />
+                      </div>
+                      <div className="h-2.5 w-12 rounded bg-muted" />
+                    </div>
+                  ))}
                 </div>
-                <p className="text-sm font-medium text-muted-foreground">Sin actividad aún</p>
-                <p className="mt-1 max-w-[200px] text-xs leading-relaxed text-muted-foreground/60">
-                  Aparecerá aquí cuando tu equipo comience a capacitarse.
-                </p>
-              </div>
+              ) : !activity || activity.length === 0 ? (
+                /* Empty state */
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-muted">
+                    <Icon name="clock" size={20} className="text-muted-foreground/30" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">Sin actividad en los últimos 30 días</p>
+                  <p className="mt-1 max-w-[220px] text-xs leading-relaxed text-muted-foreground/60">
+                    Aparecerá aquí cuando tu equipo comience a capacitarse.
+                  </p>
+                </div>
+              ) : (
+                /* Feed */
+                <div className="divide-y divide-border/60">
+                  {activity.map((event, i) => {
+                    const cfg = ACTIVITY_CFG[event.type];
+                    return (
+                      <div
+                        key={event.id}
+                        className="flex items-center gap-3.5 px-5 py-3 transition-colors hover:bg-muted/30"
+                      >
+                        {/* Ícono del tipo */}
+                        <div
+                          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl"
+                          style={{ background: `${cfg.color}14`, color: cfg.color }}
+                        >
+                          <Icon name={cfg.icon} size={14} />
+                        </div>
+
+                        {/* Texto */}
+                        <p className="flex-1 min-w-0 text-xs text-foreground leading-relaxed">
+                          <span className="font-semibold">{event.userName}</span>
+                          {event.type === 'ENROLLMENT'  && <> se inscribió en </>}
+                          {event.type === 'COMPLETION'  && <> completó </>}
+                          {event.type === 'CERTIFICATE' && <> obtuvo certificado de </>}
+                          {event.type === 'NEW_USER'    && <span className="text-muted-foreground"> se unió a la plataforma</span>}
+                          {event.detail && (
+                            <span className="font-medium text-foreground/80">"{event.detail}"</span>
+                          )}
+                        </p>
+
+                        {/* Timestamp */}
+                        <span className="flex-shrink-0 text-[10px] tabular-nums text-muted-foreground/50">
+                          {relativeTime(event.timestamp)}
+                        </span>
+
+                        {/* Dot de color tipo */}
+                        <div
+                          className="h-1.5 w-1.5 flex-shrink-0 rounded-full"
+                          style={{ background: cfg.color }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </motion.div>
           </>
         )}
@@ -474,8 +620,8 @@ export default function DashboardPage() {
             >
               <h2 className="mb-4 text-sm font-semibold text-foreground">Acciones rápidas</h2>
               <div className="grid gap-3 grid-cols-2">
-                <QuickAction href="/dashboard/courses" label="Explorar cursos"       desc="Descubre nuevos cursos disponibles"  iconName="search" accent="#1E4F7A" />
-                <QuickAction href="/dashboard/courses" label="Continuar aprendiendo" desc="Retoma donde lo dejaste"             iconName="play"   accent="#7FD1AE" />
+                <QuickAction href="/dashboard/courses" label="Explorar cursos"       desc="Descubre nuevos cursos disponibles" iconName="search" accent="#1E4F7A" />
+                <QuickAction href="/dashboard/courses" label="Continuar aprendiendo" desc="Retoma donde lo dejaste"            iconName="play"   accent="#7FD1AE" />
               </div>
             </motion.div>
 

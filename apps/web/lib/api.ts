@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getSocket } from './socket';
+import { refreshSocketToken } from './socket';
 
 /**
  * Instancia de Axios preconfigurada para comunicarse con el API.
@@ -87,12 +87,9 @@ api.interceptors.response.use(
       api.defaults.headers.common.Authorization = `Bearer ${data.accessToken}`;
       original.headers.Authorization = `Bearer ${data.accessToken}`;
 
-      // Actualizar el token del socket para que la próxima reconexión use el token fresco.
-      // Si el socket está conectado y vuelve a conectar (ej. red inestable), usará el nuevo token.
-      try {
-        const sock = getSocket();
-        (sock.auth as { token?: string }).token = data.accessToken;
-      } catch { /* socket no inicializado todavía — no pasa nada */ }
+      // Actualizar el socket con el nuevo token — si estaba conectado, reconecta
+      // inmediatamente para que el gateway valide las nuevas credenciales.
+      try { refreshSocketToken(data.accessToken); } catch { /* socket no inicializado */ }
 
       flushQueue(null, data.accessToken);
       return api(original);

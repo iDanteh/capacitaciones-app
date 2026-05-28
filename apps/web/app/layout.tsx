@@ -12,11 +12,16 @@ const geist = Geist({
 export const metadata: Metadata = {
   title: {
     default: 'Capta',
-    template: '%s | Capta',
+    template: '%s — Capta',
   },
   description:
     'Capacita a tu equipo de forma eficiente, mide el progreso y potencia el talento de tu empresa.',
   keywords: ['capacitación', 'e-learning', 'LMS', 'formación empresarial', 'Capta'],
+  icons: {
+    icon:        [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    shortcut:    '/icon.svg',
+    apple:       '/icon.svg',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

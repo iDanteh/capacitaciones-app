@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon, type IconName } from '@/components/capta-icon';
@@ -101,9 +102,13 @@ export function NotificationBell() {
   const [unreadCount,   setUnreadCount]   = useState(0);
   const [loading,       setLoading]       = useState(false);
   const [panelPos,      setPanelPos]      = useState({ top: 0, right: 0 });
+  // mounted flag necesario para que createPortal funcione solo en el cliente
+  const [mounted,       setMounted]       = useState(false);
 
-  const panelRef  = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef  = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setMounted(true); }, []);
 
   // ── Fetch inicial ──
   const fetchNotifications = useCallback(async () => {
@@ -112,14 +117,14 @@ export function NotificationBell() {
       const { data } = await api.get<NotificationListResponse>('/notifications?limit=25');
       setNotifications(data.notifications);
       setUnreadCount(data.unreadCount);
-    } catch { /* silent — el usuario puede no tener token aún */ } finally {
+    } catch { /* silent */ } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
 
-  // ── Suscripción WebSocket en tiempo real ──
+  // ── WebSocket en tiempo real ──
   useEffect(() => {
     connectSocket();
     const sock = getSocket();
@@ -146,6 +151,22 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  // ── Recalcular posición al hacer scroll o resize ──
+  useEffect(() => {
+    if (!open) return;
+    const recalc = () => {
+      if (!buttonRef.current) return;
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPanelPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    };
+    window.addEventListener('scroll',  recalc, true);
+    window.addEventListener('resize',  recalc);
+    return () => {
+      window.removeEventListener('scroll',  recalc, true);
+      window.removeEventListener('resize',  recalc);
+    };
+  }, [open]);
+
   // ── Marcar todas como leídas ──
   const handleMarkAllRead = async () => {
     try {
@@ -169,6 +190,145 @@ export function NotificationBell() {
     setOpen(false);
     router.push(getUrl(n));
   };
+
+  // ── Panel JSX (se renderizará en portal) ──
+  const panel = (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          ref={panelRef}
+          initial={{ opacity: 0, y: -6, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -6, scale: 0.97 }}
+          transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+          className="rounded-2xl border border-border bg-card overflow-hidden"
+          style={{
+            position:  'fixed',
+            top:       panelPos.top,
+            right:     panelPos.right,
+            zIndex:    9999,            // por encima de absolutamente todo
+            width:     360,
+            maxWidth:  'calc(100vw - 1.5rem)',
+            boxShadow: '0 12px 48px rgba(11,31,42,0.18), 0 4px 12px rgba(11,31,42,0.08)',
+          }}
+        >
+          {/* Cabecera */}
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-foreground">Notificaciones</h3>
+              {unreadCount > 0 && (
+                <span
+                  className="rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
+                  style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}
+                >
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllRead}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Marcar todo leído
+                </button>
+              )}
+              <button
+                onClick={fetchNotifications}
+                className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                title="Actualizar"
+              >
+                <Icon name="refresh" size={12} className={loading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+          </div>
+
+          {/* Lista */}
+          <div className="max-h-[420px] overflow-y-auto">
+            {loading && notifications.length === 0 ? (
+              <div className="flex items-center justify-center py-10">
+                <div
+                  className="h-5 w-5 animate-spin rounded-full border-2 border-transparent"
+                  style={{ borderTopColor: '#1E4F7A', borderRightColor: '#8FC4E820' }}
+                />
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-muted">
+                  <Icon name="bell" size={18} className="text-muted-foreground/40" />
+                </div>
+                <p className="text-sm font-medium text-foreground">Todo al día</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">No tienes notificaciones nuevas</p>
+              </div>
+            ) : (
+              <div>
+                {notifications.map((n, i) => {
+                  const iconName = ICON[n.type]  ?? 'bell';
+                  const color    = COLOR[n.type] ?? '#1E4F7A';
+                  const isUnread = !n.readAt;
+
+                  return (
+                    <button
+                      key={n.id}
+                      onClick={() => handleClick(n)}
+                      className={[
+                        'w-full flex items-start gap-3 px-4 py-3.5 text-left transition-colors',
+                        'hover:bg-muted/50 active:bg-muted',
+                        i < notifications.length - 1 ? 'border-b border-border/60' : '',
+                        isUnread ? 'bg-capta-tint/30 dark:bg-capta-soft/5' : '',
+                      ].join(' ')}
+                    >
+                      {/* Ícono del tipo */}
+                      <div
+                        className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl"
+                        style={{ background: `${color}18`, color }}
+                      >
+                        <Icon name={iconName} size={14} />
+                      </div>
+
+                      {/* Contenido */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className={`text-xs leading-snug ${isUnread ? 'font-semibold text-foreground' : 'font-medium text-foreground/80'}`}>
+                            {n.title}
+                          </p>
+                          {isUnread && (
+                            <div
+                              className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full"
+                              style={{ background: color }}
+                            />
+                          )}
+                        </div>
+                        <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                          {n.body}
+                        </p>
+                        <p className="mt-1.5 tabular-nums text-[10px] text-muted-foreground/50">
+                          {relativeTime(n.createdAt)}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          {notifications.length > 0 && (
+            <div className="border-t border-border px-4 py-2.5">
+              <button
+                onClick={fetchNotifications}
+                className="w-full text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Actualizar notificaciones
+              </button>
+            </div>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
   // ─── Render ───────────────────────────────────────────────────────────────────
 
@@ -208,138 +368,8 @@ export function NotificationBell() {
         </AnimatePresence>
       </button>
 
-      {/* Panel desplegable — fixed para escapar overflow:hidden del layout */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            ref={panelRef}
-            initial={{ opacity: 0, y: -8, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-            className="fixed z-[300] w-[360px] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-border bg-card overflow-hidden"
-            style={{
-              top:       panelPos.top,
-              right:     panelPos.right,
-              boxShadow: '0 8px 40px rgba(11,31,42,0.14), 0 2px 8px rgba(11,31,42,0.06)',
-            }}
-          >
-            {/* Cabecera del panel */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-foreground">Notificaciones</h3>
-                {unreadCount > 0 && (
-                  <span
-                    className="rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
-                    style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}
-                  >
-                    {unreadCount}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                {unreadCount > 0 && (
-                  <button
-                    onClick={handleMarkAllRead}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Marcar todo leído
-                  </button>
-                )}
-                <button
-                  onClick={fetchNotifications}
-                  className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                  title="Actualizar"
-                >
-                  <Icon name="refresh" size={12} className={loading ? 'animate-spin' : ''} />
-                </button>
-              </div>
-            </div>
-
-            {/* Lista de notificaciones */}
-            <div className="max-h-[420px] overflow-y-auto">
-              {loading && notifications.length === 0 ? (
-                <div className="flex items-center justify-center py-10">
-                  <div
-                    className="h-5 w-5 animate-spin rounded-full border-2 border-transparent"
-                    style={{ borderTopColor: '#1E4F7A', borderRightColor: '#8FC4E820' }}
-                  />
-                </div>
-              ) : notifications.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-muted mb-3">
-                    <Icon name="bell" size={18} className="text-muted-foreground/40" />
-                  </div>
-                  <p className="text-sm font-medium text-foreground">Todo al día</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">No tienes notificaciones nuevas</p>
-                </div>
-              ) : (
-                <div>
-                  {notifications.map((n, i) => {
-                    const iconName = ICON[n.type]  ?? 'bell';
-                    const color    = COLOR[n.type] ?? '#1E4F7A';
-                    const isUnread = !n.readAt;
-
-                    return (
-                      <button
-                        key={n.id}
-                        onClick={() => handleClick(n)}
-                        className={[
-                          'w-full flex items-start gap-3 px-4 py-3.5 text-left transition-colors',
-                          'hover:bg-muted/50 active:bg-muted',
-                          i < notifications.length - 1 ? 'border-b border-border/60' : '',
-                          isUnread ? 'bg-capta-tint/30 dark:bg-capta-soft/5' : '',
-                        ].join(' ')}
-                      >
-                        {/* Ícono del tipo */}
-                        <div
-                          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl mt-0.5"
-                          style={{ background: `${color}18`, color }}
-                        >
-                          <Icon name={iconName} size={14} />
-                        </div>
-
-                        {/* Contenido */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className={`text-xs leading-snug ${isUnread ? 'font-semibold text-foreground' : 'font-medium text-foreground/80'}`}>
-                              {n.title}
-                            </p>
-                            {isUnread && (
-                              <div
-                                className="h-2 w-2 rounded-full flex-shrink-0 mt-1.5"
-                                style={{ background: color }}
-                              />
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">
-                            {n.body}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground/50 mt-1.5 tabular-nums">
-                            {relativeTime(n.createdAt)}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            {notifications.length > 0 && (
-              <div className="border-t border-border px-4 py-2.5">
-                <button
-                  onClick={fetchNotifications}
-                  className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Actualizar notificaciones
-                </button>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Panel en portal — escapa todo stacking context (backdrop-blur, transform, etc.) */}
+      {mounted && createPortal(panel, document.body)}
     </div>
   );
 }
