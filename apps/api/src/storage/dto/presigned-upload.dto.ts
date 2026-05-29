@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
 
-type UploadFolder = 'thumbnails' | 'lessons' | 'avatars';
+type UploadFolder = 'thumbnails' | 'lessons' | 'avatars' | 'logos';
 
 export class PresignedUploadDto {
   @ApiProperty({
@@ -13,9 +13,9 @@ export class PresignedUploadDto {
 
   @ApiProperty({
     description: 'Carpeta destino en el bucket',
-    enum: ['thumbnails', 'lessons', 'avatars'],
+    enum: ['thumbnails', 'lessons', 'avatars', 'logos'],
   })
-  @IsIn(['thumbnails', 'lessons', 'avatars'])
+  @IsIn(['thumbnails', 'lessons', 'avatars', 'logos'])
   folder: UploadFolder;
 
   @ApiPropertyOptional({ description: 'MIME type del archivo' })

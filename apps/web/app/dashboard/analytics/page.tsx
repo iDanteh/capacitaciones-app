@@ -2,6 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import { Icon, type IconName } from '@/components/capta-icon';
 import { api } from '@/lib/api';
 
@@ -15,6 +19,7 @@ interface Overview {
   completedEnrollments: number;
   completionRate: number;
   totalLessons: number;
+  totalCertificates: number;
 }
 
 interface CourseStat {
@@ -41,7 +46,24 @@ interface EmployeeStat {
   avgProgress: number;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+interface WeeklyData {
+  labels: string[];
+  enrollments: number[];
+  completions: number[];
+  users: number[];
+  courses: number[];
+  certificates: number[];
+}
+
+type ChartPoint = {
+  date: string;
+  inscripciones: number;
+  completados: number;
+  certificados: number;
+  usuarios: number;
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const listItem = {
   initial: { opacity: 0, y: 10 },
@@ -52,12 +74,21 @@ function formatDate(iso: string | null): string {
   if (!iso) return 'Nunca';
   const d = new Date(iso);
   const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffDays = Math.floor(diffMs / 86400000);
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
   if (diffDays === 0) return 'Hoy';
   if (diffDays === 1) return 'Ayer';
   if (diffDays < 7) return `Hace ${diffDays} días`;
   return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' }).format(d);
+}
+
+function toChartData(w: WeeklyData): ChartPoint[] {
+  return w.labels.map((date, i) => ({
+    date,
+    inscripciones: w.enrollments[i],
+    completados:   w.completions[i],
+    certificados:  w.certificates[i],
+    usuarios:      w.users[i],
+  }));
 }
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
@@ -85,17 +116,14 @@ function StatCard({ label, value, sub, iconName, accent }: {
   );
 }
 
-// ─── Progress bar inline ──────────────────────────────────────────────────────
+// ─── MiniBar ──────────────────────────────────────────────────────────────────
 
 function MiniBar({ value, color }: { value: number; color?: string }) {
-  const barStyle = color
-    ? { width: `${value}%`, background: color }
-    : { width: `${value}%`, background: 'linear-gradient(90deg, #1F5C4D, #7FD1AE)' };
-
+  const fill = color ?? 'linear-gradient(90deg, #1F5C4D, #7FD1AE)';
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={barStyle} />
+        <div className="h-full rounded-full transition-all" style={{ width: `${value}%`, background: fill }} />
       </div>
       <span className="text-xs font-semibold text-foreground w-8 text-right">{value}%</span>
     </div>
@@ -110,12 +138,182 @@ function Skeleton() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="rounded-2xl border border-border bg-card p-5 animate-pulse">
-            <div className="h-3 bg-muted rounded w-2/3 mb-4" />
-            <div className="h-8 bg-muted rounded w-1/2" />
+            <div className="h-9 w-9 bg-muted rounded-xl mb-4" />
+            <div className="h-7 bg-muted rounded w-1/2 mb-2" />
+            <div className="h-3 bg-muted rounded w-2/3" />
           </div>
         ))}
       </div>
+      <div className="rounded-2xl border border-border bg-card p-6 animate-pulse">
+        <div className="h-5 bg-muted rounded w-40 mb-6" />
+        <div className="h-52 bg-muted/50 rounded-xl" />
+      </div>
+      <div className="rounded-2xl border border-border bg-card overflow-hidden animate-pulse">
+        <div className="h-14 border-b border-border px-6 flex items-center gap-2">
+          <div className="h-4 bg-muted rounded w-24" />
+        </div>
+        <div className="p-6 space-y-3">
+          {[...Array(4)].map((_, i) => <div key={i} className="h-10 bg-muted/50 rounded-xl" />)}
+        </div>
+      </div>
     </div>
+  );
+}
+
+// ─── Chart Tooltip ────────────────────────────────────────────────────────────
+
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const visible = payload.filter((p: any) => p.value > 0);
+  const rows = visible.length ? visible : payload;
+  return (
+    <div className="rounded-xl border border-border bg-card px-3 py-2.5 shadow-xl min-w-[130px]">
+      <p className="text-[11px] font-semibold text-muted-foreground mb-2 uppercase tracking-wide">{label}</p>
+      {rows.map((p: any) => (
+        <div key={p.dataKey} className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
+            <span className="text-xs text-muted-foreground">{p.name}</span>
+          </div>
+          <span className="text-xs font-bold text-foreground">{p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Weekly Chart ─────────────────────────────────────────────────────────────
+
+const CHART_VIEWS = [
+  {
+    key: 'learning',
+    label: 'Aprendizaje',
+    series: [
+      { key: 'inscripciones', label: 'Inscripciones', color: '#1E4F7A' },
+      { key: 'completados',   label: 'Completados',   color: '#7FD1AE' },
+      { key: 'certificados',  label: 'Certificados',  color: '#F59E0B' },
+    ],
+  },
+  {
+    key: 'people',
+    label: 'Personas',
+    series: [
+      { key: 'usuarios', label: 'Nuevos usuarios', color: '#8FC4E8' },
+    ],
+  },
+] as const;
+
+type ChartView = typeof CHART_VIEWS[number]['key'];
+
+function WeeklyChart({ data }: { data: ChartPoint[] }) {
+  const [view, setView] = useState<ChartView>('learning');
+  const current = CHART_VIEWS.find(v => v.key === view)!;
+  const isEmpty = data.every(p =>
+    p.inscripciones === 0 && p.completados === 0 && p.certificados === 0 && p.usuarios === 0
+  );
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.08 }}
+      className="rounded-2xl border border-border bg-card overflow-hidden"
+      style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div>
+          <div className="flex items-center gap-2">
+            <Icon name="trending" size={16} className="text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Tendencia semanal</h2>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">Últimos 7 días</p>
+        </div>
+        <div className="flex rounded-xl border border-border p-0.5 gap-0.5">
+          {CHART_VIEWS.map(v => (
+            <button
+              key={v.key}
+              onClick={() => setView(v.key)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-[10px] transition-all duration-150 ${
+                view === v.key
+                  ? 'bg-foreground text-background shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Chart or empty */}
+      {isEmpty ? (
+        <div className="flex flex-col items-center justify-center h-64 text-center px-6">
+          <Icon name="chart-bar" size={32} className="text-muted-foreground/20 mb-3" />
+          <p className="text-sm text-muted-foreground">Sin actividad en los últimos 7 días.</p>
+          <p className="text-xs text-muted-foreground/50 mt-1">
+            Los datos aparecerán conforme los empleados interactúen con la plataforma.
+          </p>
+        </div>
+      ) : (
+        <div className="px-6 pt-6 pb-4">
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+              <defs>
+                {current.series.map(s => (
+                  <linearGradient key={s.key} id={`grad-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"   stopColor={s.color} stopOpacity={0.18} />
+                    <stop offset="100%" stopColor={s.color} stopOpacity={0.01} />
+                  </linearGradient>
+                ))}
+              </defs>
+              <CartesianGrid strokeDasharray="4 4" stroke="rgba(0,0,0,0.05)" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11, fill: '#94A3B8' }}
+                axisLine={false}
+                tickLine={false}
+                dy={6}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: '#94A3B8' }}
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false}
+                width={28}
+              />
+              <Tooltip
+                content={<ChartTooltip />}
+                cursor={{ stroke: 'rgba(0,0,0,0.08)', strokeWidth: 1 }}
+              />
+              {current.series.map(s => (
+                <Area
+                  key={s.key}
+                  type="monotone"
+                  dataKey={s.key}
+                  name={s.label}
+                  stroke={s.color}
+                  strokeWidth={2}
+                  fill={`url(#grad-${s.key})`}
+                  dot={false}
+                  activeDot={{ r: 4, strokeWidth: 0, fill: s.color }}
+                />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-6 mt-3 pt-3 border-t border-border">
+            {current.series.map(s => (
+              <div key={s.key} className="flex items-center gap-1.5">
+                <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />
+                <span className="text-xs text-muted-foreground">{s.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </motion.div>
   );
 }
 
@@ -125,6 +323,7 @@ export default function AnalyticsPage() {
   const [overview,   setOverview]   = useState<Overview | null>(null);
   const [courses,    setCourses]    = useState<CourseStat[]>([]);
   const [employees,  setEmployees]  = useState<EmployeeStat[]>([]);
+  const [weekly,     setWeekly]     = useState<WeeklyData | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error,      setError]      = useState<string | null>(null);
@@ -144,11 +343,13 @@ export default function AnalyticsPage() {
       api.get<Overview>('/analytics/overview'),
       api.get<CourseStat[]>('/analytics/courses'),
       api.get<EmployeeStat[]>('/analytics/employees'),
+      api.get<WeeklyData>('/analytics/weekly'),
     ])
-      .then(([ov, cs, em]) => {
+      .then(([ov, cs, em, wk]) => {
         setOverview(ov.data);
         setCourses(cs.data);
         setEmployees(em.data);
+        setWeekly(wk.data);
       })
       .catch(() => setError('No se pudieron cargar las analíticas.'))
       .finally(() => { setLoading(false); setRefreshing(false); });
@@ -165,6 +366,8 @@ export default function AnalyticsPage() {
       </div>
     );
   }
+
+  const chartData = weekly ? toChartData(weekly) : [];
 
   const sortedCourses = [...courses].sort((a, b) => {
     const diff = (a[courseSort] as number) - (b[courseSort] as number);
@@ -227,17 +430,20 @@ export default function AnalyticsPage() {
         variants={{ animate: { transition: { staggerChildren: 0.06 } } }}
         className="grid grid-cols-2 lg:grid-cols-4 gap-4"
       >
-        <StatCard label="Cursos publicados"    value={overview.publishedCourses}     sub={`de ${overview.totalCourses} totales`}         iconName="book-open"    accent="#1E4F7A" />
-        <StatCard label="Total inscripciones"  value={overview.totalEnrollments}     sub={`${overview.completedEnrollments} completadas`} iconName="trending"     accent="#8FC4E8" />
+        <StatCard label="Cursos publicados"    value={overview.publishedCourses}    sub={`de ${overview.totalCourses} totales`}          iconName="book-open"    accent="#1E4F7A" />
+        <StatCard label="Total inscripciones"  value={overview.totalEnrollments}    sub={`${overview.completedEnrollments} completadas`}  iconName="trending"     accent="#8FC4E8" />
         <StatCard label="Tasa de completado"   value={`${overview.completionRate}%`} sub="del total de inscripciones"                    iconName="check-circle" accent="#7FD1AE" />
-        <StatCard label="Certificados emitidos" value={(overview as any).totalCertificates ?? 0} sub={`${overview.totalUsers} empleados activos`} iconName="certificate"  accent="#F59E0B" />
+        <StatCard label="Certificados emitidos" value={overview.totalCertificates ?? 0} sub={`${overview.totalUsers} empleados activos`} iconName="certificate"  accent="#F59E0B" />
       </motion.div>
+
+      {/* ── Gráfica semanal ── */}
+      {chartData.length > 0 && <WeeklyChart data={chartData} />}
 
       {/* ── Tabla de cursos ── */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.1 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.12 }}
         className="rounded-2xl border border-border bg-card overflow-hidden"
         style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
       >
@@ -289,7 +495,7 @@ export default function AnalyticsPage() {
               </thead>
               <tbody>
                 {sortedCourses.map((c, i) => (
-                  <tr key={c.id} className={`border-b border-border last:border-0 ${i % 2 === 0 ? '' : 'bg-muted/10'}`}>
+                  <tr key={c.id} className={`border-b border-border last:border-0 ${i % 2 !== 0 ? 'bg-muted/10' : ''}`}>
                     <td className="px-6 py-3.5">
                       <p className="font-medium text-foreground line-clamp-1">{c.title}</p>
                       <p className="text-xs text-muted-foreground">{c.totalLessons} lecciones</p>
@@ -307,7 +513,8 @@ export default function AnalyticsPage() {
                     <td className="px-4 py-3.5 w-36">
                       <MiniBar
                         value={c.completionRate}
-                        color={c.completionRate >= 70 ? 'linear-gradient(90deg, #1F5C4D, #7FD1AE)' : c.completionRate >= 40 ? '#8FC4E8' : undefined}
+                        color={c.completionRate >= 70 ? 'linear-gradient(90deg, #1F5C4D, #7FD1AE)' :
+                               c.completionRate >= 40 ? '#8FC4E8' : undefined}
                       />
                     </td>
                     <td className="px-4 py-3.5 w-36 hidden lg:table-cell">
@@ -325,7 +532,7 @@ export default function AnalyticsPage() {
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.15 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.16 }}
         className="rounded-2xl border border-border bg-card overflow-hidden"
         style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
       >
@@ -377,7 +584,7 @@ export default function AnalyticsPage() {
               </thead>
               <tbody>
                 {sortedEmployees.map((e, i) => (
-                  <tr key={e.id} className={`border-b border-border last:border-0 ${i % 2 === 0 ? '' : 'bg-muted/10'}`}>
+                  <tr key={e.id} className={`border-b border-border last:border-0 ${i % 2 !== 0 ? 'bg-muted/10' : ''}`}>
                     <td className="px-6 py-3.5">
                       <p className="font-medium text-foreground">{e.name}</p>
                       <p className="text-xs text-muted-foreground">{e.email}</p>

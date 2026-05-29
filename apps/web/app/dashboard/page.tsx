@@ -21,12 +21,15 @@ interface Course {
 }
 
 interface Enrollment {
+  id: string;
   status: string;
   progress: number;
   courseTotalLessons: number;
   courseTitle: string;
   courseThumbnailUrl?: string | null;
   courseId: string;
+  completedLessons?: number;
+  lessonProgress?: { completedAt: Date | null; lessonId: string; watchedSeconds: number | null }[];
 }
 
 interface PlanSummary {
@@ -62,6 +65,16 @@ interface ActivityEvent {
   userName:  string;
   detail:    string | null;
   timestamp: string;
+}
+
+interface Certificate {
+  id:            string;
+  publicUuid:    string;
+  recipientName: string;
+  courseTitle:   string;
+  tenantName:    string;
+  issuedAt:      string;
+  verifyUrl:     string;
 }
 
 // ─── Animation variants ───────────────────────────────────────────────────────
@@ -328,6 +341,273 @@ function PlanCard({ data, loading }: { data: PlanSummary | null; loading: boolea
   );
 }
 
+// ─── Employee: Circular Progress ──────────────────────────────────────────────
+
+function CircularProgress({ pct, size = 88, color = '#1E4F7A' }: {
+  pct: number; size?: number; color?: string;
+}) {
+  const strokeW = 7;
+  const r = (size - strokeW) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor"
+        strokeWidth={strokeW} className="text-muted/50" />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color}
+        strokeWidth={strokeW} strokeDasharray={circ} strokeDashoffset={offset}
+        strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s ease' }} />
+    </svg>
+  );
+}
+
+// ─── Employee: Continue Learning hero card ─────────────────────────────────────
+
+function ContinueLearningCard({ enrollment }: { enrollment: Enrollment | null }) {
+  if (!enrollment) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-10 text-center gap-3">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
+          <Icon name="book-open" size={24} className="text-muted-foreground/30" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">Sin cursos activos</p>
+          <p className="mt-1 max-w-[200px] text-xs leading-relaxed text-muted-foreground/60">
+            Inscríbete en un curso para comenzar tu aprendizaje.
+          </p>
+        </div>
+        <Link
+          href="/dashboard/courses"
+          className="mt-1 flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white transition-all hover:scale-[1.03]"
+          style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
+        >
+          <Icon name="search" size={13} /> Explorar cursos
+        </Link>
+      </div>
+    );
+  }
+
+  const completed  = enrollment.lessonProgress?.filter((p: { completedAt: Date | null }) => p.completedAt).length ?? 0;
+  const total      = enrollment.courseTotalLessons ?? 0;
+  const pct        = enrollment.progress ?? 0;
+
+  return (
+    <div className="flex flex-col gap-4 h-full">
+      {/* Thumbnail + info */}
+      <div className="flex gap-4 items-start">
+        <div
+          className="relative flex-shrink-0 h-20 w-28 rounded-xl overflow-hidden bg-muted"
+        >
+          {enrollment.courseThumbnailUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={enrollment.courseThumbnailUrl} alt={enrollment.courseTitle}
+              className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <Icon name="book-open" size={24} className="text-muted-foreground/30" />
+            </div>
+          )}
+          {/* overlay badge */}
+          <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5">
+            <span className="text-[10px] font-bold text-white">{pct}%</span>
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-capta-deep dark:text-capta-soft mb-1">
+            Continuar aprendiendo
+          </p>
+          <p className="text-sm font-semibold text-foreground leading-snug line-clamp-2">
+            {enrollment.courseTitle}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {completed} de {total} lecciones completadas
+          </p>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">Progreso del curso</span>
+          <span className="text-xs font-bold" style={{ color: '#7FD1AE' }}>{pct}%</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #1F5C4D, #7FD1AE)' }}
+          />
+        </div>
+      </div>
+
+      {/* CTA */}
+      <Link
+        href={`/dashboard/courses/${enrollment.courseId}/learn`}
+        className="mt-auto flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.97]"
+        style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.22)' }}
+      >
+        <Icon name="play" size={15} />
+        {pct === 0 ? 'Comenzar curso' : 'Continuar curso'}
+      </Link>
+    </div>
+  );
+}
+
+// ─── Employee: My Certificates panel ──────────────────────────────────────────
+
+function MyCertificatesPanel({ certs, loading }: { certs: Certificate[]; loading: boolean }) {
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+  const [copied, setCopied] = useState<string | null>(null);
+
+  // Endpoint público por UUID — no requiere autenticación
+  function publicDownloadUrl(publicUuid: string) {
+    return `${API_BASE}/certificates/verify/${publicUuid}/download`;
+  }
+
+  function handleShare(cert: Certificate) {
+    navigator.clipboard.writeText(cert.verifyUrl).then(() => {
+      setCopied(cert.id);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2].map(i => (
+          <div key={i} className="animate-pulse rounded-xl border border-border bg-muted/30 p-3 space-y-2">
+            <div className="h-3 w-3/4 rounded bg-muted" />
+            <div className="h-2.5 w-1/2 rounded bg-muted" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (certs.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-2xl bg-muted">
+          <Icon name="certificate" size={18} className="text-muted-foreground/30" />
+        </div>
+        <p className="text-xs font-medium text-muted-foreground">Sin certificados aún</p>
+        <p className="mt-1 max-w-[160px] text-[11px] leading-relaxed text-muted-foreground/60">
+          Completa un curso para obtener tu primer certificado.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2.5">
+      {certs.map(cert => (
+        <div
+          key={cert.id}
+          className="group relative overflow-hidden rounded-xl border border-border bg-background p-3 transition-all hover:border-amber-300/40 hover:shadow-sm"
+        >
+          {/* Gold accent left */}
+          <div className="absolute left-0 top-0 h-full w-0.5 rounded-l-xl bg-amber-400/50" />
+
+          <div className="pl-2">
+            <p className="text-xs font-semibold text-foreground leading-snug line-clamp-2">
+              {cert.courseTitle}
+            </p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              {new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(cert.issuedAt))}
+            </p>
+            <div className="mt-2 flex items-center gap-1.5">
+              {/* Descarga directa — sin pasos previos (el UUID es verificación implícita) */}
+              <a
+                href={publicDownloadUrl(cert.publicUuid)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-bold text-white transition-all hover:scale-[1.04]"
+                style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+              >
+                <Icon name="download" size={10} /> Descargar PDF
+              </a>
+              {/* Compartir — copia URL de verificación pública al portapapeles */}
+              <button
+                onClick={() => handleShare(cert)}
+                title="Copiar enlace de verificación"
+                className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-2 py-1 text-[10px] font-semibold text-muted-foreground transition-all hover:text-foreground hover:bg-muted"
+              >
+                {copied === cert.id ? (
+                  <><Icon name="check" size={10} className="text-emerald-500" /> Copiado</>
+                ) : (
+                  <><Icon name="external" size={10} /> Compartir</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Employee: All Courses grid ────────────────────────────────────────────────
+
+function CourseCard({ enrollment }: { enrollment: Enrollment }) {
+  const statusColor = enrollment.status === 'COMPLETED' ? '#16a34a' : '#1E4F7A';
+  const statusLabel = enrollment.status === 'COMPLETED' ? 'Completado' : enrollment.progress > 0 ? 'En progreso' : 'Sin comenzar';
+
+  return (
+    <Link
+      href={`/dashboard/courses/${enrollment.courseId}/learn`}
+      className="group flex flex-col gap-0 overflow-hidden rounded-xl border border-border bg-background transition-all hover:-translate-y-0.5 hover:border-capta-soft/30 hover:shadow-md"
+    >
+      {/* Thumbnail */}
+      <div className="relative h-24 w-full overflow-hidden bg-muted">
+        {enrollment.courseThumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={enrollment.courseThumbnailUrl} alt={enrollment.courseTitle}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <Icon name="book-open" size={28} className="text-muted-foreground/20" />
+          </div>
+        )}
+        {/* Status badge */}
+        <div
+          className="absolute right-2 top-2 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
+          style={{ background: `${statusColor}CC` }}
+        >
+          {enrollment.status === 'COMPLETED' && <Icon name="check" size={9} />}
+          {statusLabel}
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 p-3">
+        <p className="text-xs font-semibold text-foreground leading-snug line-clamp-2 mb-2">
+          {enrollment.courseTitle}
+        </p>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-muted-foreground">
+              {enrollment.completedLessons ?? 0}/{enrollment.courseTotalLessons ?? 0} lecciones
+            </span>
+            <span className="text-[10px] font-bold" style={{ color: enrollment.status === 'COMPLETED' ? '#16a34a' : '#8FC4E8' }}>
+              {enrollment.progress}%
+            </span>
+          </div>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width:      `${enrollment.progress}%`,
+                background: enrollment.status === 'COMPLETED'
+                  ? 'linear-gradient(90deg, #16a34a, #4ade80)'
+                  : 'linear-gradient(90deg, #1F5C4D, #7FD1AE)',
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -343,6 +623,8 @@ export default function DashboardPage() {
   const [weekly,           setWeekly]      = useState<WeeklyData | null>(null);
   const [activity,         setActivity]    = useState<ActivityEvent[] | null>(null);
   const [activityLoading,  setActivityLoading] = useState(false);
+  const [certificates,     setCertificates]    = useState<Certificate[]>([]);
+  const [certLoading,      setCertLoading]     = useState(false);
 
   useEffect(() => {
     try {
@@ -394,6 +676,12 @@ export default function DashboardPage() {
           .then(res => setEnrollments(res.data))
           .catch(() => {})
           .finally(() => setLoading(false));
+
+        setCertLoading(true);
+        api.get<Certificate[]>('/certificates/my')
+          .then(res => setCertificates(res.data))
+          .catch(() => setCertificates([]))
+          .finally(() => setCertLoading(false));
       }
     } catch { setLoading(false); }
   }, []);
@@ -488,10 +776,10 @@ export default function DashboardPage() {
           </>
         ) : (
           <>
-            <StatCard label="Cursos inscritos" value={enrollments.length} iconName="book-open"   accent="#1E4F7A" loading={loading} />
-            <StatCard label="En progreso"      value={inProgress}         iconName="play"        accent="#7FD1AE" loading={loading} />
-            <StatCard label="Completados"      value={completed}          iconName="check"       accent="#8FC4E8" loading={loading} />
-            <StatCard label="Sin comenzar"     value={notStarted}         iconName="clock"       accent="#F59E0B" loading={loading} />
+            <StatCard label="Cursos inscritos" value={enrollments.length}                              iconName="book-open"   accent="#1E4F7A" loading={loading} />
+            <StatCard label="En progreso"      value={inProgress}                                  iconName="play"        accent="#7FD1AE" loading={loading} />
+            <StatCard label="Completados"      value={completed}                                   iconName="check"       accent="#8FC4E8" loading={loading} />
+            <StatCard label="Certificados"     value={certLoading ? '—' : certificates.length}    iconName="certificate" accent="#F59E0B" loading={loading && certLoading} />
           </>
         )}
 
@@ -610,71 +898,83 @@ export default function DashboardPage() {
           </>
         )}
 
-        {/* ── Employee: Acciones + Mis cursos ── */}
+        {/* ── Employee: Continuar aprendiendo + Certificados ── */}
         {!isAdmin && (
           <>
+            {/* Continuar aprendiendo */}
             <motion.div
               variants={item}
-              className="col-span-12 lg:col-span-8 rounded-2xl border border-border bg-card p-5"
+              className="col-span-12 lg:col-span-7 rounded-2xl border border-border bg-card p-5"
               style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
             >
-              <h2 className="mb-4 text-sm font-semibold text-foreground">Acciones rápidas</h2>
-              <div className="grid gap-3 grid-cols-2">
-                <QuickAction href="/dashboard/courses" label="Explorar cursos"       desc="Descubre nuevos cursos disponibles" iconName="search" accent="#1E4F7A" />
-                <QuickAction href="/dashboard/courses" label="Continuar aprendiendo" desc="Retoma donde lo dejaste"            iconName="play"   accent="#7FD1AE" />
-              </div>
+              <ContinueLearningCard
+                enrollment={
+                  // Prioridad: más avanzado y activo → sin comenzar → null
+                  enrollments.find(e => e.status === 'ACTIVE' && e.progress > 0)
+                  ?? enrollments.find(e => e.status === 'ACTIVE' && e.progress === 0)
+                  ?? null
+                }
+              />
             </motion.div>
 
+            {/* Mis certificados */}
             <motion.div
               variants={item}
-              className="col-span-12 lg:col-span-4 rounded-2xl border border-border bg-card p-5"
+              className="col-span-12 lg:col-span-5 rounded-2xl border border-border bg-card p-5"
               style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
             >
-              {topCourses.length > 0 ? (
-                <>
-                  <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-sm font-semibold text-foreground">Mis cursos</h2>
-                    <Link href="/dashboard/courses" className="text-xs font-semibold text-capta-deep hover:text-capta-deep/70 dark:text-capta-soft dark:hover:text-capta-soft/70 transition-colors">
-                      Ver todos
-                    </Link>
-                  </div>
-                  <div className="space-y-2.5">
-                    {topCourses.map(e => (
-                      <Link
-                        key={e.courseId}
-                        href={`/dashboard/courses/${e.courseId}/learn`}
-                        className="group flex flex-col gap-2 rounded-xl border border-border bg-background p-3 transition-all hover:border-capta-soft/40"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-xs font-semibold text-foreground">{e.courseTitle}</p>
-                          <span className="flex-shrink-0 text-xs font-bold" style={{ color: '#7FD1AE' }}>{e.progress}%</span>
-                        </div>
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{ width: `${e.progress}%`, background: 'linear-gradient(90deg, #1F5C4D, #7FD1AE)' }}
-                          />
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h2 className="mb-4 text-sm font-semibold text-foreground">Mis cursos</h2>
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-muted">
-                      <Icon name="book-open" size={20} className="text-muted-foreground/30" />
-                    </div>
-                    <p className="text-sm font-medium text-muted-foreground">Sin cursos todavía</p>
-                    <p className="mt-1 max-w-[150px] text-xs leading-relaxed text-muted-foreground/60">Inscríbete en un curso para empezar.</p>
-                    <Link href="/dashboard/courses" className="mt-4 flex items-center gap-1.5 text-xs font-bold text-capta-deep dark:text-capta-soft hover:underline transition-colors">
-                      Ver cursos <Icon name="arrow-right" size={11} />
-                    </Link>
-                  </div>
-                </>
-              )}
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-foreground">Mis certificados</h2>
+                {certificates.length > 0 && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                    {certificates.length}
+                  </span>
+                )}
+              </div>
+              <MyCertificatesPanel certs={certificates} loading={certLoading} />
             </motion.div>
+
+            {/* Cursos activos (excluye completados — esos se ven en certificados) */}
+            {(() => {
+              const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
+              return activeEnrollments.length > 0 ? (
+                <motion.div
+                  variants={item}
+                  className="col-span-12 rounded-2xl border border-border bg-card p-5"
+                  style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
+                >
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-foreground">Mis cursos activos</h2>
+                    <Link
+                      href="/dashboard/courses"
+                      className="flex items-center gap-1 text-xs font-semibold text-capta-deep dark:text-capta-soft hover:opacity-70 transition-opacity"
+                    >
+                      Explorar más <Icon name="arrow-right" size={11} />
+                    </Link>
+                  </div>
+
+                  {loading ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="animate-pulse rounded-xl border border-border bg-muted/30">
+                          <div className="h-24 rounded-t-xl bg-muted" />
+                          <div className="p-3 space-y-2">
+                            <div className="h-3 w-3/4 rounded bg-muted" />
+                            <div className="h-2 w-full rounded bg-muted" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {activeEnrollments.map(e => (
+                        <CourseCard key={e.courseId} enrollment={e} />
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              ) : null;
+            })()}
           </>
         )}
 

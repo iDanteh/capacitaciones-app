@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Tenant } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { TenantResponseDto } from './dto/tenant-response.dto';
+import { UpdateTenantDto } from './dto/update-tenant.dto';
 
 /**
  * Servicio de Tenants.
@@ -51,5 +52,39 @@ export class TenantsService {
       throw new NotFoundException('Tenant no encontrado.');
     }
     return TenantResponseDto.from(tenant);
+  }
+
+  /**
+   * Actualiza los datos de personalización del tenant.
+   * El dominio personalizado solo está disponible en plan Enterprise.
+   */
+  async updateMyTenant(tenantId: string, dto: UpdateTenantDto): Promise<TenantResponseDto> {
+    const tenant = await this.findById(tenantId);
+    if (!tenant) throw new NotFoundException('Tenant no encontrado.');
+
+    // Si se intenta actualizar el dominio, verificar que el plan sea Enterprise
+    if (dto.domain !== undefined) {
+      const subscription = await this.prisma.subscription.findUnique({
+        where: { tenantId },
+        include: { plan: true },
+      });
+      if (!subscription || subscription.plan.type !== 'ENTERPRISE') {
+        throw new ForbiddenException('El dominio personalizado requiere el plan Enterprise.');
+      }
+    }
+
+    const data: Record<string, unknown> = {};
+    if (dto.name)                    data.name         = dto.name.trim();
+    if (dto.logoUrl !== undefined)   data.logoUrl       = dto.logoUrl || null;
+    if (dto.primaryColor !== undefined) data.primaryColor = dto.primaryColor || null;
+    if (dto.domain !== undefined)    data.domain        = dto.domain || null;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updated = await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: data as any, // cast necesario hasta que el cliente Prisma regenere con primaryColor
+    });
+
+    return TenantResponseDto.from(updated);
   }
 }

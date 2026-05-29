@@ -11,6 +11,8 @@ import { EmailService } from '../email/email.service';
 import { UserResponseDto } from './dto/user-response.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -33,6 +35,68 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
   ) {}
+
+  // ── Profile (self) ────────────────────────────────────────────────────────
+
+  async getMyProfile(userId: string, tenantId: string): Promise<UserResponseDto> {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId, deletedAt: null },
+    });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    return UserResponseDto.from(user);
+  }
+
+  async updateMyProfile(
+    userId: string,
+    tenantId: string,
+    dto: UpdateProfileDto,
+  ): Promise<UserResponseDto> {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId, deletedAt: null },
+    });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.firstName && { firstName: dto.firstName.trim() }),
+        ...(dto.lastName  && { lastName:  dto.lastName.trim() }),
+        ...(dto.avatarUrl !== undefined && { avatarUrl: dto.avatarUrl || null }),
+      },
+    });
+    return UserResponseDto.from(updated);
+  }
+
+  async changePassword(
+    userId: string,
+    tenantId: string,
+    dto: ChangePasswordDto,
+  ): Promise<void> {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId, deletedAt: null },
+      select: { id: true, passwordHash: true },
+    });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+
+    const valid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!valid) throw new BadRequestException('La contraseña actual es incorrecta');
+
+    const newHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash: newHash },
+      }),
+      // Revocar todos los refresh tokens activos para forzar re-login en otros dispositivos
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    this.logger.log(`Contraseña cambiada para usuario ${userId}`);
+  }
 
   // ── List ───────────────────────────────────────────────────────────────────
 
@@ -218,7 +282,9 @@ export class UsersService {
       throw new ConflictException('Esta invitación ya fue aceptada');
     }
     if (invite.expiresAt < new Date()) {
-      throw new BadRequestException('Esta invitación ha expirado');
+      throw new BadRequestException(
+        'Esta invitación ha expirado. Solicita a tu administrador que envíe una nueva invitación.',
+      );
     }
 
     return {
@@ -239,7 +305,7 @@ export class UsersService {
 
     if (!invite) throw new NotFoundException('Invitación no encontrada o inválida');
     if (invite.acceptedAt) throw new ConflictException('Esta invitación ya fue aceptada');
-    if (invite.expiresAt < new Date()) throw new BadRequestException('Esta invitación ha expirado');
+    if (invite.expiresAt < new Date()) throw new BadRequestException('Esta invitación ha expirado. Solicita a tu administrador que envíe una nueva invitación.');
 
     // Verificar que no se haya registrado ya (edge case: register + invite mismo email)
     const existingUser = await this.prisma.user.findFirst({

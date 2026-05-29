@@ -122,8 +122,10 @@ model Tenant {
   slug     String  @unique
   /// Dominio personalizado. Solo disponible en plan Enterprise.
   domain   String? @unique
-  logoUrl  String?
-  isActive Boolean @default(true)
+  logoUrl      String?
+  /// Color primario de marca en hex (ej: "#1E4F7A"). Solo disponible en planes con hasWhiteLabel.
+  primaryColor String?
+  isActive     Boolean @default(true)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -168,6 +170,8 @@ model User {
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([email])
+  // Compound index para queries de soft delete: WHERE tenantId = X AND deletedAt IS NULL
+  @@index([tenantId, deletedAt])
   @@map("users")
 }
 
@@ -311,6 +315,8 @@ model Course {
 
   @@index([tenantId])
   @@index([tenantId, status])
+  // Compound index para soft delete: WHERE tenantId = X AND deletedAt IS NULL
+  @@index([tenantId, deletedAt])
   @@map("courses")
 }
 
@@ -334,6 +340,7 @@ model CourseModule {
   lessons Lesson[]
 
   @@index([courseId])
+  @@index([courseId, deletedAt])
   @@map("course_modules")
 }
 
@@ -377,6 +384,7 @@ model Lesson {
   evaluation Evaluation?
 
   @@index([moduleId])
+  @@index([moduleId, deletedAt])
   @@map("lessons")
 }
 

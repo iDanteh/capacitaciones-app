@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
@@ -15,6 +18,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { EvaluationsModule } from './evaluations/evaluations.module';
 import { CertificatesModule } from './certificates/certificates.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { CleanupModule } from './cleanup/cleanup.module';
+import { SearchModule } from './search/search.module';
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
 
@@ -27,6 +32,10 @@ import { validate } from './config/env.validation';
       validate,
       envFilePath: '.env',
     }),
+    // Rate limiting global: 120 req/min por IP. Rutas sensibles aplican límites más estrictos vía @Throttle().
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
+    // Soporte para tareas programadas (@Cron, @Interval, @Timeout)
+    ScheduleModule.forRoot(),
     DatabaseModule,          // @Global — PrismaService disponible en toda la app
 
     // ── Módulos de la aplicación ────────────────────────────────────────────
@@ -54,6 +63,17 @@ import { validate } from './config/env.validation';
 
     // Infraestructura transversal — @Global, disponible en todos los módulos:
     NotificationsModule,     // ✓ WebSocket gateway (Socket.IO) — video.ready, enrollment.completed
+
+    // Búsqueda global:
+    SearchModule,            // ✓ GET /search?q= — cursos, usuarios, certificados
+
+    // Mantenimiento — tareas programadas:
+    CleanupModule,           // ✓ Limpieza de invitaciones expiradas (cron diario)
+  ],
+  providers: [
+    // ThrottlerGuard aplicado globalmente — todas las rutas heredan el límite base.
+    // Rutas sensibles usan @Throttle() para límites más restrictivos.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

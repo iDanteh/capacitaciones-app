@@ -14,10 +14,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { UserRole } from '@prisma/client';
 import { UsersService } from './users.service';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -30,7 +33,32 @@ import { JwtPayload } from '../auth/strategies/jwt.strategy';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // ── Rutas protegidas (requieren autenticación) ─────────────────────────────
+  // ── Perfil propio (cualquier usuario autenticado) ──────────────────────────
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Obtener perfil del usuario autenticado' })
+  getMyProfile(@CurrentUser() user: JwtPayload) {
+    return this.usersService.getMyProfile(user.sub, user.tenantId);
+  }
+
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Actualizar nombre y avatar del perfil propio' })
+  updateMyProfile(@CurrentUser() user: JwtPayload, @Body() dto: UpdateProfileDto) {
+    return this.usersService.updateMyProfile(user.sub, user.tenantId, dto);
+  }
+
+  @Post('me/change-password')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })   // Máx. 5 intentos/min — brute-force protection
+  @ApiOperation({ summary: 'Cambiar contraseña (requiere contraseña actual)' })
+  changePassword(@CurrentUser() user: JwtPayload, @Body() dto: ChangePasswordDto) {
+    return this.usersService.changePassword(user.sub, user.tenantId, dto);
+  }
+
+  // ── Rutas protegidas (requieren rol específico) ────────────────────────────
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -55,6 +83,7 @@ export class UsersController {
   @Post('invite')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })  // Máx. 10 invitaciones/min por IP
   @ApiOperation({ summary: 'Invitar un nuevo usuario por email' })
   invite(@CurrentUser() user: JwtPayload, @Body() dto: InviteUserDto) {
     return this.usersService.invite(user.tenantId, user.sub, dto);
@@ -69,6 +98,8 @@ export class UsersController {
     return this.usersService.cancelInvite(user.tenantId, id);
   }
 
+  // ── :id debe ir DESPUÉS de rutas literales (me, invites) ──────────────────
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
@@ -80,7 +111,7 @@ export class UsersController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Actualizar nombre, rol o estado de un usuario' })
+  @ApiOperation({ summary: 'Actualizar nombre, rol o estado de un usuario (admin)' })
   update(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -101,12 +132,14 @@ export class UsersController {
   // ── Rutas públicas (aceptar invitación — sin JWT) ──────────────────────────
 
   @Get('accept-invite/info')
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })  // Ruta pública — limitar enumeración
   @ApiOperation({ summary: 'Obtener información de una invitación por token (público)' })
   getInviteInfo(@Query('token') token: string) {
     return this.usersService.getInviteByToken(token);
   }
 
   @Post('accept-invite')
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })   // Ruta pública — prevenir brute-force en tokens
   @ApiOperation({ summary: 'Aceptar invitación y crear cuenta (público)' })
   acceptInvite(@Body() dto: AcceptInviteDto) {
     return this.usersService.acceptInvite(dto);

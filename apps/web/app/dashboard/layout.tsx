@@ -8,6 +8,8 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { CaptaLogo, CaptaMark } from '@/components/capta-logo';
 import { Icon, type IconName } from '@/components/capta-icon';
 import { NotificationBell } from '@/components/notification-bell';
+import { CommandPalette } from '@/components/command-palette';
+import { api } from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +32,7 @@ const NAV_PLATFORM = [
 ] as const;
 
 const NAV_COMPANY = [
+  { label: 'Configuración',    icon: 'gear'        as IconName, href: '/dashboard/settings',     roles: ['OWNER', 'ADMIN'] },
   { label: 'Plan y facturación', icon: 'credit-card' as IconName, href: '/dashboard/subscription', roles: ['OWNER'] },
 ] as const;
 
@@ -49,41 +52,49 @@ const ROLE_LABELS: Record<string, string> = {
 
 // ─── Nav item ─────────────────────────────────────────────────────────────────
 
-function NavItem({ item, active, onClick }: {
-  item: AnyNavItem; active: boolean; onClick?: () => void;
+function NavItem({ item, active, onClick, accentColor }: {
+  item: AnyNavItem; active: boolean; onClick?: () => void; accentColor?: string;
 }) {
+  const accent = accentColor ?? '#1E4F7A';
+  const softAccent = accentColor ? `${accentColor}18` : undefined;
+
   return (
     <Link
       href={item.href}
       onClick={onClick}
       className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
         active
-          ? 'bg-capta-tint/60 text-capta-deep dark:bg-capta-soft/10 dark:text-capta-soft'
+          ? 'text-foreground'
           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       }`}
+      style={active ? { background: softAccent ?? 'rgba(220,233,244,0.6)' } : undefined}
     >
       {active && (
         <span
           className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full"
-          style={{ background: 'linear-gradient(180deg, #1E4F7A, #8FC4E8)' }}
+          style={{ background: `linear-gradient(180deg, ${accent}, ${accent}88)` }}
         />
       )}
       <Icon
         name={item.icon}
         size={16}
-        className={active
-          ? 'text-capta-deep dark:text-capta-soft'
-          : 'text-muted-foreground/60 group-hover:text-foreground'}
+        className={active ? '' : 'text-muted-foreground/60 group-hover:text-foreground'}
+        style={active ? { color: accent } : undefined}
       />
-      <span>{item.label}</span>
+      <span style={active ? { color: accent } : undefined}>{item.label}</span>
     </Link>
   );
 }
 
 // ─── Sidebar content ──────────────────────────────────────────────────────────
 
-function SidebarContent({ user, pathname, onNavClick }: {
-  user: UserData | null; pathname: string; onNavClick?: () => void;
+function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, accentColor }: {
+  user: UserData | null;
+  pathname: string;
+  onNavClick?: () => void;
+  tenantLogo?: string;
+  tenantName?: string;
+  accentColor?: string;
 }) {
   const router = useRouter();
 
@@ -96,9 +107,12 @@ function SidebarContent({ user, pathname, onNavClick }: {
     ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
     : '?';
 
-  const tenantLabel = user?.tenantSlug
-    ? user.tenantSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-    : '—';
+  const tenantLabel = tenantName
+    || (user?.tenantSlug
+      ? user.tenantSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+      : '—');
+
+  const tenantInitial = tenantLabel.charAt(0).toUpperCase();
 
   const visiblePlatform = NAV_PLATFORM.filter(item =>
     item.roles.length === 0 || (user?.role && item.roles.includes(user.role as never)),
@@ -106,6 +120,8 @@ function SidebarContent({ user, pathname, onNavClick }: {
   const visibleCompany = NAV_COMPANY.filter(item =>
     user?.role && item.roles.includes(user.role as never),
   );
+
+  const accent = accentColor ?? '#1E4F7A';
 
   return (
     <div className="flex h-full flex-col">
@@ -119,10 +135,15 @@ function SidebarContent({ user, pathname, onNavClick }: {
       {user && (
         <div className="mx-3 mt-3 flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 px-3 py-2.5 cursor-default">
           <div
-            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white"
-            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg overflow-hidden text-[10px] font-bold text-white"
+            style={{ background: `linear-gradient(135deg, ${accent}, ${accent}cc)` }}
           >
-            {tenantLabel.charAt(0)}
+            {tenantLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={tenantLogo} alt="Logo" className="h-full w-full object-contain" />
+            ) : (
+              tenantInitial
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-semibold leading-tight text-foreground">{tenantLabel}</p>
@@ -151,6 +172,7 @@ function SidebarContent({ user, pathname, onNavClick }: {
                     : pathname === navItem.href || pathname.startsWith(navItem.href + '/')
                 }
                 onClick={onNavClick}
+                accentColor={accent}
               />
             ))}
           </div>
@@ -169,6 +191,7 @@ function SidebarContent({ user, pathname, onNavClick }: {
                   item={navItem}
                   active={pathname === navItem.href || pathname.startsWith(navItem.href + '/')}
                   onClick={onNavClick}
+                  accentColor={accent}
                 />
               ))}
             </div>
@@ -179,21 +202,23 @@ function SidebarContent({ user, pathname, onNavClick }: {
 
       {/* ── Bottom: usuario ── */}
       <div className="flex-shrink-0 border-t border-border p-3">
-        <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
-          <div
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
-            style={{ background: 'linear-gradient(135deg, #DCE9F4, #8FC4E830)', color: '#1E4F7A' }}
-          >
-            {initials}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold leading-tight text-foreground">
-              {user ? `${user.firstName} ${user.lastName}` : '—'}
-            </p>
-            <p className="truncate text-[11px] text-muted-foreground/60">
-              {user?.role ? (ROLE_LABELS[user.role] ?? user.role) : '—'}
-            </p>
-          </div>
+        <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-muted/50 transition-colors">
+          <Link href="/dashboard/profile" className="flex flex-1 items-center gap-3 min-w-0">
+            <div
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+              style={{ background: 'linear-gradient(135deg, #DCE9F4, #8FC4E830)', color: '#1E4F7A' }}
+            >
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold leading-tight text-foreground">
+                {user ? `${user.firstName} ${user.lastName}` : '—'}
+              </p>
+              <p className="truncate text-[11px] text-muted-foreground/60">
+                {user?.role ? (ROLE_LABELS[user.role] ?? user.role) : '—'}
+              </p>
+            </div>
+          </Link>
           <button
             onClick={handleLogout}
             className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive"
@@ -210,29 +235,30 @@ function SidebarContent({ user, pathname, onNavClick }: {
 
 // ─── Desktop header ───────────────────────────────────────────────────────────
 
-function DesktopHeader({ user }: { user: UserData | null }) {
+function DesktopHeader({ user, onSearchOpen }: { user: UserData | null; onSearchOpen: () => void }) {
   const isAdmin = user ? ['OWNER', 'ADMIN', 'MANAGER'].includes(user.role) : false;
 
   return (
     <header className="hidden lg:flex h-[60px] flex-shrink-0 items-center gap-3 border-b border-border bg-card/80 backdrop-blur-md px-6">
 
-      {/* Search bar */}
-      <div className="flex flex-1 max-w-sm items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 py-2 text-sm text-muted-foreground/60 hover:border-capta-deep/20 transition-colors cursor-text select-none">
+      {/* Search bar — opens CommandPalette */}
+      <button
+        type="button"
+        onClick={onSearchOpen}
+        className="flex flex-1 max-w-sm items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 py-2 text-sm text-muted-foreground/60 hover:border-capta-deep/20 transition-colors cursor-text select-none"
+      >
         <Icon name="search" size={13} className="flex-shrink-0" />
-        <span className="flex-1 text-[13px]">Buscar cursos, personas, certificados...</span>
+        <span className="flex-1 text-left text-[13px]">Buscar cursos, personas, certificados...</span>
         <kbd className="hidden sm:flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/50 font-mono">⌘K</kbd>
-      </div>
+      </button>
 
       {/* Right actions */}
       <div className="ml-auto flex items-center gap-2">
 
-        {/* Notification bell — funcional */}
         <NotificationBell />
 
-        {/* Theme toggle */}
         <ThemeToggle className="border border-border bg-background hover:border-capta-deep/20 rounded-lg" />
 
-        {/* Nuevo curso */}
         {isAdmin && (
           <Link
             href="/dashboard/courses/new"
@@ -258,9 +284,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router   = useRouter();
   const pathname = usePathname();
 
-  const [user,        setUser]        = useState<UserData | null>(null);
-  const [isReady,     setIsReady]     = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user,         setUser]         = useState<UserData | null>(null);
+  const [isReady,      setIsReady]      = useState(false);
+  const [sidebarOpen,  setSidebarOpen]  = useState(false);
+  const [commandOpen,  setCommandOpen]  = useState(false);
+  const [tenantLogo,   setTenantLogo]   = useState('');
+  const [tenantName,   setTenantName]   = useState('');
+  const [accentColor,  setAccentColor]  = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
@@ -269,10 +299,58 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const raw = localStorage.getItem('user');
       if (raw) setUser(JSON.parse(raw) as UserData);
     } catch { /* datos corruptos — continuar */ }
+
+    // Cargar datos del tenant para logo y color personalizado
+    setTenantLogo(localStorage.getItem('tenant_logo')  ?? '');
+    setTenantName(localStorage.getItem('tenant_name')  ?? '');
+    setAccentColor(localStorage.getItem('tenant_color') ?? '');
+
     setIsReady(true);
+
+    // Refrescar datos del tenant desde la API en segundo plano
+    api.get<{ logoUrl?: string | null; primaryColor?: string | null; name?: string }>('/tenants/me')
+      .then(r => {
+        const logo  = r.data.logoUrl      ?? '';
+        const color = r.data.primaryColor ?? '';
+        const name  = r.data.name         ?? '';
+        setTenantLogo(logo);
+        setAccentColor(color);
+        setTenantName(name);
+        // Cachear en localStorage
+        localStorage.setItem('tenant_logo',  logo);
+        localStorage.setItem('tenant_color', color);
+        localStorage.setItem('tenant_name',  name);
+      })
+      .catch(() => { /* sin auth todavía o error — usar valores de localStorage */ });
   }, [router]);
 
-  useEffect(() => { setSidebarOpen(false); }, [pathname]);
+  // ⌘K / Ctrl+K — abrir command palette
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCommandOpen(o => !o);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Re-sincronizar cuando la ruta cambia (puede haber actualizado logo/color en settings)
+  useEffect(() => {
+    setSidebarOpen(false);
+    const logo  = localStorage.getItem('tenant_logo')  ?? '';
+    const color = localStorage.getItem('tenant_color') ?? '';
+    const name  = localStorage.getItem('tenant_name')  ?? '';
+    setTenantLogo(logo);
+    setAccentColor(color);
+    setTenantName(name);
+    // También actualizar datos del usuario (puede haber cambiado nombre en perfil)
+    try {
+      const raw = localStorage.getItem('user');
+      if (raw) setUser(JSON.parse(raw) as UserData);
+    } catch { /* skip */ }
+  }, [pathname]);
 
   if (!isReady) {
     return (
@@ -290,7 +368,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── Sidebar desktop ── */}
       <aside className="hidden lg:flex lg:w-[220px] lg:flex-shrink-0 lg:flex-col border-r border-border bg-card">
-        <SidebarContent user={user} pathname={pathname} />
+        <SidebarContent
+          user={user}
+          pathname={pathname}
+          tenantLogo={tenantLogo}
+          tenantName={tenantName}
+          accentColor={accentColor}
+        />
       </aside>
 
       {/* ── Sidebar mobile (drawer) ── */}
@@ -319,6 +403,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 user={user}
                 pathname={pathname}
                 onNavClick={() => setSidebarOpen(false)}
+                tenantLogo={tenantLogo}
+                tenantName={tenantName}
+                accentColor={accentColor}
               />
             </motion.aside>
           </>
@@ -329,7 +416,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1 flex-col overflow-hidden">
 
         {/* Desktop header (lg+) */}
-        <DesktopHeader user={user} />
+        <DesktopHeader user={user} onSearchOpen={() => setCommandOpen(true)} />
 
         {/* Mobile header */}
         <header className="flex h-[52px] flex-shrink-0 items-center justify-between border-b border-border bg-card/80 backdrop-blur-md px-4 lg:hidden">
@@ -347,6 +434,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Page content */}
         <main className="flex-1 overflow-y-auto scrollbar-thin">
           <motion.div
+            key={pathname}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.04 }}
@@ -356,6 +444,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
 
       </div>
+
+      {/* ── Command Palette (⌘K) ── */}
+      <CommandPalette
+        isOpen={commandOpen}
+        onClose={() => setCommandOpen(false)}
+        userRole={user?.role ?? 'EMPLOYEE'}
+      />
+
     </div>
   );
 }

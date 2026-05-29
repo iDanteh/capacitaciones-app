@@ -25,6 +25,9 @@ export class TenantResponseDto {
   @ApiProperty({ description: 'URL del logo', required: false, nullable: true })
   logoUrl: string | null;
 
+  @ApiProperty({ description: 'Color primario de marca en hex', required: false, nullable: true })
+  primaryColor: string | null;
+
   @ApiProperty({ description: 'Si el tenant está activo' })
   isActive: boolean;
 
@@ -36,9 +39,10 @@ export class TenantResponseDto {
     dto.id        = tenant.id;
     dto.name      = tenant.name;
     dto.slug      = tenant.slug;
-    dto.domain    = tenant.domain ?? null;
-    dto.logoUrl   = tenant.logoUrl ?? null;
-    dto.isActive  = tenant.isActive;
+    dto.domain        = tenant.domain ?? null;
+    dto.logoUrl       = tenant.logoUrl ?? null;
+    dto.primaryColor  = (tenant as any).primaryColor ?? null;
+    dto.isActive      = tenant.isActive;
     dto.createdAt = tenant.createdAt;
     return dto;
   }

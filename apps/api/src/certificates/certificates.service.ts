@@ -8,6 +8,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service';
 import { CertificateResponseDto, VerifyCertificateDto } from './dto/certificate-response.dto';
+import * as http  from 'node:http';
+import * as https from 'node:https';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PDFDocument = require('pdfkit') as typeof import('pdfkit');
 
@@ -20,7 +22,7 @@ const PDFDocument = require('pdfkit') as typeof import('pdfkit');
  *  3. Verificación pública por UUID (endpoint sin autenticación).
  *
  * El PDF se genera en memoria (sin disco) — Buffer devuelto directamente al controller.
- * El certificado se almacena solo los metadatos en BD; el PDF se genera on-demand.
+ * El certificado almacena solo metadatos en BD; el PDF se genera on-demand.
  */
 @Injectable()
 export class CertificatesService {
@@ -148,7 +150,11 @@ export class CertificatesService {
 
     if (!cert) throw new NotFoundException('Certificado no encontrado');
 
-    return this.buildPdf(cert);
+    // Obtener logoUrl del tenant para incluirlo en el PDF
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    const logoBuffer = tenant?.logoUrl ? await this.downloadImageBuffer(tenant.logoUrl) : null;
+
+    return this.buildPdf(cert, logoBuffer);
   }
 
   async downloadPdfByUuid(uuid: string): Promise<Buffer> {
@@ -158,24 +164,110 @@ export class CertificatesService {
 
     if (!cert) throw new NotFoundException('Certificado no encontrado');
 
-    return this.buildPdf(cert);
+    // Obtener logoUrl del tenant
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: cert.tenantId } });
+    const logoBuffer = tenant?.logoUrl ? await this.downloadImageBuffer(tenant.logoUrl) : null;
+
+    return this.buildPdf(cert, logoBuffer);
+  }
+
+  // ── Descarga de imagen remota ─────────────────────────────────────────────
+
+  /**
+   * Descarga una imagen desde una URL pública y devuelve su Buffer.
+   * Devuelve null si la URL no es accesible o hay un error.
+   * Timeout de 5 segundos para no bloquear la generación del PDF.
+   */
+  private downloadImageBuffer(url: string): Promise<Buffer | null> {
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve(null), 5000);
+
+      const client = url.startsWith('https://') ? https : http;
+
+      client.get(url, (res) => {
+        if (res.statusCode !== 200) {
+          clearTimeout(timeout);
+          res.resume();
+          resolve(null);
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => {
+          clearTimeout(timeout);
+          resolve(Buffer.concat(chunks));
+        });
+        res.on('error', () => {
+          clearTimeout(timeout);
+          resolve(null);
+        });
+      }).on('error', () => {
+        clearTimeout(timeout);
+        resolve(null);
+      });
+    });
   }
 
   // ── Generación de PDF (pdfkit) ────────────────────────────────────────────
 
   /**
+   * Dibuja el mark vectorial de Capta (replicando el SVG public/brand/mark-dark.svg).
+   *
+   * SVG original: viewBox 0 0 48 48
+   *   - Arco C: M 36 14 A 16 16 0 1 0 36 34 (stroke mint, lineCap round, width 5)
+   *   - Círculo exterior: cx=38 cy=24 r=4 (fill mint)
+   *   - Círculo interior: cx=38 cy=24 r=2 (fill dark #0B2840)
+   *
+   * @param doc  - instancia de PDFDocument
+   * @param x    - coordenada x del extremo superior izquierdo del mark
+   * @param y    - coordenada y del extremo superior izquierdo del mark
+   * @param size - tamaño objetivo en pt (el mark se escala desde 48×48)
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private drawCaptaMark(doc: any, x: number, y: number, size: number): void {
+    const s = size / 48;
+
+    doc.save();
+    // Transformación: escalar desde el espacio SVG (48×48) y trasladar al destino
+    doc.transform(s, 0, 0, s, x, y);
+
+    // Arco "C" — apertura hacia la derecha
+    doc
+      .path('M 36 14 A 16 16 0 1 0 36 34')
+      .lineWidth(5)
+      .strokeColor('#7FD1AE')
+      .lineCap('round')
+      .stroke();
+
+    // Punto exterior (mint)
+    doc.circle(38, 24, 4).fillColor('#7FD1AE').fill();
+
+    // Punto interior (oscuro — crea el efecto de apertura de lente)
+    doc.circle(38, 24, 2).fillColor('#0B2840').fill();
+
+    doc.restore();
+  }
+
+  /**
    * buildPdf — genera un certificado en formato A4 landscape.
    *
-   * Diseño: fondo crema (#FAFAF4), marco dorado, logo textual "Capta",
-   * nombres con tipografía grande, sello de verificación con UUID público.
+   * Diseño:
+   *  - Fondo crema (#FAFAF4), marco doble navy/celeste.
+   *  - Header navy: mark vectorial Capta + "Capta" + logo del tenant (si existe).
+   *  - Cuerpo: nombre del participante, curso, empresa, fecha.
+   *  - Footer: URL de verificación pública + UUID.
    */
-  private buildPdf(cert: {
-    publicUuid:    string;
-    recipientName: string;
-    courseTitle:   string;
-    tenantName:    string;
-    issuedAt:      Date;
-  }): Promise<Buffer> {
+  private buildPdf(
+    cert: {
+      publicUuid:    string;
+      recipientName: string;
+      courseTitle:   string;
+      tenantName:    string;
+      issuedAt:      Date;
+    },
+    tenantLogoBuffer: Buffer | null = null,
+  ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
 
@@ -210,20 +302,100 @@ export class CertificatesService {
         .stroke('#8FC4E8');
 
       // ── Banda superior (header) ────────────────────────────────────────────
-      doc.rect(0, 0, W, 90).fill('#1E4F7A');
+      const headerH = 90;
+      doc.rect(0, 0, W, headerH).fill('#1E4F7A');
 
-      // ── Nombre de la plataforma ────────────────────────────────────────────
-      doc
-        .fillColor('#FFFFFF')
-        .font('Helvetica-Bold')
-        .fontSize(28)
-        .text('CAPTA', 0, 24, { align: 'center', width: W });
+      if (tenantLogoBuffer) {
+        // ── Header dividido: Capta a la izquierda, logo empresa a la derecha ──
 
-      doc
-        .fillColor('#8FC4E8')
-        .font('Helvetica')
-        .fontSize(11)
-        .text('Plataforma de Capacitación Empresarial', 0, 57, { align: 'center', width: W });
+        // Mark vectorial Capta (izquierda)
+        const markSize = 52;
+        const markX    = 32;
+        const markY    = (headerH - markSize) / 2;  // centrado vertical
+        this.drawCaptaMark(doc, markX, markY, markSize);
+
+        // Texto "Capta" a la derecha del mark
+        const textX = markX + markSize + 8;
+        doc
+          .fillColor('#FFFFFF')
+          .font('Helvetica-Bold')
+          .fontSize(22)
+          .text('Capta', textX, markY + 6, { width: W / 2 - textX - 10 });
+
+        doc
+          .fillColor('#8FC4E8')
+          .font('Helvetica')
+          .fontSize(9)
+          .text('Plataforma de Capacitación Empresarial', textX, markY + 32, { width: W / 2 - textX - 10 });
+
+        // Separador vertical central
+        doc
+          .moveTo(W / 2, 14)
+          .lineTo(W / 2, headerH - 14)
+          .lineWidth(0.5)
+          .stroke('#8FC4E840');
+
+        // Logo del tenant (derecha) — caja blanca redondeada de 56×56
+        const logoBoxSize = 56;
+        const logoBoxX = W - 40 - logoBoxSize;
+        const logoBoxY = (headerH - logoBoxSize) / 2;
+
+        // Fondo blanco para el logo
+        doc
+          .roundedRect(logoBoxX, logoBoxY, logoBoxSize, logoBoxSize, 8)
+          .fill('#FFFFFF');
+
+        // Insertar imagen del logo con padding interno
+        const padding = 6;
+        try {
+          doc.image(tenantLogoBuffer, logoBoxX + padding, logoBoxY + padding, {
+            width:  logoBoxSize - padding * 2,
+            height: logoBoxSize - padding * 2,
+            fit:    [logoBoxSize - padding * 2, logoBoxSize - padding * 2],
+            align:  'center',
+            valign: 'center',
+          });
+        } catch {
+          // Si el formato de imagen no es compatible (ej. SVG), omitir el logo
+          this.logger.warn('No se pudo incrustar el logo del tenant en el PDF — formato no compatible');
+        }
+
+        // Nombre de la empresa debajo de la caja (solo si hay espacio)
+        doc
+          .fillColor('#8FC4E8')
+          .font('Helvetica')
+          .fontSize(8)
+          .text(cert.tenantName, logoBoxX - 10, logoBoxY + logoBoxSize + 4, {
+            width: logoBoxSize + 20,
+            align: 'center',
+          });
+
+      } else {
+        // ── Header centrado (sin logo de empresa) ──────────────────────────
+        // Grupo: mark (52pt) + gap (10pt) + texto estimado (~90pt) = ~152pt
+        // Centrar el grupo: startX = (W - 152) / 2
+        const markSizeC = 52;
+        const groupW    = 152;
+        const groupX    = (W - groupW) / 2;
+        const markYC    = (headerH - markSizeC) / 2;
+        this.drawCaptaMark(doc, groupX, markYC, markSizeC);
+
+        const textXC = groupX + markSizeC + 10;
+        doc
+          .fillColor('#FFFFFF')
+          .font('Helvetica-Bold')
+          .fontSize(24)
+          .text('Capta', textXC, markYC + 5, { width: 90 });
+
+        doc
+          .fillColor('#8FC4E8')
+          .font('Helvetica')
+          .fontSize(9)
+          .text('Plataforma de Capacitación Empresarial', 0, markYC + markSizeC + 6, {
+            align: 'center',
+            width: W,
+          });
+      }
 
       // ── Título del certificado ─────────────────────────────────────────────
       doc
@@ -231,8 +403,8 @@ export class CertificatesService {
         .font('Helvetica-Bold')
         .fontSize(13)
         .text('CERTIFICADO DE FINALIZACIÓN', 0, 108, {
-          align:       'center',
-          width:       W,
+          align:            'center',
+          width:            W,
           characterSpacing: 3,
         });
 
@@ -305,12 +477,6 @@ export class CertificatesService {
         .font('Helvetica')
         .fontSize(11)
         .text(`Emitido el ${issued}`, 0, 318, { align: 'center', width: W });
-
-      // ── Separador decorativo central ───────────────────────────────────────
-      doc
-        .moveTo(W / 2, 346)
-        .lineTo(W / 2, 346)
-        .lineWidth(0);
 
       // ── Columna izquierda: firma ───────────────────────────────────────────
       const sigColX = W / 4;

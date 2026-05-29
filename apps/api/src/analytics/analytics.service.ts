@@ -1,6 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 
+export type ActivityEventType = 'ENROLLMENT' | 'COMPLETION' | 'CERTIFICATE' | 'NEW_USER';
+
+export interface ActivityEvent {
+  type:      ActivityEventType;
+  id:        string;
+  userName:  string;
+  detail:    string | null;
+  timestamp: string;
+}
+
 /**
  * AnalyticsService — reportes de progreso y uso de la plataforma por tenant.
  *
@@ -146,15 +156,6 @@ export class AnalyticsService {
         select: { id: true, createdAt: true, firstName: true, lastName: true },
       }),
     ]);
-
-    type EventType = 'ENROLLMENT' | 'COMPLETION' | 'CERTIFICATE' | 'NEW_USER';
-    interface ActivityEvent {
-      type:      EventType;
-      id:        string;
-      userName:  string;
-      detail:    string | null;
-      timestamp: string;
-    }
 
     const events: ActivityEvent[] = [
       ...enrollments.map(e => ({
