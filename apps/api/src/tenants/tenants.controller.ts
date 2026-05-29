@@ -1,14 +1,16 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
 import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiTags,
-  ApiOkResponse,
-  ApiNotFoundResponse,
+  Body, Controller, Delete, Get, HttpCode, HttpStatus,
+  Param, Patch, Post, UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth, ApiOperation, ApiTags,
+  ApiOkResponse, ApiNotFoundResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { TenantsService } from './tenants.service';
 import { TenantResponseDto } from './dto/tenant-response.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { CreateSubcompanyDto } from './dto/create-subcompany.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -40,5 +42,39 @@ export class TenantsController {
     @Body() dto: UpdateTenantDto,
   ): Promise<TenantResponseDto> {
     return this.tenantsService.updateMyTenant(user.tenantId, dto);
+  }
+
+  // ── Sub-empresas ────────────────────────────────────────────────────────────
+
+  @Get('children')
+  @UseGuards(RolesGuard)
+  @Roles('OWNER')
+  @ApiOperation({ summary: 'Listar sub-empresas del tenant autenticado' })
+  listSubcompanies(@CurrentUser() user: JwtPayload) {
+    return this.tenantsService.listSubcompanies(user.tenantId);
+  }
+
+  @Post('children')
+  @UseGuards(RolesGuard)
+  @Roles('OWNER')
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @ApiOperation({ summary: 'Crear sub-empresa (verifica límite del plan)' })
+  createSubcompany(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CreateSubcompanyDto,
+  ) {
+    return this.tenantsService.createSubcompany(user.tenantId, user.sub, dto);
+  }
+
+  @Delete('children/:id')
+  @UseGuards(RolesGuard)
+  @Roles('OWNER')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Eliminar (soft delete) una sub-empresa' })
+  deleteSubcompany(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.tenantsService.deleteSubcompany(user.tenantId, id);
   }
 }

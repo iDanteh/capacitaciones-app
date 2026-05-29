@@ -50,5 +50,13 @@ export default () => ({
     from: process.env.EMAIL_FROM ?? 'noreply@capacitaciones.app',
   },
 
+  mfa: {
+    /// Clave AES-256-GCM para cifrar los secrets TOTP en DB.
+    /// Formato: 64 hex chars (32 bytes). Generar con: openssl rand -hex 32
+    encryptionKey: process.env.MFA_ENCRYPTION_KEY ?? '',
+    /// JWT secret exclusivo para tokens temporales mfaPending (5 min).
+    jwtSecret: process.env.MFA_JWT_SECRET ?? '',
+  },
+
   frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:3000',
 });

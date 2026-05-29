@@ -1,8 +1,17 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Tenant } from '@prisma/client';
+import * as crypto from 'crypto';
 import { PrismaService } from '../database/prisma.service';
+import { EmailService } from '../email/email.service';
 import { TenantResponseDto } from './dto/tenant-response.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { CreateSubcompanyDto } from './dto/create-subcompany.dto';
 
 /**
  * Servicio de Tenants.
@@ -16,9 +25,24 @@ import { UpdateTenantDto } from './dto/update-tenant.dto';
  * por lo que no depende de que el contexto RLS esté activo.
  * TenantMiddleware activa RLS ANTES de que cualquier controller llame aquí.
  */
+// Tipo de respuesta para sub-empresas
+export interface SubcompanyResponse {
+  id:        string;
+  name:      string;
+  slug:      string;
+  isActive:  boolean;
+  createdAt: Date;
+  userCount: number;
+}
+
 @Injectable()
 export class TenantsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(TenantsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly email:  EmailService,
+  ) {}
 
   /**
    * Busca un tenant activo por slug.
@@ -73,18 +97,155 @@ export class TenantsService {
       }
     }
 
-    const data: Record<string, unknown> = {};
-    if (dto.name)                    data.name         = dto.name.trim();
-    if (dto.logoUrl !== undefined)   data.logoUrl       = dto.logoUrl || null;
-    if (dto.primaryColor !== undefined) data.primaryColor = dto.primaryColor || null;
-    if (dto.domain !== undefined)    data.domain        = dto.domain || null;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updated = await this.prisma.tenant.update({
       where: { id: tenantId },
-      data: data as any, // cast necesario hasta que el cliente Prisma regenere con primaryColor
+      data: {
+        ...(dto.name             ? { name:         dto.name.trim() }          : {}),
+        ...(dto.logoUrl      !== undefined ? { logoUrl:      dto.logoUrl || null }      : {}),
+        ...(dto.primaryColor !== undefined ? { primaryColor: dto.primaryColor || null } : {}),
+        ...(dto.domain       !== undefined ? { domain:       dto.domain || null }       : {}),
+      },
     });
 
     return TenantResponseDto.from(updated);
+  }
+
+  // ── Sub-empresas ───────────────────────────────────────────────────────────
+
+  /**
+   * Lista todas las sub-empresas activas del tenant padre.
+   */
+  async listSubcompanies(parentTenantId: string): Promise<SubcompanyResponse[]> {
+    const children = await this.prisma.tenant.findMany({
+      where:   { parentTenantId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      select:  {
+        id: true, name: true, slug: true, isActive: true, createdAt: true,
+        _count: { select: { users: { where: { deletedAt: null } } } },
+      },
+    });
+
+    return children.map(c => ({
+      id:        c.id,
+      name:      c.name,
+      slug:      c.slug,
+      isActive:  c.isActive,
+      createdAt: c.createdAt,
+      userCount: c._count.users,
+    }));
+  }
+
+  /**
+   * Crea una sub-empresa e invita a su propietario.
+   * Verifica límite maxCompanies del plan del tenant padre.
+   */
+  async createSubcompany(
+    parentTenantId: string,
+    inviterId:      string,
+    dto:            CreateSubcompanyDto,
+  ): Promise<SubcompanyResponse> {
+    // Verificar que el plan permite sub-empresas
+    const subscription = await this.prisma.subscription.findUnique({
+      where:   { tenantId: parentTenantId },
+      include: { plan: true },
+    });
+
+    if (!subscription) {
+      throw new ForbiddenException('No se encontró una suscripción activa.');
+    }
+
+    const maxCompanies = subscription.plan.maxCompanies;
+
+    if (maxCompanies === 0) {
+      throw new ForbiddenException(
+        'Tu plan no incluye sub-empresas. Actualiza al plan Business o Enterprise.',
+      );
+    }
+
+    if (maxCompanies !== -1) {
+      const currentCount = await this.prisma.tenant.count({
+        where: { parentTenantId, deletedAt: null },
+      });
+      if (currentCount >= maxCompanies) {
+        throw new ForbiddenException(
+          `Tu plan permite máximo ${maxCompanies} sub-empresa${maxCompanies !== 1 ? 's' : ''}. Actualiza tu plan para agregar más.`,
+        );
+      }
+    }
+
+    // Verificar slug único
+    const slugExists = await this.prisma.tenant.findUnique({ where: { slug: dto.slug } });
+    if (slugExists) throw new ConflictException('Ya existe una empresa con ese slug. Elige otro.');
+
+    // Crear sub-empresa
+    const child = await this.prisma.tenant.create({
+      data: {
+        name:           dto.name.trim(),
+        slug:           dto.slug,
+        parentTenantId,
+      },
+    });
+
+    // Invitar al propietario de la sub-empresa
+    const [inviter, parentTenant] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({ where: { id: inviterId } }),
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: parentTenantId } }),
+    ]);
+
+    const rawToken  = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const normalizedEmail = dto.ownerEmail.toLowerCase().trim();
+
+    await this.prisma.userInvite.create({
+      data: {
+        tenantId:    child.id,
+        email:       normalizedEmail,
+        firstName:   dto.ownerFirstName.trim(),
+        lastName:    dto.ownerLastName.trim(),
+        role:        'OWNER',
+        tokenHash,
+        invitedById: inviterId,
+        expiresAt,
+      },
+    });
+
+    // Email (fallo silencioso)
+    await this.email.sendInvite({
+      to:          dto.ownerEmail,
+      inviterName: `${inviter.firstName} ${inviter.lastName}`,
+      companyName: `${dto.name} (sub-empresa de ${parentTenant.name})`,
+      role:        'OWNER',
+      token:       rawToken,
+    }).catch(() => {});
+
+    this.logger.log(`Sub-empresa "${child.name}" creada por ${inviterId}`);
+
+    return {
+      id:        child.id,
+      name:      child.name,
+      slug:      child.slug,
+      isActive:  child.isActive,
+      createdAt: child.createdAt,
+      userCount: 0,
+    };
+  }
+
+  /**
+   * Elimina (soft delete) una sub-empresa del tenant padre.
+   * Solo el OWNER del tenant padre puede hacer esto.
+   */
+  async deleteSubcompany(parentTenantId: string, childId: string): Promise<void> {
+    const child = await this.prisma.tenant.findFirst({
+      where: { id: childId, parentTenantId, deletedAt: null },
+    });
+    if (!child) throw new NotFoundException('Sub-empresa no encontrada.');
+
+    await this.prisma.tenant.update({
+      where: { id: childId },
+      data:  { deletedAt: new Date(), isActive: false },
+    });
+
+    this.logger.log(`Sub-empresa ${childId} eliminada por tenant ${parentTenantId}`);
   }
 }

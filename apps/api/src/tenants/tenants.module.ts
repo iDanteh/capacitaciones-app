@@ -7,6 +7,7 @@ import {
 import { TenantsController } from './tenants.controller';
 import { TenantsService } from './tenants.service';
 import { TenantMiddleware } from './middleware/tenant.middleware';
+import { EmailModule } from '../email/email.module';
 
 /**
  * Módulo de multi-tenancy.
@@ -27,9 +28,10 @@ import { TenantMiddleware } from './middleware/tenant.middleware';
  * el acceso a datos).
  */
 @Module({
+  imports:     [EmailModule],
   controllers: [TenantsController],
-  providers: [TenantsService],
-  exports: [TenantsService],
+  providers:   [TenantsService],
+  exports:     [TenantsService],
 })
 export class TenantsModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

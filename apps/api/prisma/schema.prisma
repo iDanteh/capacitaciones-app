@@ -115,6 +115,7 @@ model Plan {
 
 /// Empresa / organización que contrata el servicio.
 /// Es la unidad raíz de multi-tenancy.
+/// parentTenantId no nulo = sub-empresa; hereda la suscripción del padre.
 model Tenant {
   id       String  @id @default(cuid())
   name     String
@@ -127,10 +128,16 @@ model Tenant {
   primaryColor String?
   isActive     Boolean @default(true)
 
+  /// Si no es null, este tenant es una sub-empresa del tenant padre.
+  parentTenantId String?
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   /// Soft delete — preserva historial de facturación y progreso de empleados.
   deletedAt DateTime?
+
+  parent   Tenant?  @relation("SubCompanies", fields: [parentTenantId], references: [id])
+  children Tenant[] @relation("SubCompanies")
 
   users        User[]
   subscription Subscription?
@@ -138,6 +145,7 @@ model Tenant {
   courses      Course[]
   enrollments  Enrollment[]
 
+  @@index([parentTenantId])
   @@map("tenants")
 }
 
@@ -154,6 +162,11 @@ model User {
   role         UserRole @default(EMPLOYEE)
   isActive     Boolean  @default(true)
   lastLoginAt  DateTime?
+
+  /// 2FA / MFA — TOTP (RFC 6238). El secret se guarda cifrado con AES-256-GCM.
+  mfaEnabled     Boolean  @default(false)
+  mfaSecret      String?
+  mfaBackupCodes String[] @default([]) // hashes bcrypt de 8 códigos de un solo uso
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

@@ -32,7 +32,8 @@ const NAV_PLATFORM = [
 ] as const;
 
 const NAV_COMPANY = [
-  { label: 'Configuración',    icon: 'gear'        as IconName, href: '/dashboard/settings',     roles: ['OWNER', 'ADMIN'] },
+  { label: 'Empresas',          icon: 'building'    as IconName, href: '/dashboard/companies',    roles: ['OWNER'] },
+  { label: 'Configuración',     icon: 'gear'        as IconName, href: '/dashboard/settings',     roles: ['OWNER', 'ADMIN'] },
   { label: 'Plan y facturación', icon: 'credit-card' as IconName, href: '/dashboard/subscription', roles: ['OWNER'] },
 ] as const;
 
@@ -307,8 +308,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     setIsReady(true);
 
-    // Refrescar datos del tenant desde la API en segundo plano
-    api.get<{ logoUrl?: string | null; primaryColor?: string | null; name?: string }>('/tenants/me')
+    // Refrescar datos del tenant desde la API en segundo plano (timeout 5s — evita spinner infinito)
+    api.get<{ logoUrl?: string | null; primaryColor?: string | null; name?: string }>('/tenants/me', { timeout: 5_000 })
       .then(r => {
         const logo  = r.data.logoUrl      ?? '';
         const color = r.data.primaryColor ?? '';

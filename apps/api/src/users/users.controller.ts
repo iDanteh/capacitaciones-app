@@ -22,6 +22,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
+import { BulkInviteDto } from './dto/bulk-invite.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -87,6 +88,15 @@ export class UsersController {
   @ApiOperation({ summary: 'Invitar un nuevo usuario por email' })
   invite(@CurrentUser() user: JwtPayload, @Body() dto: InviteUserDto) {
     return this.usersService.invite(user.tenantId, user.sub, dto);
+  }
+
+  @Post('invite-bulk')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @Throttle({ default: { ttl: 60_000, limit: 3 } })   // 3 importaciones/min — cada una puede traer hasta 100 usuarios
+  @ApiOperation({ summary: 'Importar múltiples usuarios desde CSV (máx. 100 por request)' })
+  inviteBulk(@CurrentUser() user: JwtPayload, @Body() dto: BulkInviteDto) {
+    return this.usersService.inviteBulk(user.tenantId, user.sub, dto);
   }
 
   @Delete('invites/:id')

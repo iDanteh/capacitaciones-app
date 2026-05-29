@@ -193,6 +193,106 @@ function StatCard({
   );
 }
 
+// ─── Onboarding Card (admin sin datos) ───────────────────────────────────────
+
+const ONBOARDING_STEPS: { label: string; desc: string; href: string; icon: import('@/components/capta-icon').IconName; accent: string }[] = [
+  { label: 'Crea tu primer curso',  desc: 'Añade lecciones de video, texto o archivo',   href: '/dashboard/courses/new',  icon: 'book-open',   accent: '#1E4F7A' },
+  { label: 'Invita a tu equipo',    desc: 'Envía invitaciones por email a tus empleados', href: '/dashboard/users',         icon: 'user-plus',   accent: '#7FD1AE' },
+  { label: 'Personaliza tu empresa', desc: 'Logo, colores y nombre de marca',             href: '/dashboard/settings',      icon: 'gear',        accent: '#8FC4E8' },
+  { label: 'Revisa las analíticas', desc: 'Mide el progreso y tasa de completado',        href: '/dashboard/analytics',     icon: 'chart-bar',   accent: '#F59E0B' },
+];
+
+function OnboardingCard({ publishedCourses, usersCount }: { publishedCourses: number; usersCount: number }) {
+  const doneCount = [publishedCourses > 0, usersCount > 1, false, false].filter(Boolean).length;
+
+  return (
+    <motion.div
+      variants={item}
+      className="col-span-12 overflow-hidden rounded-2xl border border-border bg-card"
+      style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
+    >
+      {/* Header con barra de progreso */}
+      <div className="flex items-center justify-between gap-4 border-b border-border px-6 py-4">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Primeros pasos</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Configura tu plataforma en minutos · {doneCount}/{ONBOARDING_STEPS.length} completados
+          </p>
+        </div>
+        {/* Progress pill */}
+        <div className="flex items-center gap-2.5 flex-shrink-0">
+          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width:      `${(doneCount / ONBOARDING_STEPS.length) * 100}%`,
+                background: 'linear-gradient(90deg, #1E4F7A, #7FD1AE)',
+              }}
+            />
+          </div>
+          <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+            {Math.round((doneCount / ONBOARDING_STEPS.length) * 100)}%
+          </span>
+        </div>
+      </div>
+
+      {/* Steps grid */}
+      <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
+        {ONBOARDING_STEPS.map((step, i) => {
+          const done = i === 0 ? publishedCourses > 0 : i === 1 ? usersCount > 1 : false;
+          return (
+            <Link
+              key={step.href}
+              href={step.href}
+              className="group relative flex flex-col gap-3 bg-card p-5 transition-colors hover:bg-muted/40"
+            >
+              {/* Step number + icon */}
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-110"
+                  style={{
+                    background: done ? '#7FD1AE20' : `${step.accent}15`,
+                    color:      done ? '#16a34a' : step.accent,
+                    border:     `1px solid ${done ? '#7FD1AE30' : `${step.accent}20`}`,
+                  }}
+                >
+                  <Icon name={done ? 'check-circle' : step.icon} size={16} />
+                </div>
+                <span
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold"
+                  style={{
+                    background: done ? '#7FD1AE15' : 'var(--muted)',
+                    color:      done ? '#16a34a' : 'var(--muted-foreground)',
+                  }}
+                >
+                  {i + 1}
+                </span>
+              </div>
+
+              {/* Text */}
+              <div>
+                <p className={`text-sm font-semibold leading-snug ${done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                  {step.label}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground/70 leading-relaxed">{step.desc}</p>
+              </div>
+
+              {/* Arrow */}
+              {!done && (
+                <Icon
+                  name="arrow-right"
+                  size={13}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5"
+                />
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Quick Action ─────────────────────────────────────────────────────────────
 
 function QuickAction({
@@ -722,10 +822,13 @@ export default function DashboardPage() {
           </div>
 
           {isAdmin && (
-            <button className="hidden sm:flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:border-capta-deep/20 hover:bg-muted hover:text-foreground">
+            <Link
+              href="/dashboard/analytics"
+              className="hidden sm:flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:border-capta-deep/20 hover:bg-muted hover:text-foreground"
+            >
               <Icon name="chart-bar" size={14} />
-              Exportar reporte
-            </button>
+              Analíticas
+            </Link>
           )}
         </div>
       </div>
@@ -781,6 +884,11 @@ export default function DashboardPage() {
             <StatCard label="Completados"      value={completed}                                   iconName="check"       accent="#8FC4E8" loading={loading} />
             <StatCard label="Certificados"     value={certLoading ? '—' : certificates.length}    iconName="certificate" accent="#F59E0B" loading={loading && certLoading} />
           </>
+        )}
+
+        {/* ── Admin: Onboarding (estado cero — sin cursos publicados) ── */}
+        {isAdmin && !loading && publishedCourses === 0 && (
+          <OnboardingCard publishedCourses={publishedCourses} usersCount={usersCount} />
         )}
 
         {/* ── Admin: Acciones + Plan card (OWNER) ── */}

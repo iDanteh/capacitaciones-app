@@ -413,6 +413,13 @@ const icons = {
       <circle cx="12" cy="7" r="1.8" />
     </>
   ),
+  building: (
+    <>
+      <path d="M3 21h18M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14H3V7z" />
+      <path d="M9 21v-8h6v8" />
+      <path d="M7 11h2M15 11h2M7 15h2M15 15h2" />
+    </>
+  ),
 };
 
 export type IconName = keyof typeof icons;

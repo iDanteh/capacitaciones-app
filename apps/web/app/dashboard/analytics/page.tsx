@@ -65,6 +65,19 @@ type ChartPoint = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Convierte un array de objetos a CSV y dispara la descarga sin servidor. */
+function downloadCSV(filename: string, rows: string[][]): void {
+  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const csv = rows.map(r => r.map(escape).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM para Excel
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 const listItem = {
   initial: { opacity: 0, y: 10 },
   animate: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 30 } },
@@ -453,6 +466,27 @@ export default function AnalyticsPage() {
             <h2 className="text-sm font-semibold text-foreground">Cursos</h2>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{courses.length}</span>
           </div>
+          {courses.length > 0 && (
+            <button
+              onClick={() => downloadCSV(`cursos-${new Date().toISOString().slice(0,10)}.csv`, [
+                ['Curso', 'Estado', 'Lecciones', 'Inscritos', 'Completados', 'Tasa completado %', 'Progreso prom. %'],
+                ...sortedCourses.map(c => [
+                  c.title,
+                  c.status === 'PUBLISHED' ? 'Publicado' : c.status === 'DRAFT' ? 'Borrador' : 'Archivado',
+                  String(c.totalLessons),
+                  String(c.enrolled),
+                  String(c.completed),
+                  String(c.completionRate),
+                  String(c.avgProgress),
+                ]),
+              ])}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="Exportar como CSV"
+            >
+              <Icon name="download" size={13} />
+              CSV
+            </button>
+          )}
         </div>
 
         {courses.length === 0 ? (
@@ -542,6 +576,28 @@ export default function AnalyticsPage() {
             <h2 className="text-sm font-semibold text-foreground">Empleados</h2>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{employees.length}</span>
           </div>
+          {employees.length > 0 && (
+            <button
+              onClick={() => downloadCSV(`empleados-${new Date().toISOString().slice(0,10)}.csv`, [
+                ['Nombre', 'Email', 'Rol', 'Cursos inscritos', 'Cursos completados', 'En progreso', 'Progreso prom. %', 'Último acceso'],
+                ...sortedEmployees.map(e => [
+                  e.name,
+                  e.email,
+                  e.role,
+                  String(e.enrolled),
+                  String(e.completed),
+                  String(e.inProgress),
+                  String(e.avgProgress),
+                  e.lastLoginAt ? new Date(e.lastLoginAt).toLocaleDateString('es-MX') : 'Nunca',
+                ]),
+              ])}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="Exportar como CSV"
+            >
+              <Icon name="download" size={13} />
+              CSV
+            </button>
+          )}
         </div>
 
         {employees.length === 0 ? (

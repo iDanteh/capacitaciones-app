@@ -14,6 +14,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
+import { BulkInviteDto } from './dto/bulk-invite.dto';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 
@@ -194,6 +195,25 @@ export class UsersService {
     inviterId: string,
     dto: InviteUserDto,
   ): Promise<{ message: string }> {
+    const [inviter, tenant] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({ where: { id: inviterId } }),
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } }),
+    ]);
+    await this._inviteOne(tenantId, inviterId, dto, inviter, tenant);
+    return { message: 'Invitación enviada correctamente' };
+  }
+
+  /**
+   * Lógica central de invitación reutilizable.
+   * Acepta inviter/tenant pre-cargados para evitar N queries en bulk.
+   */
+  private async _inviteOne(
+    tenantId:  string,
+    inviterId: string,
+    dto:       InviteUserDto,
+    inviter:   { firstName: string; lastName: string },
+    tenant:    { name: string },
+  ): Promise<void> {
     const normalizedEmail = dto.email.toLowerCase().trim();
 
     // Verificar que no exista ya un usuario activo con ese email
@@ -214,42 +234,34 @@ export class UsersService {
       existingInvite.expiresAt > new Date()
     ) {
       throw new ConflictException(
-        'Ya existe una invitación pendiente para ese email. Espera a que expire o cancélala.',
+        'Ya existe una invitación pendiente para ese email.',
       );
     }
 
-    // Obtener datos del invitante y el tenant para el email
-    const [inviter, tenant] = await Promise.all([
-      this.prisma.user.findUniqueOrThrow({ where: { id: inviterId } }),
-      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } }),
-    ]);
-
-    // Generar token seguro
     const rawToken  = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 días
 
-    // Upsert — reemplaza si existía una invitación expirada o ya aceptada
     await this.prisma.userInvite.upsert({
       where: { tenantId_email: { tenantId, email: normalizedEmail } },
       create: {
         tenantId,
-        email:      normalizedEmail,
-        firstName:  dto.firstName.trim(),
-        lastName:   dto.lastName.trim(),
-        role:       dto.role,
+        email:       normalizedEmail,
+        firstName:   dto.firstName.trim(),
+        lastName:    dto.lastName.trim(),
+        role:        dto.role,
         tokenHash,
         invitedById: inviterId,
         expiresAt,
       },
       update: {
-        firstName:  dto.firstName.trim(),
-        lastName:   dto.lastName.trim(),
-        role:       dto.role,
+        firstName:   dto.firstName.trim(),
+        lastName:    dto.lastName.trim(),
+        role:        dto.role,
         tokenHash,
         invitedById: inviterId,
         expiresAt,
-        acceptedAt: null,
+        acceptedAt:  null,
       },
     });
 
@@ -263,8 +275,40 @@ export class UsersService {
     });
 
     this.logger.log(`Invitación enviada a ${normalizedEmail} por ${inviterId}`);
+  }
 
-    return { message: 'Invitación enviada correctamente' };
+  // ── Bulk Invite ────────────────────────────────────────────────────────────
+
+  async inviteBulk(
+    tenantId:  string,
+    inviterId: string,
+    dto:       BulkInviteDto,
+  ): Promise<{ email: string; status: 'sent' | 'duplicate' | 'error'; message?: string }[]> {
+    // Pre-cargar inviter y tenant una sola vez para todas las filas
+    const [inviter, tenant] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({ where: { id: inviterId } }),
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } }),
+    ]);
+
+    const results: { email: string; status: 'sent' | 'duplicate' | 'error'; message?: string }[] = [];
+
+    // Procesamiento secuencial — no en paralelo para no saturar el servicio de email
+    for (const userDto of dto.users) {
+      try {
+        await this._inviteOne(tenantId, inviterId, userDto, inviter, tenant);
+        results.push({ email: userDto.email, status: 'sent' });
+      } catch (err: unknown) {
+        const isConflict = err instanceof ConflictException;
+        const message    = err instanceof Error ? err.message : 'Error desconocido';
+        results.push({ email: userDto.email, status: isConflict ? 'duplicate' : 'error', message });
+      }
+    }
+
+    this.logger.log(
+      `Bulk invite — ${results.filter(r => r.status === 'sent').length}/${dto.users.length} enviadas por ${inviterId}`,
+    );
+
+    return results;
   }
 
   // ── Get invite info (público — sin auth) ───────────────────────────────────
@@ -354,6 +398,7 @@ export class UsersService {
         invitedBy: { select: { firstName: true, lastName: true } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 200,   // cap — ninguna empresa debería tener >200 invitaciones pendientes simultáneas
     });
     return invites;
   }

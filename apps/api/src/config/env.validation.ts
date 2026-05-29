@@ -45,6 +45,14 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   FRONTEND_URL: string;
+
+  @IsString()
+  @IsOptional()
+  MFA_ENCRYPTION_KEY: string;
+
+  @IsString()
+  @IsOptional()
+  MFA_JWT_SECRET: string;
 }
 
 export function validate(config: Record<string, unknown>) {

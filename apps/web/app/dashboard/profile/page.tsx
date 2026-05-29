@@ -16,6 +16,7 @@ interface UserProfile {
   role: string;
   avatarUrl: string | null;
   lastLoginAt: string | null;
+  mfaEnabled: boolean;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -194,6 +195,17 @@ export default function ProfilePage() {
   const [savingPwd,     setSavingPwd]     = useState(false);
   const [showPwd, setShowPwd] = useState(false);
 
+  // MFA state
+  const [mfaEnabled,    setMfaEnabled]    = useState(false);
+  const [mfaStep,       setMfaStep]       = useState<'idle' | 'setup' | 'confirm' | 'backup' | 'disable'>('idle');
+  const [mfaLoading,    setMfaLoading]    = useState(false);
+  const [mfaError,      setMfaError]      = useState('');
+  const [mfaQr,         setMfaQr]         = useState('');
+  const [mfaSecret,     setMfaSecret]     = useState('');
+  const [mfaCode,       setMfaCode]       = useState('');
+  const [mfaBackupCodes, setMfaBackupCodes] = useState<string[]>([]);
+  const [copiedCodes,   setCopiedCodes]   = useState(false);
+
   // Info form
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
@@ -222,6 +234,7 @@ export default function ProfilePage() {
         setFirstName(d.firstName);
         setLastName(d.lastName);
         setAvatarUrl(d.avatarUrl ?? '');
+        setMfaEnabled(d.mfaEnabled);
       })
       .catch(() => toastError('No se pudo cargar el perfil'))
       .finally(() => setLoading(false));
@@ -292,6 +305,69 @@ export default function ProfilePage() {
   };
 
   const strength = pwdStrength(newPwd);
+
+  // ── MFA handlers ──────────────────────────────────────────────────────────
+
+  const handleMfaSetup = async () => {
+    setMfaLoading(true);
+    setMfaError('');
+    try {
+      const { data } = await api.post<{ secret: string; qrCodeDataUrl: string }>('/auth/mfa/setup');
+      setMfaQr(data.qrCodeDataUrl);
+      setMfaSecret(data.secret);
+      setMfaCode('');
+      setMfaStep('setup');
+    } catch (err: any) {
+      toastError(err?.response?.data?.message ?? 'Error al iniciar configuración 2FA');
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleMfaConfirm = async () => {
+    if (mfaCode.length !== 6) return;
+    setMfaLoading(true);
+    setMfaError('');
+    try {
+      const { data } = await api.post<{ backupCodes: string[] }>('/auth/mfa/confirm', { code: mfaCode });
+      setMfaBackupCodes(data.backupCodes);
+      setMfaEnabled(true);
+      setMfaStep('backup');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? 'Código inválido';
+      setMfaError(Array.isArray(msg) ? msg[0] : msg);
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleMfaDisable = async () => {
+    if (mfaCode.length < 6) return;
+    setMfaLoading(true);
+    setMfaError('');
+    try {
+      await api.delete('/auth/mfa', { data: { code: mfaCode } });
+      setMfaEnabled(false);
+      setMfaStep('idle');
+      setMfaCode('');
+      toastSuccess('Verificación en dos pasos desactivada');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? 'Código incorrecto';
+      setMfaError(Array.isArray(msg) ? msg[0] : msg);
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const downloadBackupCodes = () => {
+    const text = `Códigos de respaldo Capta LMS\nGuárdalos en un lugar seguro. Cada código solo puede usarse una vez.\n\n${mfaBackupCodes.join('\n')}`;
+    const blob = new Blob([text], { type: 'text/plain' });
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = 'capta-backup-codes.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   if (loading) {
     return (
@@ -551,6 +627,203 @@ export default function ProfilePage() {
                       }
                     </button>
                   </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+
+      {/* MFA card */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.15 }}
+      >
+        <div className="rounded-2xl border border-border bg-card overflow-hidden"
+          style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 16px rgba(11,31,42,0.04)' }}>
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
+                <Icon name="shield" size={14} className="text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Verificación en dos pasos (2FA)</p>
+                <p className="text-xs text-muted-foreground">
+                  {mfaEnabled
+                    ? 'Tu cuenta está protegida con TOTP.'
+                    : 'Agrega una capa extra de seguridad a tu cuenta.'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                mfaEnabled
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                  : 'bg-muted text-muted-foreground'
+              }`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${mfaEnabled ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+                {mfaEnabled ? 'Activo' : 'Inactivo'}
+              </span>
+
+              {mfaStep === 'idle' && (
+                mfaEnabled ? (
+                  <button
+                    onClick={() => { setMfaStep('disable'); setMfaCode(''); setMfaError(''); }}
+                    className="text-xs font-medium text-destructive/70 hover:text-destructive transition-colors"
+                  >
+                    Desactivar
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleMfaSetup}
+                    disabled={mfaLoading}
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:scale-[1.02] disabled:opacity-50"
+                    style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                  >
+                    {mfaLoading ? <Icon name="refresh" size={12} className="animate-spin" /> : <Icon name="plus" size={12} />}
+                    Activar
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+
+          <AnimatePresence>
+            {mfaStep !== 'idle' && (
+              <motion.div
+                key="mfa-content"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 32 }}
+                className="overflow-hidden"
+              >
+                <div className="border-t border-border px-6 pb-6 pt-5 space-y-5">
+                  <AnimatePresence mode="wait">
+
+                    {mfaStep === 'setup' && (
+                      <motion.div key="setup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Escanea este QR con tu aplicación de autenticación (Google Authenticator, Authy, 1Password, etc.).
+                        </p>
+                        <div className="flex justify-center">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={mfaQr} alt="QR 2FA" className="h-40 w-40 rounded-xl border border-border" />
+                        </div>
+                        <details className="rounded-xl border border-border bg-muted/30 p-3">
+                          <summary className="cursor-pointer text-xs font-medium text-muted-foreground select-none">
+                            ¿No puedes escanear? Ingresa el código manualmente
+                          </summary>
+                          <p className="mt-2 font-mono text-xs break-all text-foreground select-all">{mfaSecret}</p>
+                        </details>
+                        <p className="text-sm font-medium text-foreground">Ingresa el código de 6 dígitos para confirmar:</p>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={mfaCode}
+                          onChange={e => { setMfaCode(e.target.value.replace(/\D/g, '')); setMfaError(''); }}
+                          placeholder="000000"
+                          className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-center font-mono text-lg tracking-[0.4em] text-foreground focus:outline-none focus:ring-2 focus:ring-capta-deep/20"
+                          autoFocus
+                        />
+                        {mfaError && <p className="text-xs text-destructive">{mfaError}</p>}
+                        <div className="flex gap-2 justify-end">
+                          <button onClick={() => { setMfaStep('idle'); setMfaError(''); }}
+                            className="rounded-xl px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                            Cancelar
+                          </button>
+                          <button
+                            onClick={handleMfaConfirm}
+                            disabled={mfaLoading || mfaCode.length !== 6}
+                            className="flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                          >
+                            {mfaLoading ? <Icon name="refresh" size={13} className="animate-spin" /> : <Icon name="check" size={13} />}
+                            Confirmar
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {mfaStep === 'backup' && (
+                      <motion.div key="backup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+                        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/30">
+                          <Icon name="alert-triangle" size={16} className="flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                          <p className="text-sm text-amber-800 dark:text-amber-300">
+                            Guarda estos códigos en un lugar seguro. Son de un solo uso y no podrás verlos de nuevo.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {mfaBackupCodes.map((code, i) => (
+                            <div key={i} className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-center font-mono text-sm tracking-wider text-foreground">
+                              {code}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={downloadBackupCodes}
+                            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
+                            <Icon name="download" size={14} /> Descargar
+                          </button>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(mfaBackupCodes.join('\n')).then(() => setCopiedCodes(true));
+                              setTimeout(() => setCopiedCodes(false), 2000);
+                            }}
+                            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
+                            <Icon name={copiedCodes ? 'check' : 'file'} size={14} />
+                            {copiedCodes ? 'Copiado' : 'Copiar'}
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => { setMfaStep('idle'); toastSuccess('¡2FA activado exitosamente!'); }}
+                          className="w-full rounded-xl py-2.5 text-sm font-semibold text-white"
+                          style={{ background: 'linear-gradient(135deg, #059669, #10B981)' }}
+                        >
+                          Listo, ya guardé mis códigos
+                        </button>
+                      </motion.div>
+                    )}
+
+                    {mfaStep === 'disable' && (
+                      <motion.div key="disable" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Ingresa tu código TOTP o un código de respaldo para confirmar la desactivación.
+                        </p>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={8}
+                          value={mfaCode}
+                          onChange={e => { setMfaCode(e.target.value.replace(/\s/g, '')); setMfaError(''); }}
+                          placeholder="Código TOTP o backup"
+                          className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-center font-mono text-lg tracking-widest text-foreground focus:outline-none focus:ring-2 focus:ring-destructive/20"
+                          autoFocus
+                        />
+                        {mfaError && <p className="text-xs text-destructive">{mfaError}</p>}
+                        <div className="flex gap-2 justify-end">
+                          <button onClick={() => { setMfaStep('idle'); setMfaError(''); setMfaCode(''); }}
+                            className="rounded-xl px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                            Cancelar
+                          </button>
+                          <button
+                            onClick={handleMfaDisable}
+                            disabled={mfaLoading || mfaCode.length < 6}
+                            className="flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                            style={{ background: 'linear-gradient(135deg, #DC2626, #EF4444)' }}
+                          >
+                            {mfaLoading ? <Icon name="refresh" size={13} className="animate-spin" /> : <Icon name="shield" size={13} />}
+                            Desactivar 2FA
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                  </AnimatePresence>
                 </div>
               </motion.div>
             )}

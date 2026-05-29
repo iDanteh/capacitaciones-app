@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/capta-icon';
+import { CaptaMark } from '@/components/capta-logo';
 import { api } from '@/lib/api';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -31,9 +32,10 @@ function formatDate(iso: string): string {
 export default function VerifyCertificatePage() {
   const { uuid } = useParams<{ uuid: string }>();
 
-  const [result,   setResult]   = useState<VerifyResult | null>(null);
-  const [loading,  setLoading]  = useState(true);
+  const [result,      setResult]      = useState<VerifyResult | null>(null);
+  const [loading,     setLoading]     = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [copied,      setCopied]      = useState(false);
 
   useEffect(() => {
     api.get<VerifyResult>(`/certificates/verify/${uuid}`)
@@ -42,6 +44,23 @@ export default function VerifyCertificatePage() {
         tenantName: '', issuedAt: '', isValid: false }))
       .finally(() => setLoading(false));
   }, [uuid]);
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Certificado – ${result?.courseTitle ?? ''}`,
+          text:  `Verifica el certificado de ${result?.recipientName ?? ''} en el curso "${result?.courseTitle ?? ''}"`,
+          url,
+        });
+      } catch { /* usuario canceló */ }
+    } else {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
+  };
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -64,13 +83,8 @@ export default function VerifyCertificatePage() {
       style={{ background: 'linear-gradient(135deg, #0A1419 0%, #1E4F7A 60%, #0B2840 100%)' }}
     >
       {/* Logo */}
-      <Link href="/" className="mb-10 flex items-center gap-2">
-        <div
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-white font-bold text-xl"
-          style={{ background: 'linear-gradient(135deg, #1F5C4D, #7FD1AE)' }}
-        >
-          C
-        </div>
+      <Link href="/" className="mb-10 flex items-center gap-2.5">
+        <CaptaMark size={32} />
         <span className="text-xl font-bold text-white tracking-tight">Capta</span>
       </Link>
 
@@ -153,23 +167,37 @@ export default function VerifyCertificatePage() {
                 <p className="text-xs font-mono text-white/70 break-all">{result.publicUuid}</p>
               </div>
 
-              {/* Botón descargar */}
-              <button
-                onClick={handleDownload}
-                disabled={downloading}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.97] disabled:opacity-60"
-                style={{
-                  background: 'linear-gradient(135deg, #F59E0B, #D97706)',
-                  boxShadow:  '0 4px 16px rgba(245,158,11,0.35)',
-                }}
-              >
-                {downloading ? (
-                  <Icon name="refresh" size={15} className="animate-spin" />
-                ) : (
-                  <Icon name="download" size={15} />
-                )}
-                {downloading ? 'Generando PDF…' : 'Descargar certificado PDF'}
-              </button>
+              {/* Acciones: descargar + compartir */}
+              <div className="flex gap-2.5">
+                <button
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.97] disabled:opacity-60"
+                  style={{
+                    background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                    boxShadow:  '0 4px 16px rgba(245,158,11,0.35)',
+                  }}
+                >
+                  {downloading ? (
+                    <Icon name="refresh" size={15} className="animate-spin" />
+                  ) : (
+                    <Icon name="download" size={15} />
+                  )}
+                  {downloading ? 'Generando…' : 'Descargar PDF'}
+                </button>
+
+                <button
+                  onClick={handleShare}
+                  className="flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-white/15 active:scale-[0.97]"
+                  title="Compartir certificado"
+                >
+                  {copied ? (
+                    <><Icon name="check" size={15} className="text-emerald-400" /> Copiado</>
+                  ) : (
+                    <><Icon name="external" size={15} /> Compartir</>
+                  )}
+                </button>
+              </div>
             </div>
 
             <p className="text-center text-xs text-white/30 mt-6">
