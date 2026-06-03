@@ -186,38 +186,40 @@ export class TenantsService {
       },
     });
 
-    // Invitar al propietario de la sub-empresa
-    const [inviter, parentTenant] = await Promise.all([
-      this.prisma.user.findUniqueOrThrow({ where: { id: inviterId } }),
-      this.prisma.tenant.findUniqueOrThrow({ where: { id: parentTenantId } }),
-    ]);
+    // Si se proporcionaron datos del propietario externo → enviar invitación
+    if (dto.ownerEmail) {
+      const [inviter, parentTenant] = await Promise.all([
+        this.prisma.user.findUniqueOrThrow({ where: { id: inviterId } }),
+        this.prisma.tenant.findUniqueOrThrow({ where: { id: parentTenantId } }),
+      ]);
 
-    const rawToken  = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    const normalizedEmail = dto.ownerEmail.toLowerCase().trim();
+      const rawToken     = crypto.randomBytes(32).toString('hex');
+      const tokenHash    = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expiresAt    = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const normalizedEmail = dto.ownerEmail.toLowerCase().trim();
 
-    await this.prisma.userInvite.create({
-      data: {
-        tenantId:    child.id,
-        email:       normalizedEmail,
-        firstName:   dto.ownerFirstName.trim(),
-        lastName:    dto.ownerLastName.trim(),
+      await this.prisma.userInvite.create({
+        data: {
+          tenantId:    child.id,
+          email:       normalizedEmail,
+          firstName:   (dto.ownerFirstName ?? '').trim(),
+          lastName:    (dto.ownerLastName  ?? '').trim(),
+          role:        'OWNER',
+          tokenHash,
+          invitedById: inviterId,
+          expiresAt,
+        },
+      });
+
+      // Email (fallo silencioso)
+      await this.email.sendInvite({
+        to:          dto.ownerEmail,
+        inviterName: `${inviter.firstName} ${inviter.lastName}`,
+        companyName: `${dto.name} (sub-empresa de ${parentTenant.name})`,
         role:        'OWNER',
-        tokenHash,
-        invitedById: inviterId,
-        expiresAt,
-      },
-    });
-
-    // Email (fallo silencioso)
-    await this.email.sendInvite({
-      to:          dto.ownerEmail,
-      inviterName: `${inviter.firstName} ${inviter.lastName}`,
-      companyName: `${dto.name} (sub-empresa de ${parentTenant.name})`,
-      role:        'OWNER',
-      token:       rawToken,
-    }).catch(() => {});
+        token:       rawToken,
+      }).catch(() => {});
+    }
 
     this.logger.log(`Sub-empresa "${child.name}" creada por ${inviterId}`);
 

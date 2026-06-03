@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +10,7 @@ import { Icon, type IconName } from '@/components/capta-icon';
 import { NotificationBell } from '@/components/notification-bell';
 import { CommandPalette } from '@/components/command-palette';
 import { api } from '@/lib/api';
+import { connectSocket, disconnectSocket } from '@/lib/socket';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,27 @@ interface UserData {
   lastName: string;
   role: string;
   tenantSlug: string;
+}
+
+interface SubcompanyItem {
+  id:       string;
+  name:     string;
+  slug:     string;
+  isActive: boolean;
+}
+
+interface AuthSwitchResponse {
+  accessToken:  string;
+  refreshToken: string;
+  user: {
+    id:         string;
+    email:      string;
+    firstName:  string;
+    lastName:   string;
+    role:       string;
+    tenantId:   string;
+    tenantSlug: string;
+  };
 }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
@@ -65,10 +87,10 @@ function NavItem({ item, active, onClick, accentColor }: {
       onClick={onClick}
       className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
         active
-          ? 'text-foreground'
+          ? 'text-foreground bg-[rgba(220,233,244,0.65)] dark:bg-white/[0.08]'
           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       }`}
-      style={active ? { background: softAccent ?? 'rgba(220,233,244,0.6)' } : undefined}
+      style={active && accentColor ? { background: `${accentColor}28` } : undefined}
     >
       {active && (
         <span
@@ -99,7 +121,133 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
 }) {
   const router = useRouter();
 
+  // ── Tenant dropdown ───────────────────────────────────────────────────────
+  const [tenantOpen,      setTenantOpen]      = useState(false);
+  const [subcompanies,    setSubcompanies]    = useState<SubcompanyItem[]>([]);
+  const [switching,       setSwitching]       = useState(false);
+  const [isInSubcompany,  setIsInSubcompany]  = useState(false);
+  const [parentName,      setParentName]      = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Detect if currently inside a sub-company context + load cached sub-companies
+  useEffect(() => {
+    const parentSess = localStorage.getItem('parent_session');
+    setIsInSubcompany(!!parentSess);
+    if (parentSess) {
+      try {
+        const sess = JSON.parse(parentSess) as Record<string, string | null>;
+        const parentUserRaw = sess.user;
+        if (sess.tenantName) {
+          setParentName(sess.tenantName);
+        } else if (parentUserRaw) {
+          const parentUser = JSON.parse(parentUserRaw) as { tenantSlug?: string };
+          setParentName(
+            parentUser.tenantSlug
+              ? parentUser.tenantSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+              : 'Empresa principal',
+          );
+        }
+      } catch { /* corrupted */ }
+      // Load cached sub-companies for display
+      const cached = localStorage.getItem('tenant_subcompanies');
+      if (cached) {
+        try { setSubcompanies(JSON.parse(cached) as SubcompanyItem[]); } catch { /* */ }
+      }
+    }
+  }, [pathname]);
+
+  // Fetch sub-companies (only for OWNER at parent level)
+  useEffect(() => {
+    if (user?.role !== 'OWNER' || isInSubcompany) return;
+    api.get<SubcompanyItem[]>('/tenants/children')
+      .then(r => {
+        const active = r.data.filter(c => c.isActive);
+        setSubcompanies(active);
+        // Cache so the list is available when viewing from inside a sub-company
+        localStorage.setItem('tenant_subcompanies', JSON.stringify(active));
+      })
+      .catch(() => {});
+  }, [user, isInSubcompany]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!tenantOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setTenantOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [tenantOpen]);
+
+  const handleSwitchTenant = async (childId: string) => {
+    if (switching) return;
+    setSwitching(true);
+    setTenantOpen(false);
+
+    let tokenToRestore: string | null = null;
+
+    try {
+      if (isInSubcompany) {
+        // We're already in a sub-company — use parent's token for the switch call
+        // so the API resolves the correct parent → child relationship.
+        const parentSess = JSON.parse(localStorage.getItem('parent_session') ?? '{}') as Record<string, string | null>;
+        tokenToRestore = localStorage.getItem('access_token');
+        if (parentSess.accessToken) {
+          localStorage.setItem('access_token', parentSess.accessToken);
+        }
+        // parent_session stays unchanged (still pointing to the real parent)
+      } else {
+        // At parent level — save current session as parent before switching
+        localStorage.setItem('parent_session', JSON.stringify({
+          accessToken:  localStorage.getItem('access_token'),
+          refreshToken: localStorage.getItem('refresh_token'),
+          user:         localStorage.getItem('user'),
+          tenantLogo:   localStorage.getItem('tenant_logo'),
+          tenantName:   localStorage.getItem('tenant_name'),
+          tenantColor:  localStorage.getItem('tenant_color'),
+        }));
+      }
+
+      const res = await api.post<AuthSwitchResponse>('/auth/switch-tenant', { childTenantId: childId });
+      const { accessToken, refreshToken, user: newUser } = res.data;
+
+      localStorage.setItem('access_token',  accessToken);
+      localStorage.setItem('refresh_token', refreshToken);
+      localStorage.setItem('user',          JSON.stringify(newUser));
+      localStorage.removeItem('tenant_logo');
+      localStorage.removeItem('tenant_name');
+      localStorage.removeItem('tenant_color');
+
+      window.location.replace('/dashboard');
+    } catch {
+      // Rollback
+      if (tokenToRestore) localStorage.setItem('access_token', tokenToRestore);
+      if (!isInSubcompany)  localStorage.removeItem('parent_session');
+      setSwitching(false);
+    }
+  };
+
+  const handleRestoreParent = () => {
+    try {
+      const raw = localStorage.getItem('parent_session');
+      if (!raw) return;
+      const sess = JSON.parse(raw) as Record<string, string | null>;
+      if (sess.accessToken)  localStorage.setItem('access_token',  sess.accessToken);
+      if (sess.refreshToken) localStorage.setItem('refresh_token', sess.refreshToken);
+      if (sess.user)         localStorage.setItem('user',          sess.user);
+      localStorage.setItem('tenant_logo',  sess.tenantLogo  ?? '');
+      localStorage.setItem('tenant_name',  sess.tenantName  ?? '');
+      localStorage.setItem('tenant_color', sess.tenantColor ?? '');
+      localStorage.removeItem('parent_session');
+    } catch { /* corrupted */ }
+    window.location.replace('/dashboard');
+  };
+
+  // ── Derived values ────────────────────────────────────────────────────────
   const handleLogout = () => {
+    disconnectSocket();
     localStorage.clear();
     router.push('/login');
   };
@@ -123,6 +271,17 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
   );
 
   const accent = accentColor ?? '#1E4F7A';
+  const isOwner = user?.role === 'OWNER';
+  const hasDropdown = isOwner && (subcompanies.length > 0 || isInSubcompany);
+  // ID of the currently active sub-company (null if at parent level)
+  const currentChildId = isInSubcompany
+    ? (() => {
+        try {
+          const u = JSON.parse(localStorage.getItem('user') ?? '{}') as { tenantId?: string };
+          return u.tenantId ?? null;
+        } catch { return null; }
+      })()
+    : null;
 
   return (
     <div className="flex h-full flex-col">
@@ -134,23 +293,121 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
 
       {/* ── Tenant selector ── */}
       {user && (
-        <div className="mx-3 mt-3 flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 px-3 py-2.5 cursor-default">
-          <div
-            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg overflow-hidden text-[10px] font-bold text-white"
-            style={{ background: `linear-gradient(135deg, ${accent}, ${accent}cc)` }}
+        <div className="mx-3 mt-3 relative" ref={dropdownRef}>
+          <button
+            onClick={() => hasDropdown && setTenantOpen(o => !o)}
+            className={`w-full flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 px-3 py-2.5 transition-colors ${hasDropdown ? 'hover:bg-muted/70 cursor-pointer' : 'cursor-default'}`}
           >
-            {tenantLogo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={tenantLogo} alt="Logo" className="h-full w-full object-contain" />
-            ) : (
-              tenantInitial
+            <div
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg overflow-hidden text-[10px] font-bold text-white"
+              style={{ background: `linear-gradient(135deg, ${accent}, ${accent}cc)` }}
+            >
+              {tenantLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={tenantLogo} alt="Logo" className="h-full w-full object-contain" />
+              ) : (
+                tenantInitial
+              )}
+            </div>
+            <div className="min-w-0 flex-1 text-left">
+              <p className="truncate text-xs font-semibold leading-tight text-foreground">{tenantLabel}</p>
+              <p className="text-[10px] text-muted-foreground/60">
+                {isInSubcompany ? 'Sub-empresa · ' : ''}{ROLE_LABELS[user.role] ?? user.role}
+              </p>
+            </div>
+            {switching ? (
+              <Icon name="refresh" size={12} className="flex-shrink-0 text-muted-foreground/30 animate-spin" />
+            ) : hasDropdown ? (
+              <Icon
+                name="chevron-down"
+                size={12}
+                className={`flex-shrink-0 text-muted-foreground/40 transition-transform duration-200 ${tenantOpen ? 'rotate-180' : ''}`}
+              />
+            ) : null}
+          </button>
+
+          {/* Dropdown */}
+          <AnimatePresence>
+            {tenantOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-border bg-card shadow-xl"
+              >
+                {/* Empresa principal (volver) */}
+                {isInSubcompany && (
+                  <button
+                    onClick={handleRestoreParent}
+                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-muted transition-colors group"
+                  >
+                    <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-muted text-[9px] font-bold text-foreground">
+                      {(parentName || 'P').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-xs font-semibold text-foreground">
+                        {parentName || 'Empresa principal'}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/60">Empresa principal</p>
+                    </div>
+                    <Icon name="arrow-left" size={11} className="flex-shrink-0 text-muted-foreground/40 group-hover:text-foreground transition-colors" />
+                  </button>
+                )}
+
+                {/* Sub-company list */}
+                {subcompanies.length > 0 && (
+                  <div className={isInSubcompany ? 'border-t border-border' : ''}>
+                    <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/40">
+                      Sub-empresas
+                    </p>
+                    {subcompanies.map(c => {
+                      const isActive = c.id === currentChildId;
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => !isActive && void handleSwitchTenant(c.id)}
+                          disabled={isActive || switching}
+                          className={`flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors disabled:cursor-default ${
+                            isActive ? 'bg-muted/60' : 'hover:bg-muted'
+                          }`}
+                        >
+                          <div
+                            className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md text-[9px] font-bold text-white"
+                            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                          >
+                            {c.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className={`flex-1 truncate text-xs font-medium ${isActive ? 'text-foreground' : 'text-foreground/80'}`}>
+                            {c.name}
+                          </span>
+                          {isActive ? (
+                            <span className="flex-shrink-0 h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+                          ) : (
+                            <Icon name="external" size={10} className="flex-shrink-0 text-muted-foreground/30" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* At parent level with no sub-companies */}
+                {subcompanies.length === 0 && !isInSubcompany && (
+                  <div className="flex flex-col items-center gap-1.5 px-3 py-4 text-center">
+                    <p className="text-[11px] text-muted-foreground/60">Sin sub-empresas activas</p>
+                    <Link
+                      href="/dashboard/companies"
+                      onClick={() => setTenantOpen(false)}
+                      className="text-[11px] font-medium text-capta-deep/70 hover:text-capta-deep transition-colors"
+                    >
+                      Crear sub-empresa →
+                    </Link>
+                  </div>
+                )}
+              </motion.div>
             )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold leading-tight text-foreground">{tenantLabel}</p>
-            <p className="text-[10px] text-muted-foreground/60">{ROLE_LABELS[user.role] ?? user.role}</p>
-          </div>
-          <Icon name="chevron-down" size={12} className="flex-shrink-0 text-muted-foreground/30" />
+          </AnimatePresence>
         </div>
       )}
 
@@ -242,7 +499,7 @@ function DesktopHeader({ user, onSearchOpen }: { user: UserData | null; onSearch
   return (
     <header className="hidden lg:flex h-[60px] flex-shrink-0 items-center gap-3 border-b border-border bg-card/80 backdrop-blur-md px-6">
 
-      {/* Search bar — opens CommandPalette */}
+      {/* Search bar */}
       <button
         type="button"
         onClick={onSearchOpen}
@@ -307,6 +564,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setAccentColor(localStorage.getItem('tenant_color') ?? '');
 
     setIsReady(true);
+
+    // Conectar WebSocket (funciona en mobile y desktop desde el layout)
+    connectSocket();
 
     // Refrescar datos del tenant desde la API en segundo plano (timeout 5s — evita spinner infinito)
     api.get<{ logoUrl?: string | null; primaryColor?: string | null; name?: string }>('/tenants/me', { timeout: 5_000 })

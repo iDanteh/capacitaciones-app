@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -9,7 +10,11 @@ import {
 
 /**
  * DTO para crear una sub-empresa.
- * Se crea un Tenant hijo + se invita a un OWNER para esa empresa.
+ *
+ * Los campos de propietario son opcionales:
+ *  - Si se proporcionan → se crea un UserInvite y se envía email de invitación.
+ *  - Si no se proporcionan → el OWNER padre puede acceder directamente mediante
+ *    el endpoint POST /auth/switch-tenant (se crea un usuario espejo automáticamente).
  */
 export class CreateSubcompanyDto {
   @IsString()
@@ -18,8 +23,7 @@ export class CreateSubcompanyDto {
   name: string;
 
   /**
-   * Slug URL-friendly. Se genera automáticamente si no se envía,
-   * pero se puede personalizar.
+   * Slug URL-friendly.
    * Restricción: solo letras minúsculas, números y guiones.
    */
   @IsString()
@@ -28,20 +32,19 @@ export class CreateSubcompanyDto {
   @Matches(/^[a-z0-9-]+$/, { message: 'El slug solo puede contener letras minúsculas, números y guiones' })
   slug: string;
 
-  /** Email del propietario de la sub-empresa (se le enviará una invitación). */
+  /** Email del propietario externo (opcional — se le enviará invitación si se proporciona). */
+  @IsOptional()
   @IsEmail({}, { message: 'Ingresa un email válido para el propietario' })
   @MaxLength(254)
-  ownerEmail: string;
+  ownerEmail?: string;
 
-  /** Nombre del propietario */
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(50)
-  ownerFirstName: string;
+  ownerFirstName?: string;
 
-  /** Apellido del propietario */
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(50)
-  ownerLastName: string;
+  ownerLastName?: string;
 }

@@ -280,7 +280,7 @@ export function CommandPalette({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: -12 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="fixed left-1/2 top-[12%] z-50 w-full max-w-xl -translate-x-1/2"
+            className="fixed left-1/2 top-[12%] z-50 w-full max-w-xl -translate-x-1/2 lg:left-[calc(50%+110px)]"
           >
             <div
               className="overflow-hidden rounded-2xl border border-border bg-card"

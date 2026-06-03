@@ -91,6 +91,11 @@ export class CreateEvaluationDto {
   @IsBoolean()
   isRequired?: boolean = false;
 
+  @ApiPropertyOptional({ default: true, description: 'Si false, las respuestas correctas no se revelan al reprobar con intentos restantes' })
+  @IsOptional()
+  @IsBoolean()
+  showAnswers?: boolean = true;
+
   @ApiPropertyOptional({ type: [CreateQuestionDto] })
   @IsOptional()
   @Type(() => CreateQuestionDto)
@@ -133,6 +138,11 @@ export class UpdateEvaluationDto {
   @IsOptional()
   @IsBoolean()
   isRequired?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  showAnswers?: boolean;
 }
 
 /**

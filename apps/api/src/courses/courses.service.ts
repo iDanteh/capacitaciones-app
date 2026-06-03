@@ -99,8 +99,8 @@ export class CoursesService {
 
     if (!course) throw new NotFoundException('Curso no encontrado');
 
-    // EMPLOYEE no puede ver cursos en borrador excepto lecciones de preview
-    if (role === 'EMPLOYEE' && course.status === CourseStatus.DRAFT) {
+    // EMPLOYEE solo puede ver cursos publicados (DRAFT y ARCHIVED están bloqueados)
+    if (role === 'EMPLOYEE' && course.status !== CourseStatus.PUBLISHED) {
       throw new ForbiddenException('Este curso no está disponible');
     }
 

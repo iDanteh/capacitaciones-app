@@ -18,11 +18,25 @@ interface Subcompany {
 }
 
 interface CreateForm {
-  name:          string;
-  slug:          string;
-  ownerEmail:    string;
+  name:           string;
+  slug:           string;
+  ownerEmail:     string;
   ownerFirstName: string;
   ownerLastName:  string;
+}
+
+interface AuthSwitchResponse {
+  accessToken:  string;
+  refreshToken: string;
+  user: {
+    id:         string;
+    email:      string;
+    firstName:  string;
+    lastName:   string;
+    role:       string;
+    tenantId:   string;
+    tenantSlug: string;
+  };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -45,11 +59,12 @@ function formatDate(iso: string): string {
 // ─── Modal: Crear sub-empresa ─────────────────────────────────────────────────
 
 function CreateSubcompanyModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (c: Subcompany) => void }) {
-  const [form,    setForm]    = useState<CreateForm>({
+  const [form,        setForm]        = useState<CreateForm>({
     name: '', slug: '', ownerEmail: '', ownerFirstName: '', ownerLastName: '',
   });
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [inviteMode,  setInviteMode]  = useState(false); // false = usar mis credenciales
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
 
   const handleNameChange = (name: string) => {
     setForm(p => ({ ...p, name, slug: slugify(name) }));
@@ -60,7 +75,10 @@ function CreateSubcompanyModal({ onClose, onSuccess }: { onClose: () => void; on
     setError(null);
     setLoading(true);
     try {
-      const res = await api.post<Subcompany>('/tenants/children', form);
+      const payload = inviteMode
+        ? form
+        : { name: form.name, slug: form.slug }; // sin campos de propietario
+      const res = await api.post<Subcompany>('/tenants/children', payload);
       onSuccess(res.data);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
@@ -69,6 +87,8 @@ function CreateSubcompanyModal({ onClose, onSuccess }: { onClose: () => void; on
       setLoading(false);
     }
   };
+
+  const inputCls = 'w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -88,7 +108,7 @@ function CreateSubcompanyModal({ onClose, onSuccess }: { onClose: () => void; on
           <div>
             <h2 className="text-base font-semibold text-foreground">Nueva sub-empresa</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              El propietario recibirá una invitación por email.
+              Crea una división o filial de tu organización.
             </p>
           </div>
           <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted">
@@ -114,7 +134,7 @@ function CreateSubcompanyModal({ onClose, onSuccess }: { onClose: () => void; on
                 placeholder="Ej. División Norte"
                 value={form.name}
                 onChange={e => handleNameChange(e.target.value)}
-                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15"
+                className={inputCls}
               />
             </div>
             <div className="space-y-1.5">
@@ -137,36 +157,90 @@ function CreateSubcompanyModal({ onClose, onSuccess }: { onClose: () => void; on
             </div>
           </div>
 
-          {/* Propietario */}
+          {/* Acceso */}
           <div className="space-y-3 rounded-xl border border-border p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/60">Propietario</p>
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-foreground">Email</label>
-              <input
-                type="email" required
-                placeholder="owner@division.com"
-                value={form.ownerEmail}
-                onChange={e => setForm(p => ({ ...p, ownerEmail: e.target.value }))}
-                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {([
-                { key: 'ownerFirstName', label: 'Nombre',   placeholder: 'María' },
-                { key: 'ownerLastName',  label: 'Apellido', placeholder: 'López' },
-              ] as const).map(f => (
-                <div key={f.key} className="space-y-1.5">
-                  <label className="block text-sm font-medium text-foreground">{f.label}</label>
-                  <input
-                    required
-                    placeholder={f.placeholder}
-                    value={form[f.key]}
-                    onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                    className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15"
-                  />
-                </div>
+
+            {/* Toggle */}
+            <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-1">
+              {[
+                { value: false, label: 'Mis credenciales', icon: 'user' as const },
+                { value: true,  label: 'Invitar persona',  icon: 'mail' as const },
+              ].map(opt => (
+                <button
+                  key={String(opt.value)}
+                  type="button"
+                  onClick={() => setInviteMode(opt.value)}
+                  className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-all ${
+                    inviteMode === opt.value
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Icon name={opt.icon} size={12} />
+                  {opt.label}
+                </button>
               ))}
             </div>
+
+            {/* No-invite mode: info card */}
+            {!inviteMode && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="flex items-start gap-2.5 rounded-xl border border-capta-soft/20 bg-capta-soft/5 px-3 py-2.5"
+              >
+                <Icon name="shield" size={14} className="mt-0.5 flex-shrink-0 text-capta-deep/60" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Podrás acceder a esta empresa con tus propias credenciales usando el selector en el panel lateral.
+                </p>
+              </motion.div>
+            )}
+
+            {/* Invite mode: owner fields */}
+            <AnimatePresence>
+              {inviteMode && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-3 overflow-hidden"
+                >
+                  <div className="space-y-1.5">
+                    <label className="block text-sm font-medium text-foreground">Email del propietario</label>
+                    <input
+                      type="email"
+                      required={inviteMode}
+                      placeholder="owner@division.com"
+                      value={form.ownerEmail}
+                      onChange={e => setForm(p => ({ ...p, ownerEmail: e.target.value }))}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {([
+                      { key: 'ownerFirstName', label: 'Nombre',   placeholder: 'María' },
+                      { key: 'ownerLastName',  label: 'Apellido', placeholder: 'López' },
+                    ] as const).map(f => (
+                      <div key={f.key} className="space-y-1.5">
+                        <label className="block text-sm font-medium text-foreground">{f.label}</label>
+                        <input
+                          required={inviteMode}
+                          placeholder={f.placeholder}
+                          value={form[f.key]}
+                          onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                          className={inputCls}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/60">
+                    Se enviará una invitación por email para que registre su cuenta.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <div className="flex gap-3 pt-1">
@@ -201,6 +275,7 @@ export default function CompaniesPage() {
   const [deleteId,     setDeleteId]     = useState<string | null>(null);
   const [deleting,     setDeleting]     = useState(false);
   const [planError,    setPlanError]    = useState<string | null>(null);
+  const [switchingId,  setSwitchingId]  = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -211,6 +286,8 @@ export default function CompaniesPage() {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       if ((err as { response?: { status?: number } })?.response?.status === 403) {
         setPlanError(msg ?? 'Tu plan no incluye sub-empresas.');
+      } else {
+        toastError('No pudimos cargar las empresas. Intenta recargar la página.');
       }
     } finally {
       setLoading(false);
@@ -222,7 +299,52 @@ export default function CompaniesPage() {
   const handleCreateSuccess = (company: Subcompany) => {
     setCompanies(prev => [company, ...prev]);
     setCreateModal(false);
-    toastSuccess(`Sub-empresa "${company.name}" creada. Invitación enviada al propietario.`);
+    toastSuccess(`Sub-empresa "${company.name}" creada correctamente.`);
+  };
+
+  const handleSwitchToCompany = async (company: Subcompany) => {
+    if (switchingId) return;
+    setSwitchingId(company.id);
+
+    let tokenToRestore: string | null = null;
+    const existingParentSess = localStorage.getItem('parent_session');
+
+    try {
+      if (existingParentSess) {
+        // Already in a sub-company — use parent's token for the API call
+        const parentSess = JSON.parse(existingParentSess) as Record<string, string | null>;
+        tokenToRestore = localStorage.getItem('access_token');
+        if (parentSess.accessToken) localStorage.setItem('access_token', parentSess.accessToken);
+        // parent_session stays unchanged
+      } else {
+        // At parent level — save current as parent session
+        localStorage.setItem('parent_session', JSON.stringify({
+          accessToken:  localStorage.getItem('access_token'),
+          refreshToken: localStorage.getItem('refresh_token'),
+          user:         localStorage.getItem('user'),
+          tenantLogo:   localStorage.getItem('tenant_logo'),
+          tenantName:   localStorage.getItem('tenant_name'),
+          tenantColor:  localStorage.getItem('tenant_color'),
+        }));
+      }
+
+      const res = await api.post<AuthSwitchResponse>('/auth/switch-tenant', { childTenantId: company.id });
+      const { accessToken, refreshToken, user: newUser } = res.data;
+
+      localStorage.setItem('access_token',  accessToken);
+      localStorage.setItem('refresh_token', refreshToken);
+      localStorage.setItem('user',          JSON.stringify(newUser));
+      localStorage.removeItem('tenant_logo');
+      localStorage.removeItem('tenant_name');
+      localStorage.removeItem('tenant_color');
+
+      window.location.replace('/dashboard');
+    } catch {
+      if (tokenToRestore) localStorage.setItem('access_token', tokenToRestore);
+      if (!existingParentSess) localStorage.removeItem('parent_session');
+      toastError(`No se pudo acceder a "${company.name}"`);
+      setSwitchingId(null);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -318,7 +440,7 @@ export default function CompaniesPage() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 30, delay: i * 0.06 }}
-                  className="rounded-xl border border-border bg-card px-4 py-3"
+                  className="rounded-2xl border border-border bg-card px-4 py-3"
                   style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
                 >
                   <Icon name={stat.icon} size={14} className="mb-1.5" style={{ color: stat.accent }} />
@@ -349,19 +471,22 @@ export default function CompaniesPage() {
               </button>
             </div>
           ) : (
-            <motion.div
-              initial="hidden"
-              animate="show"
-              variants={{ show: { transition: { staggerChildren: 0.05 } } }}
-              className="space-y-2"
-            >
+            <div className="rounded-2xl border border-border bg-card overflow-hidden">
+              <motion.div
+                initial="hidden"
+                animate="show"
+                variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+                className="divide-y divide-border/60"
+              >
               {companies.map(company => (
                 <motion.div
                   key={company.id}
                   variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  className={`flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-4 transition-colors hover:bg-muted/20 ${!company.isActive ? 'opacity-60' : ''}`}
+                  className={`relative flex items-center gap-4 overflow-hidden px-5 py-4 transition-colors hover:bg-muted/20 ${!company.isActive ? 'opacity-60' : ''}`}
                 >
+                  {/* Acento lateral */}
+                  <div className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: '#8FC4E8' }} />
                   {/* Avatar empresa */}
                   <div
                     className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
@@ -392,19 +517,18 @@ export default function CompaniesPage() {
 
                   {/* Acciones */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Acceder info */}
-                    <div className="group relative hidden md:block">
-                      <button
-                        className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
-                        title="Para acceder, inicia sesión con las credenciales del propietario de esta empresa"
-                      >
-                        <Icon name="external" size={12} />
-                        Acceder
-                      </button>
-                      <div className="pointer-events-none absolute bottom-full right-0 z-10 mb-2 w-64 rounded-xl border border-border bg-card p-3 text-[11px] text-muted-foreground shadow-xl opacity-0 group-hover:opacity-100 transition-opacity">
-                        Para acceder a esta empresa, inicia sesión con las credenciales del propietario usando el slug: <code className="font-mono bg-muted px-1 rounded">{company.slug}</code>
-                      </div>
-                    </div>
+                    {/* Acceder */}
+                    <button
+                      onClick={() => void handleSwitchToCompany(company)}
+                      disabled={!!switchingId}
+                      className="hidden md:flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 transition-colors"
+                      title="Acceder a esta empresa con tus credenciales"
+                    >
+                      {switchingId === company.id
+                        ? <Icon name="refresh" size={12} className="animate-spin" />
+                        : <Icon name="external" size={12} />}
+                      {switchingId === company.id ? 'Accediendo…' : 'Acceder'}
+                    </button>
 
                     {/* Eliminar */}
                     <AnimatePresence mode="wait">
@@ -447,7 +571,8 @@ export default function CompaniesPage() {
                   </div>
                 </motion.div>
               ))}
-            </motion.div>
+              </motion.div>
+            </div>
           )}
         </>
       )}
@@ -456,7 +581,7 @@ export default function CompaniesPage() {
       {!planError && !loading && (
         <p className="mt-8 text-xs text-muted-foreground/50 text-center max-w-md mx-auto leading-relaxed">
           Cada sub-empresa tiene su propio conjunto de usuarios, cursos y datos.
-          Para acceder, el propietario debe iniciar sesión usando el slug de su empresa.
+          Puedes cambiar de contexto usando el selector de empresa en el panel lateral.
         </p>
       )}
 

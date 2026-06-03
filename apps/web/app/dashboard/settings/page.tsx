@@ -382,7 +382,7 @@ export default function SettingsPage() {
   const isEnterprise = plan?.type === 'ENTERPRISE';
 
   return (
-    <div className="p-6 lg:p-8 max-w-2xl space-y-6">
+    <div className="p-6 lg:p-8 space-y-6">
 
       {/* Header */}
       <motion.div

@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Capta LMS — Documentación del Sistema</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --deep:   #1E4F7A;
+      --soft:   #8FC4E8;
+      --tint:   #DCE9F4;
+      --ink:    #0B1F2A;
+      --muted:  #6B8CA8;
+      --border: #D6E4EF;
+      --bg:     #F5F9FC;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.6;
+    }
+
+    /* ── Cover ─────────────────────────────────────────────────────────── */
+    .cover {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(160deg, var(--deep) 0%, #2D6FA0 55%, var(--soft) 100%);
+      color: white;
+      text-align: center;
+      padding: 3rem;
+      page-break-after: always;
+    }
+
+    .cover-mark {
+      width: 80px;
+      height: 80px;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.4);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 2rem;
+      font-size: 2.5rem;
+      font-weight: 900;
+      letter-spacing: -2px;
+    }
+
+    .cover h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 0.5rem;
+    }
+
+    .cover .subtitle {
+      font-size: 1.2rem;
+      opacity: 0.75;
+      margin-bottom: 3rem;
+      font-weight: 300;
+    }
+
+    .cover-meta {
+      font-size: 0.9rem;
+      opacity: 0.6;
+      border-top: 1px solid rgba(255,255,255,0.2);
+      padding-top: 1.5rem;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .cover-meta p { margin: 0.3rem 0; }
+
+    /* ── TOC ───────────────────────────────────────────────────────────── */
+    .toc {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 3rem 2.5rem;
+      page-break-after: always;
+    }
+
+    .toc h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--deep);
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .toc ol {
+      list-style: none;
+      counter-reset: toc;
+    }
+
+    .toc li {
+      counter-increment: toc;
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px dotted var(--border);
+      font-size: 0.95rem;
+    }
+
+    .toc li::before {
+      content: counter(toc, decimal-leading-zero);
+      font-weight: 700;
+      color: var(--soft);
+      font-size: 0.8rem;
+      min-width: 28px;
+    }
+
+    .toc li span { color: var(--muted); font-size: 0.85rem; margin-left: auto; }
+
+    /* ── Sections ──────────────────────────────────────────────────────── */
+    .section {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 3rem 2.5rem;
+      page-break-inside: avoid;
+      page-break-after: always;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .section-num {
+      background: var(--deep);
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .section-header h2 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .section-header p {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    .section-desc {
+      background: var(--tint);
+      border-left: 3px solid var(--soft);
+      padding: 0.85rem 1.2rem;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.88rem;
+      color: var(--deep);
+      margin-bottom: 1.75rem;
+      line-height: 1.7;
+    }
+
+    /* ── Diagram container ─────────────────────────────────────────────── */
+    .diagram-wrap {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      overflow-x: auto;
+      box-shadow: 0 2px 12px rgba(30,79,122,0.06);
+    }
+
+    .diagram-wrap .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+
+    /* ── Legend / table ────────────────────────────────────────────────── */
+    .legend {
+      margin-top: 1.5rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .legend-item {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem 0.9rem;
+    }
+
+    .legend-item .key {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--deep);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .legend-item .val {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 0.15rem;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .tag-pk  { background: #FEF3C7; color: #92400E; }
+    .tag-fk  { background: #EDE9FE; color: #5B21B6; }
+    .tag-uk  { background: #D1FAE5; color: #065F46; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      margin-top: 1.5rem;
+    }
+
+    th {
+      background: var(--deep);
+      color: white;
+      padding: 0.6rem 0.9rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    td {
+      padding: 0.55rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td { background: var(--bg); }
+
+    code {
+      font-family: 'Consolas', 'SF Mono', monospace;
+      font-size: 0.8em;
+      background: var(--tint);
+      color: var(--deep);
+      padding: 0.1em 0.4em;
+      border-radius: 3px;
+    }
+
+    /* ── Print ─────────────────────────────────────────────────────────── */
+    @media print {
+      body { background: white; }
+      .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .section { page-break-after: always; }
+      .toc { page-break-after: always; }
+      @page { margin: 1.2cm 1.5cm; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ PORTADA -->
+<div class="cover">
+  <div class="cover-mark">C</div>
+  <h1>Capta LMS</h1>
+  <p class="subtitle">Documentación técnica del sistema — Diagramas</p>
+  <div class="cover-meta">
+    <p><strong>Stack:</strong> NestJS · Next.js 15 · PostgreSQL · Prisma</p>
+    <p><strong>Arquitectura:</strong> Monorepo Turborepo · Multi-tenant</p>
+    <p><strong>Versión:</strong> Fase 3 completada — 2026-05-29</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ TOC -->
+<div class="toc">
+  <h2>Índice de contenido</h2>
+  <ol>
+    <li>Diagrama Entidad-Relación (E-R) <span>Modelo de datos completo</span></li>
+    <li>Arquitectura de capas del sistema <span>Stack y componentes</span></li>
+    <li>Modelo multi-tenant <span>Tenants, sub-empresas y aislamiento</span></li>
+    <li>Flujo de autenticación <span>Login, 2FA/MFA, tokens y switch-tenant</span></li>
+    <li>Flujo de inscripción y progreso <span>Cursos, lecciones, quiz y certificados</span></li>
+    <li>Flujo de suscripciones y planes <span>FREE / BUSINESS / ENTERPRISE</span></li>
+    <li>Referencia de entidades <span>Tablas con campos y relaciones</span></li>
+  </ol>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ DIAGRAMA 1 -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">01</div>
+    <div>
+      <h2>Diagrama Entidad-Relación</h2>
+      <p>Modelo completo de la base de datos PostgreSQL — gestionado con Prisma ORM</p>
+    </div>
+  </div>
+  <p class="section-desc">
+    Cada <strong>Tenant</strong> (empresa) es un espacio completamente aislado. Todos los recursos
+    (usuarios, cursos, inscripciones, certificados) están ligados a un <code>tenantId</code>.
+    Los tenants pueden tener sub-empresas hijo mediante <code>parentTenantId</code>.
+  </p>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+erDiagram
+    TENANT {
+        string id PK
+        string name
+        string slug UK
+        boolean isActive
+        string logoUrl
+        string primaryColor
+        string domain
+        string parentTenantId FK
+        datetime deletedAt
+    }
+    USER {
+        string id PK
+        string tenantId FK
+        string email
+        string passwordHash
+        string firstName
+        string lastName
+        string role
+        boolean mfaEnabled
+        string mfaSecret
+        json mfaBackupCodes
+        boolean isActive
+        datetime lastLoginAt
+        datetime deletedAt
+    }
+    PLAN {
+        string id PK
+        string type
+        decimal priceUsd
+        int maxUsers
+        int maxCourses
+        int maxStorageGb
+        int maxCompanies
+    }
+    SUBSCRIPTION {
+        string id PK
+        string tenantId FK
+        string planId FK
+        string status
+        datetime currentPeriodStart
+        datetime currentPeriodEnd
+        string stripeSubscriptionId
+    }
+    REFRESH_TOKEN {
+        string id PK
+        string userId FK
+        string tokenHash
+        datetime expiresAt
+        datetime revokedAt
+    }
+    USER_INVITE {
+        string id PK
+        string tenantId FK
+        string email
+        string role
+        string firstName
+        string lastName
+        string tokenHash
+        string invitedById FK
+        datetime expiresAt
+    }
+    COURSE {
+        string id PK
+        string tenantId FK
+        string title
+        string status
+        string thumbnailUrl
+        datetime deletedAt
+    }
+    MODULE {
+        string id PK
+        string courseId FK
+        string title
+        int order
+    }
+    LESSON {
+        string id PK
+        string moduleId FK
+        string title
+        string type
+        string content
+        string fileKey
+        string muxAssetId
+        string muxPlaybackId
+        string muxStatus
+        int order
+    }
+    QUIZ {
+        string id PK
+        string lessonId FK
+        json questions
+        int passingScore
+    }
+    ENROLLMENT {
+        string id PK
+        string userId FK
+        string courseId FK
+        string status
+        int progressPct
+        datetime enrolledAt
+        datetime completedAt
+    }
+    LESSON_PROGRESS {
+        string id PK
+        string enrollmentId FK
+        string lessonId FK
+        boolean completed
+        int watchedSeconds
+        int quizScore
+        datetime completedAt
+    }
+    CERTIFICATE {
+        string id PK
+        string publicUuid UK
+        string enrollmentId FK
+        string userId FK
+        string tenantId FK
+        string courseId FK
+        string recipientName
+        string courseTitle
+        string pdfUrl
+        string logoUrl
+        datetime issuedAt
+    }
+    NOTIFICATION {
+        string id PK
+        string tenantId FK
+        string userId FK
+        string type
+        string title
+        string body
+        boolean read
+        datetime createdAt
+    }
+    STORAGE_USAGE {
+        string id PK
+        string tenantId FK
+        bigint usedBytes
+        datetime updatedAt
+    }
+
+    TENANT ||--o{ USER : "tiene"
+    TENANT ||--o| SUBSCRIPTION : "suscripción"
+    TENANT ||--o{ COURSE : "posee"
+    TENANT ||--o{ TENANT : "sub-empresas"
+    TENANT ||--o| STORAGE_USAGE : "uso storage"
+    TENANT ||--o{ USER_INVITE : "invitaciones"
+    TENANT ||--o{ NOTIFICATION : "notificaciones"
+    USER ||--o{ REFRESH_TOKEN : "sesiones"
+    USER ||--o{ ENROLLMENT : "inscripciones"
+    USER ||--o{ CERTIFICATE : "certificados"
+    PLAN ||--o{ SUBSCRIPTION : "asignado"
+    COURSE ||--o{ MODULE : "módulos"
+    COURSE ||--o{ ENROLLMENT : "inscripciones"
+    COURSE ||--o{ CERTIFICATE : "genera"
+    MODULE ||--o{ LESSON : "lecciones"
+    LESSON ||--o| QUIZ : "evaluación"
+    LESSON ||--o{ LESSON_PROGRESS : "progreso"
+    ENROLLMENT ||--o{ LESSON_PROGRESS : "registra"
+    ENROLLMENT ||--o| CERTIFICATE : "genera"
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ DIAGRAMA 2 -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">02</div>
+    <div>
+      <h2>Arquitectura de capas del sistema</h2>
+      <p>Stack técnico, servicios y comunicación entre componentes</p>
+    </div>
+  </div>
+  <p class="section-desc">
+    Monorepo gestionado con <strong>Turborepo</strong>. El frontend (<code>apps/web</code>) se comunica
+    con el backend (<code>apps/api</code>) vía REST + WebSocket.
+    En producción, <strong>Nginx</strong> actúa como reverse proxy con terminación SSL.
+  </p>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+graph TB
+    subgraph BROWSER["🌐 Navegador"]
+        direction TB
+        WEB["Next.js 15 — App Router<br/>Tailwind CSS · Framer Motion<br/>Socket.IO client"]
+    end
+
+    subgraph PROXY["Nginx (Producción · :443)"]
+        NX["Reverse Proxy + SSL/TLS"]
+    end
+
+    subgraph API["NestJS API (:5000 · /api/v1)"]
+        direction TB
+        AUTH["Auth Module<br/>JWT + Refresh + MFA"]
+        TENANTS["Tenants Module<br/>Multi-tenant · Sub-empresas"]
+        USERS["Users Module<br/>Roles · Invites · Bulk"]
+        COURSES["Courses · Modules · Lessons"]
+        ENROLL["Enrollments · Progress"]
+        QUIZ["Quiz · Evaluaciones"]
+        CERTS["Certificates · PDFKit"]
+        ANALYTICS["Analytics · Search"]
+        SUBS["Subscriptions · Plans"]
+        NOTIF["Notifications<br/>Socket.IO Gateway"]
+        EMAIL["Email Module<br/>Resend"]
+    end
+
+    subgraph DB["Almacenamiento"]
+        PG[("PostgreSQL :5432<br/>Prisma ORM")]
+        MINIO[("MinIO S3 :9000<br/>Archivos · Imágenes · PDFs")]
+    end
+
+    subgraph EXTERNAL["Servicios Externos"]
+        MUX["Mux<br/>Video encoding + streaming"]
+        STRIPE["Stripe<br/>Pagos · Suscripciones"]
+        RESEND["Resend<br/>Emails transaccionales"]
+    end
+
+    BROWSER -->|"HTTPS REST"| PROXY
+    BROWSER -->|"WSS Socket.IO"| PROXY
+    PROXY --> API
+    API --> PG
+    API --> MINIO
+    API --> MUX
+    API --> STRIPE
+    API --> RESEND
+
+    style BROWSER fill:#EFF6FF,stroke:#BFDBFE
+    style API fill:#F0FDF4,stroke:#BBF7D0
+    style DB fill:#FFF7ED,stroke:#FED7AA
+    style EXTERNAL fill:#FDF4FF,stroke:#E9D5FF
+    style PROXY fill:#F8FAFC,stroke:#CBD5E1
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Componente</th><th>Puerto</th><th>Tecnología</th><th>Notas</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Frontend</td><td>5001</td><td>Next.js 15 (App Router)</td><td>SSR + CSR, Tailwind CSS, Framer Motion</td></tr>
+      <tr><td>Backend API</td><td>5000</td><td>NestJS 10</td><td>REST + Socket.IO, Swagger en <code>/api/docs</code></td></tr>
+      <tr><td>Base de datos</td><td>5432</td><td>PostgreSQL 15 + Prisma</td><td>Multi-tenant via <code>tenantId</code> en cada tabla</td></tr>
+      <tr><td>Almacenamiento</td><td>9000</td><td>MinIO (S3-compatible)</td><td>Archivos, imágenes, PDFs de certificados</td></tr>
+      <tr><td>Video</td><td>—</td><td>Mux</td><td>Upload → webhook → playback URL</td></tr>
+      <tr><td>Pagos</td><td>—</td><td>Stripe</td><td>Suscripciones recurrentes + portal de facturación</td></tr>
+      <tr><td>Email</td><td>—</td><td>Resend</td><td>Invitaciones, notificaciones, contraseñas</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ DIAGRAMA 3 -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">03</div>
+    <div>
+      <h2>Modelo multi-tenant y sub-empresas</h2>
+      <p>Aislamiento de datos por empresa y jerarquía de tenants</p>
+    </div>
+  </div>
+  <p class="section-desc">
+    Cada empresa (<strong>Tenant</strong>) tiene sus propios usuarios, cursos y datos.
+    Los tenants <strong>Business/Enterprise</strong> pueden crear sub-empresas (tenants hijo).
+    El OWNER padre puede acceder a sus sub-empresas sin login separado vía
+    <code>POST /auth/switch-tenant</code> — se crea un usuario espejo automáticamente.
+  </p>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+graph TB
+    subgraph PARENT["Empresa Padre — Tenant A (OWNER: ana@empresa.com)"]
+        direction LR
+        P_USERS["👥 Usuarios A"]
+        P_COURSES["📚 Cursos A"]
+        P_SUBS["💳 Suscripción BUSINESS"]
+    end
+
+    subgraph CHILD1["Sub-empresa 1 — Tenant B (slug: division-norte)"]
+        direction LR
+        C1_USERS["👥 Usuarios B"]
+        C1_COURSES["📚 Cursos B"]
+        MIRROR1["🔑 Usuario espejo<br/>ana@empresa.com<br/>role: OWNER"]
+    end
+
+    subgraph CHILD2["Sub-empresa 2 — Tenant C (slug: division-sur)"]
+        direction LR
+        C2_USERS["👥 Usuarios C"]
+        C2_COURSES["📚 Cursos C"]
+        MIRROR2["🔑 Usuario espejo<br/>ana@empresa.com<br/>role: OWNER"]
+    end
+
+    PARENT -->|"parentTenantId"| CHILD1
+    PARENT -->|"parentTenantId"| CHILD2
+
+    SWITCH["POST /auth/switch-tenant<br/>{ childTenantId }"]
+    OWNER["👤 OWNER<br/>ana@empresa.com<br/>Token: Tenant A"]
+
+    OWNER -->|"Selecciona en dropdown"| SWITCH
+    SWITCH -->|"Tokens nuevos (Tenant B)"| CHILD1
+    SWITCH -->|"Tokens nuevos (Tenant C)"| CHILD2
+
+    style PARENT fill:#EFF6FF,stroke:#3B82F6
+    style CHILD1 fill:#F0FDF4,stroke:#22C55E
+    style CHILD2 fill:#FFF7ED,stroke:#F97316
+    style SWITCH fill:#F5F3FF,stroke:#8B5CF6
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item">
+      <div class="key">Roles del sistema</div>
+      <div class="val">OWNER · ADMIN · MANAGER · EMPLOYEE · SUPER_ADMIN</div>
+    </div>
+    <div class="legend-item">
+      <div class="key">Aislamiento</div>
+      <div class="val">Todos los recursos tienen <code>tenantId</code> — sin datos cruzados</div>
+    </div>
+    <div class="legend-item">
+      <div class="key">Slugs</div>
+      <div class="val">Globalmente únicos — usados para routing de login</div>
+    </div>
+    <div class="legend-item">
+      <div class="key">Usuario espejo</div>
+      <div class="val">Mismo email + passwordHash — creado al primer switch</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ DIAGRAMA 4 -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">04</div>
+    <div>
+      <h2>Flujo de autenticación</h2>
+      <p>Login normal, 2FA/MFA TOTP, tokens JWT y cambio de contexto de tenant</p>
+    </div>
+  </div>
+  <p class="section-desc">
+    Los <strong>access tokens</strong> expiran en 15 minutos. Los <strong>refresh tokens</strong>
+    duran 7 días y se rotan en cada uso (solo el hash SHA-256 se persiste en base de datos).
+    El 2FA usa TOTP (RFC 6238) — secret cifrado AES-256-GCM en la BD.
+  </p>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+sequenceDiagram
+    actor U as Usuario
+    participant F as Frontend
+    participant A as API /auth
+    participant DB as PostgreSQL
+
+    rect rgb(239, 246, 255)
+        Note over U,DB: Flujo 1 — Login estándar
+        U->>F: Ingresa email + contraseña + slug
+        F->>A: POST /auth/login
+        A->>DB: Buscar tenant por slug
+        A->>DB: Buscar user por tenantId+email
+        A->>A: bcrypt.compare(pwd, hash)
+        A->>DB: INSERT refresh_token (solo hash SHA-256)
+        A-->>F: { accessToken, refreshToken, user }
+        F->>F: localStorage.setItem(access_token, refresh_token, user)
+    end
+
+    rect rgb(240, 253, 244)
+        Note over U,DB: Flujo 2 — Login con 2FA activo
+        U->>F: Ingresa email + contraseña + slug
+        F->>A: POST /auth/login
+        A->>DB: mfaEnabled = true
+        A-->>F: { mfaPending: true, mfaToken (JWT 5min) }
+        F->>F: Muestra input OTP de 6 dígitos
+        U->>F: Ingresa código TOTP (Google Authenticator)
+        F->>A: POST /auth/mfa/verify { mfaToken, code }
+        A->>A: Valida TOTP o backup code
+        A->>DB: INSERT refresh_token
+        A-->>F: { accessToken, refreshToken, user }
+    end
+
+    rect rgb(255, 247, 237)
+        Note over U,DB: Flujo 3 — Renovación silenciosa de tokens
+        F->>A: Cualquier request con token expirado
+        A-->>F: 401 Unauthorized
+        F->>A: POST /auth/refresh { refreshToken }
+        A->>DB: Buscar hash(refreshToken), verificar no revocado
+        A->>DB: UPDATE refreshToken revokedAt=now
+        A->>DB: INSERT nuevo refreshToken
+        A-->>F: { accessToken, refreshToken } (nuevos)
+        F->>F: Actualiza localStorage, reintenta request original
+    end
+
+    rect rgb(245, 243, 255)
+        Note over U,DB: Flujo 4 — Switch de tenant (sub-empresa)
+        U->>F: Selecciona sub-empresa en dropdown
+        F->>F: Guarda sesión actual en parent_session
+        F->>A: POST /auth/switch-tenant { childTenantId }
+        A->>DB: Verifica child.parentTenantId = user.tenantId
+        A->>DB: findOrCreate usuario espejo en sub-empresa
+        A->>DB: INSERT refresh_token (contexto sub-empresa)
+        A-->>F: { accessToken, refreshToken, user } (sub-empresa)
+        F->>F: window.location.replace('/dashboard')
+    end
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ DIAGRAMA 5 -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">05</div>
+    <div>
+      <h2>Flujo de inscripción, progreso y certificados</h2>
+      <p>Desde la inscripción del empleado hasta la generación del certificado PDF</p>
+    </div>
+  </div>
+  <p class="section-desc">
+    Un empleado se inscribe en un curso publicado. Conforme completa lecciones (video, texto, archivo)
+    y pasa los quizzes, el progreso se registra. Al completar el 100%, se genera automáticamente
+    un certificado con PDF descargable y URL de verificación pública única.
+  </p>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TD
+    A([👤 Empleado accede al catálogo]) --> B{¿Inscrito?}
+    B -->|No| C[POST /enrollments\nstatus = ACTIVE\nprogressPct = 0]
+    B -->|Sí| D[GET /courses/:id/learn]
+    C --> D
+
+    D --> E[Selecciona lección]
+    E --> F{Tipo de lección}
+
+    F -->|VIDEO| G[Reproductor Mux\n+ tracking watchedSeconds]
+    F -->|TEXT| H[Editor de texto\ncontenido enriquecido]
+    F -->|FILE| I[Visor PDF/imagen\nMinIO presigned URL]
+
+    G --> J{¿Lección tiene Quiz?}
+    H --> J
+    I --> J
+
+    J -->|No| K[POST /lesson-progress\ncompleted = true]
+    J -->|Sí| L[Responder Quiz\nPOST /quiz/:id/submit]
+
+    L --> M{score ≥ passingScore?}
+    M -->|No| N[❌ Intento fallido\nSolicitar nuevo intento\nAdmin aprueba]
+    N --> L
+    M -->|Sí| O[✅ Quiz aprobado]
+    O --> K
+
+    K --> P[Recalcular progressPct\n= lecciones completadas / total]
+    P --> Q{progressPct = 100%?}
+
+    Q -->|No| D
+    Q -->|Sí| R[ENROLLMENT.status = COMPLETED]
+
+    R --> S[POST /certificates\nGenerar PDF con PDFKit]
+    S --> T[Subir PDF a MinIO]
+    T --> U[CERTIFICATE creado\npublicUuid para verificación]
+    U --> V[📧 Notificación WebSocket\n+ Email con certificado]
+    V --> W([🏆 Certificado disponible\nen /dashboard y URL pública])
+
+    style A fill:#EFF6FF,stroke:#3B82F6
+    style W fill:#F0FDF4,stroke:#22C55E
+    style N fill:#FEF2F2,stroke:#EF4444
+    style R fill:#F5F3FF,stroke:#8B5CF6
+    style S fill:#FFF7ED,stroke:#F97316
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ DIAGRAMA 6 -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">06</div>
+    <div>
+      <h2>Flujo de suscripciones y límites por plan</h2>
+      <p>Planes FREE / BUSINESS / ENTERPRISE y restricciones de recursos</p>
+    </div>
+  </div>
+  <p class="section-desc">
+    Al registrar una empresa se asigna el plan <strong>FREE</strong> automáticamente.
+    Los límites se validan en cada operación relevante (crear usuario, crear curso, crear sub-empresa).
+    El upgrade se gestiona mediante <strong>Stripe</strong> (actualmente en modo mock).
+  </p>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+    subgraph PLANS["Planes disponibles"]
+        FREE["🆓 FREE\n3 usuarios\n2 cursos\n1 GB storage\n0 sub-empresas"]
+        BUSINESS["💼 BUSINESS\n50 usuarios\n20 cursos\n10 GB storage\n5 sub-empresas"]
+        ENTERPRISE["🏢 ENTERPRISE\nIlimitado\nIlimitado\n100 GB storage\nIlimitado\n+ Dominio propio"]
+    end
+
+    subgraph CHECKS["Validaciones en API"]
+        V1["Crear usuario\n→ count(users) lt maxUsers"]
+        V2["Crear curso\n→ count(courses) lt maxCourses"]
+        V3["Subir archivo\n→ usedBytes + size ≤ maxStorageGb"]
+        V4["Crear sub-empresa\n→ count(children) lt maxCompanies"]
+        V5["Dominio personalizado\n→ plan = ENTERPRISE"]
+    end
+
+    FREE --> V1 & V2 & V3 & V4
+    BUSINESS --> V1 & V2 & V3 & V4
+    ENTERPRISE --> V1 & V2 & V3 & V4 & V5
+
+    V1 -->|"❌ 403 Forbidden"| ERR["Plan insuficiente\nRedirigir a /subscription"]
+    V2 -->|"❌ 403 Forbidden"| ERR
+    V3 -->|"❌ 403 Forbidden"| ERR
+    V4 -->|"❌ 403 Forbidden"| ERR
+
+    style FREE fill:#F0FDF4,stroke:#22C55E
+    style BUSINESS fill:#EFF6FF,stroke:#3B82F6
+    style ENTERPRISE fill:#F5F3FF,stroke:#8B5CF6
+    style ERR fill:#FEF2F2,stroke:#EF4444
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Plan</th><th>Usuarios</th><th>Cursos</th><th>Storage</th><th>Sub-empresas</th><th>Dominio propio</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>FREE</strong></td><td>3</td><td>2</td><td>1 GB</td><td>0</td><td>—</td></tr>
+      <tr><td><strong>BUSINESS</strong></td><td>50</td><td>20</td><td>10 GB</td><td>5</td><td>—</td></tr>
+      <tr><td><strong>ENTERPRISE</strong></td><td>∞</td><td>∞</td><td>100 GB</td><td>∞</td><td>✓</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ DIAGRAMA 7 -->
+<div class="section" style="page-break-after: auto;">
+  <div class="section-header">
+    <div class="section-num">07</div>
+    <div>
+      <h2>Referencia de entidades</h2>
+      <p>Campos, tipos, claves y relaciones de las tablas principales</p>
+    </div>
+  </div>
+
+  <p class="section-desc">
+    Convenciones: <span class="tag tag-pk">PK</span> Clave primaria &nbsp;
+    <span class="tag tag-fk">FK</span> Clave foránea &nbsp;
+    <span class="tag tag-uk">UK</span> Unique constraint.
+    Todos los IDs son <code>cuid()</code> de Prisma. Soft-delete vía <code>deletedAt</code>.
+  </p>
+
+  <table>
+    <thead><tr><th>Entidad</th><th>Campo clave</th><th>Descripción</th><th>Relaciones principales</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Tenant</strong></td>
+        <td><code>slug</code> <span class="tag tag-uk">UK</span></td>
+        <td>Empresa o sub-empresa. Identidad de login.</td>
+        <td>→ Users, Courses, Subscription, StorageUsage</td>
+      </tr>
+      <tr>
+        <td><strong>User</strong></td>
+        <td><code>tenantId+email</code> <span class="tag tag-uk">UK</span></td>
+        <td>Un email puede existir en varios tenants (espejo).</td>
+        <td>→ RefreshTokens, Enrollments, Certificates</td>
+      </tr>
+      <tr>
+        <td><strong>Course</strong></td>
+        <td><code>status</code>: DRAFT / PUBLISHED / ARCHIVED</td>
+        <td>Solo cursos PUBLISHED son visibles al empleado.</td>
+        <td>→ Modules → Lessons → Quiz</td>
+      </tr>
+      <tr>
+        <td><strong>Enrollment</strong></td>
+        <td><code>userId+courseId</code> <span class="tag tag-uk">UK</span></td>
+        <td>Un usuario no puede inscribirse dos veces al mismo curso.</td>
+        <td>→ LessonProgress → Certificate</td>
+      </tr>
+      <tr>
+        <td><strong>Certificate</strong></td>
+        <td><code>publicUuid</code> <span class="tag tag-uk">UK</span></td>
+        <td>URL pública de verificación. No requiere auth.</td>
+        <td>→ Enrollment, User, Tenant, Course</td>
+      </tr>
+      <tr>
+        <td><strong>RefreshToken</strong></td>
+        <td><code>tokenHash</code> <span class="tag tag-uk">UK</span></td>
+        <td>Solo el hash SHA-256 se guarda. El token raw nunca se persiste.</td>
+        <td>→ User</td>
+      </tr>
+      <tr>
+        <td><strong>Plan</strong></td>
+        <td><code>type</code>: FREE / BUSINESS / ENTERPRISE</td>
+        <td>Límites de recursos por tenant. Seeded en migraciones.</td>
+        <td>→ Subscriptions</td>
+      </tr>
+      <tr>
+        <td><strong>UserInvite</strong></td>
+        <td><code>tokenHash</code> — expira en 7 días</td>
+        <td>Invitación pendiente de aceptar. Se convierte en User al registrarse.</td>
+        <td>→ Tenant, invitedBy User</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor:       '#EFF6FF',
+      primaryTextColor:   '#0B1F2A',
+      primaryBorderColor: '#3B82F6',
+      lineColor:          '#8FC4E8',
+      secondaryColor:     '#F0FDF4',
+      tertiaryColor:      '#FFF7ED',
+      background:         '#ffffff',
+      mainBkg:            '#EFF6FF',
+      nodeBorder:         '#3B82F6',
+      clusterBkg:         '#F8FAFC',
+      titleColor:         '#1E4F7A',
+      edgeLabelBackground:'#ffffff',
+      fontFamily:         "'Segoe UI', system-ui, sans-serif",
+    },
+    er: { diagramPadding: 20, layoutDirection: 'TB', minEntityWidth: 100, minEntityHeight: 75 },
+    sequence: { diagramMarginX: 20, diagramMarginY: 10, actorMargin: 50, useMaxWidth: true },
+    flowchart: { curve: 'basis', useMaxWidth: true },
+  });
+</script>
+</body>
+</html>

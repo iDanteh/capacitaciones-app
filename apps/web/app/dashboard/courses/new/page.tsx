@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/capta-icon';
+import { useToast } from '@/components/toast';
 
 // Icon aliases for inline usage
 const ArrowLeft   = (p: { size?: number; className?: string }) => <Icon name="arrow-left"    size={p.size} className={p.className} />;
@@ -33,6 +34,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function NewCoursePage() {
   const router = useRouter();
+  const { error: toastError } = useToast();
   const [thumbnail,        setThumbnail]        = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [uploadingThumb,   setUploadingThumb]   = useState(false);
@@ -101,6 +103,7 @@ export default function NewCoursePage() {
       setUploadingThumb(false);
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setServerError(msg ?? 'Ocurrió un error al crear el curso.');
+      toastError(msg ?? 'No pudimos crear el curso. Verifica tu conexión e intenta de nuevo.');
     }
   };
 

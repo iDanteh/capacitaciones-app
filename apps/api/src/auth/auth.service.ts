@@ -248,6 +248,73 @@ export class AuthService {
     };
   }
 
+  // ── Switch tenant ──────────────────────────────────────────────────────────
+
+  /**
+   * Permite al OWNER de una empresa padre acceder a una sub-empresa
+   * sin necesidad de un login separado.
+   *
+   * Si el usuario padre aún no tiene cuenta en la sub-empresa, se crea
+   * un usuario espejo (mismas credenciales) con rol OWNER.
+   */
+  async switchTenant(
+    userId:         string,
+    parentTenantId: string,
+    childTenantId:  string,
+  ): Promise<AuthResponse> {
+    // 1. Verificar que la sub-empresa pertenece al tenant padre
+    const child = await this.prisma.tenant.findFirst({
+      where: { id: childTenantId, parentTenantId, deletedAt: null, isActive: true },
+    });
+    if (!child) {
+      throw new ForbiddenException('No tienes acceso a esta empresa.');
+    }
+
+    // 2. Obtener usuario padre
+    const parentUser = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId: parentTenantId, deletedAt: null, isActive: true },
+    });
+    if (!parentUser) {
+      throw new UnauthorizedException('Usuario no encontrado.');
+    }
+
+    // 3. Buscar o crear usuario espejo en la sub-empresa
+    let childUser = await this.prisma.user.findUnique({
+      where: { tenantId_email: { tenantId: childTenantId, email: parentUser.email } },
+    });
+
+    if (!childUser) {
+      childUser = await this.prisma.user.create({
+        data: {
+          tenantId:     childTenantId,
+          email:        parentUser.email,
+          passwordHash: parentUser.passwordHash,
+          firstName:    parentUser.firstName,
+          lastName:     parentUser.lastName,
+          role:         'OWNER',
+        },
+      });
+      this.logger.log(`Usuario espejo creado para ${parentUser.email} en tenant ${childTenantId}`);
+    }
+
+    const tokens = await this.issueTokenPair(
+      childUser.id, childUser.email, childTenantId, childUser.role, child.slug,
+    );
+
+    return {
+      ...tokens,
+      user: {
+        id:         childUser.id,
+        email:      childUser.email,
+        firstName:  childUser.firstName,
+        lastName:   childUser.lastName,
+        role:       childUser.role,
+        tenantId:   childTenantId,
+        tenantSlug: child.slug,
+      },
+    };
+  }
+
   // ── Refresh ────────────────────────────────────────────────────────────────
 
   /**

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/capta-icon';
 import { api } from '@/lib/api';
+import { MarkdownRenderer } from '@/components/markdown/markdown-renderer';
 
 // Icon aliases
 const ArrowLeft    = (p: { size?: number; className?: string }) => <Icon name="arrow-left"    size={p.size} className={p.className} />;
@@ -99,6 +100,7 @@ interface EvaluationData {
   maxAttempts: number;
   timeLimit: number | null;
   isRequired: boolean;
+  showAnswers: boolean;
   questions: QuizQuestion[];
   attemptsUsed: number;
   bestScore: number | null;
@@ -112,7 +114,7 @@ interface AnswerResult {
   selectedOptionId: string;
   isCorrect: boolean;
   explanation: string | null;
-  correctOptionId: string;
+  correctOptionId: string | null;
 }
 
 interface AttemptResult {
@@ -666,7 +668,7 @@ function QuizPanel({
             const selectedText = ans.selectedOptionId
               ? getOptionText(ans.questionId, ans.selectedOptionId)
               : null;
-            const correctText = getOptionText(ans.questionId, ans.correctOptionId);
+            const correctText = ans.correctOptionId ? getOptionText(ans.questionId, ans.correctOptionId) : null;
 
             return (
               <div
@@ -767,81 +769,6 @@ function QuizPanel({
       {phase === 'result' && renderResult()}
     </AnimatePresence>
   );
-}
-
-// ─── Renderer de Markdown inline ─────────────────────────────────────────────
-// Soporta: h1-h3, listas (-/*), código inline (`code`), negrita (**), cursiva (*),
-// separador (---), líneas vacías y párrafos normales.
-
-function renderInline(text: string): React.ReactNode[] {
-  // Tokeniza negrita, cursiva y código inline
-  const tokens = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
-  return tokens.map((tok, i) => {
-    if (tok.startsWith('**') && tok.endsWith('**'))
-      return <strong key={i}>{tok.slice(2, -2)}</strong>;
-    if (tok.startsWith('*') && tok.endsWith('*'))
-      return <em key={i}>{tok.slice(1, -1)}</em>;
-    if (tok.startsWith('`') && tok.endsWith('`'))
-      return (
-        <code key={i}
-          className="rounded px-1 py-0.5 text-[0.8em] font-mono"
-          style={{ background: 'hsl(var(--muted))', color: 'hsl(var(--foreground))' }}>
-          {tok.slice(1, -1)}
-        </code>
-      );
-    return tok;
-  });
-}
-
-function MarkdownRenderer({ content }: { content: string }) {
-  const lines = content.split('\n');
-  const elements: React.ReactNode[] = [];
-  let listItems: React.ReactNode[] = [];
-
-  const flushList = () => {
-    if (listItems.length > 0) {
-      elements.push(
-        <ul key={`ul-${elements.length}`} className="ml-5 space-y-1 list-disc marker:text-muted-foreground/60">
-          {listItems}
-        </ul>,
-      );
-      listItems = [];
-    }
-  };
-
-  lines.forEach((line, i) => {
-    if (line.startsWith('# ')) {
-      flushList();
-      elements.push(<h1 key={i} className="text-2xl font-bold mt-7 mb-3 text-foreground">{renderInline(line.slice(2))}</h1>);
-    } else if (line.startsWith('## ')) {
-      flushList();
-      elements.push(<h2 key={i} className="text-xl font-semibold mt-5 mb-2 text-foreground">{renderInline(line.slice(3))}</h2>);
-    } else if (line.startsWith('### ')) {
-      flushList();
-      elements.push(<h3 key={i} className="text-base font-semibold mt-4 mb-1 text-foreground">{renderInline(line.slice(4))}</h3>);
-    } else if (line.startsWith('- ') || line.startsWith('* ')) {
-      listItems.push(<li key={i} className="text-sm leading-relaxed">{renderInline(line.slice(2))}</li>);
-    } else if (line.match(/^\d+\.\s/)) {
-      flushList();
-      elements.push(
-        <ol key={i} className="ml-5 list-decimal marker:text-muted-foreground/60">
-          <li className="text-sm leading-relaxed">{renderInline(line.replace(/^\d+\.\s/, ''))}</li>
-        </ol>,
-      );
-    } else if (line.trim() === '---' || line.trim() === '***') {
-      flushList();
-      elements.push(<hr key={i} className="my-4 border-border" />);
-    } else if (line.trim() === '') {
-      flushList();
-      elements.push(<div key={i} className="h-2" />);
-    } else {
-      flushList();
-      elements.push(<p key={i} className="text-sm leading-relaxed text-foreground">{renderInline(line)}</p>);
-    }
-  });
-  flushList();
-
-  return <div className="space-y-1">{elements}</div>;
 }
 
 // ─── Árbol de lecciones ───────────────────────────────────────────────────────

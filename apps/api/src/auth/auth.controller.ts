@@ -23,6 +23,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { MfaVerifyDto } from './dto/mfa-verify.dto';
 import { MfaConfirmDto } from './dto/mfa-confirm.dto';
 import { MfaDisableDto } from './dto/mfa-disable.dto';
+import { SwitchTenantDto } from './dto/switch-tenant.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -100,6 +101,22 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Payload del JWT.' })
   me(@CurrentUser() user: JwtPayload) {
     return user;
+  }
+
+  // ── Switch tenant ──────────────────────────────────────────────────────────
+
+  @Post('switch-tenant')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cambiar contexto a una sub-empresa (solo OWNER)' })
+  @ApiResponse({ status: 200, description: 'Contexto cambiado. Retorna nuevos tokens + usuario de la sub-empresa.' })
+  @ApiResponse({ status: 403, description: 'No tienes acceso a esta empresa o no es una sub-empresa tuya.' })
+  switchTenant(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: SwitchTenantDto,
+  ) {
+    return this.authService.switchTenant(user.sub, user.tenantId, dto.childTenantId);
   }
 
   // ── 2FA / MFA ──────────────────────────────────────────────────────────────

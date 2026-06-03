@@ -34,6 +34,8 @@ export class EvaluationForStudentDto {
   maxAttempts:  number;
   timeLimit:    number | null;
   isRequired:   boolean;
+  /// Si false, las respuestas correctas no se revelan al reprobar con intentos restantes.
+  showAnswers:  boolean;
   questions:    QuestionForStudentDto[];
   /// Intentos ya realizados por el usuario en esta evaluación
   attemptsUsed: number;
@@ -71,6 +73,8 @@ export class EvaluationForAdminDto {
   maxAttempts:  number;
   timeLimit:    number | null;
   isRequired:   boolean;
+  /// Si false, las respuestas correctas no se revelan al reprobar con intentos restantes.
+  showAnswers:  boolean;
   questions:    QuestionForAdminDto[];
   createdAt:    Date;
   updatedAt:    Date;
@@ -97,8 +101,8 @@ export class AnswerResultDto {
   selectedOptionId: string;
   isCorrect:    boolean;
   explanation:  string | null;
-  /// Opción correcta (solo se revela tras el intento)
-  correctOptionId: string;
+  /// Opción correcta. null cuando showAnswers=false y el estudiante reprueba con intentos restantes.
+  correctOptionId: string | null;
 }
 
 export class AttemptResultDto {

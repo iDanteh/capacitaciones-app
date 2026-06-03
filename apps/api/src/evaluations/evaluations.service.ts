@@ -77,10 +77,11 @@ export class EvaluationsService {
         lessonId,
         title:        dto.title,
         instructions: dto.instructions,
-        minScore:     dto.minScore   ?? 70,
+        minScore:     dto.minScore    ?? 70,
         maxAttempts:  dto.maxAttempts ?? 3,
         timeLimit:    dto.timeLimit,
-        isRequired:   dto.isRequired ?? false,
+        isRequired:   dto.isRequired  ?? false,
+        showAnswers:  dto.showAnswers  ?? true,
         questions: dto.questions?.length
           ? {
               create: dto.questions.map((q, qi) => ({
@@ -130,6 +131,7 @@ export class EvaluationsService {
         maxAttempts:  dto.maxAttempts,
         timeLimit:    dto.timeLimit,
         isRequired:   dto.isRequired,
+        showAnswers:  dto.showAnswers,
       },
       include: this.adminInclude(),
     });
@@ -255,6 +257,7 @@ export class EvaluationsService {
       maxAttempts:  evaluation.maxAttempts,
       timeLimit:    evaluation.timeLimit,
       isRequired:   evaluation.isRequired,
+      showAnswers:  evaluation.showAnswers,
       questions,
       attemptsUsed,
       bestScore,
@@ -381,13 +384,21 @@ export class EvaluationsService {
       `Intento ${attemptsUsed} — usuario ${userId}, evaluación ${evaluationId}, score=${score}, passed=${passed}`,
     );
 
+    // Si showAnswers=false y el estudiante reprueba con intentos restantes, ocultar respuestas correctas
+    const hideCorrectAnswers =
+      !evaluation.showAnswers &&
+      !passed &&
+      (attemptsRemaining === null || attemptsRemaining > 0);
+
     return {
       attemptId:         attempt.id,
       score,
       passed,
       minScore:          evaluation.minScore,
       completedAt:       attempt.completedAt,
-      answers:           answerResults,
+      answers: hideCorrectAnswers
+        ? answerResults.map(a => ({ ...a, correctOptionId: null, explanation: null }))
+        : answerResults,
       message,
       attemptsUsed,
       attemptsRemaining,
@@ -736,6 +747,7 @@ export class EvaluationsService {
       maxAttempts:  evaluation.maxAttempts,
       timeLimit:    evaluation.timeLimit,
       isRequired:   evaluation.isRequired,
+      showAnswers:  evaluation.showAnswers,
       createdAt:    evaluation.createdAt,
       updatedAt:    evaluation.updatedAt,
       attemptCount: evaluation._count?.attempts ?? 0,

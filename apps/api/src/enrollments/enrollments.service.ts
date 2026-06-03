@@ -146,6 +146,15 @@ export class EnrollmentsService {
       throw new ForbiddenException('No puedes actualizar el progreso de una inscripción cancelada');
     }
 
+    // Verificar que el curso sigue publicado (bloqueado si fue archivado)
+    const course = await this.prisma.course.findUnique({
+      where:  { id: enrollment.courseId },
+      select: { status: true },
+    });
+    if (course?.status !== CourseStatus.PUBLISHED) {
+      throw new ForbiddenException('Este curso ya no está disponible');
+    }
+
     // Registrar/actualizar progreso de la lección
     await this.prisma.lessonProgress.upsert({
       where:  { enrollmentId_lessonId: { enrollmentId, lessonId } },

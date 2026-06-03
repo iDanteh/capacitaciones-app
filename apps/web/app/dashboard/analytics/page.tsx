@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from 'recharts';
 import { Icon, type IconName } from '@/components/capta-icon';
 import { api } from '@/lib/api';
+import { useToast } from '@/components/toast';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -260,16 +261,27 @@ function WeeklyChart({ data }: { data: ChartPoint[] }) {
       </div>
 
       {/* Chart or empty */}
+      <AnimatePresence mode="wait">
       {isEmpty ? (
-        <div className="flex flex-col items-center justify-center h-64 text-center px-6">
+        <motion.div
+          key="empty"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="flex flex-col items-center justify-center h-64 text-center px-6"
+        >
           <Icon name="chart-bar" size={32} className="text-muted-foreground/20 mb-3" />
           <p className="text-sm text-muted-foreground">Sin actividad en los últimos 7 días.</p>
           <p className="text-xs text-muted-foreground/50 mt-1">
             Los datos aparecerán conforme los empleados interactúen con la plataforma.
           </p>
-        </div>
+        </motion.div>
       ) : (
-        <div className="px-6 pt-6 pb-4">
+        <motion.div
+          key={view}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="px-6 pt-6 pb-4"
+        >
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
               <defs>
@@ -324,8 +336,9 @@ function WeeklyChart({ data }: { data: ChartPoint[] }) {
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -333,6 +346,10 @@ function WeeklyChart({ data }: { data: ChartPoint[] }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
+  const { error: toastError } = useToast();
+  const toastErrorRef = useRef(toastError);
+  useEffect(() => { toastErrorRef.current = toastError; }, [toastError]);
+
   const [overview,   setOverview]   = useState<Overview | null>(null);
   const [courses,    setCourses]    = useState<CourseStat[]>([]);
   const [employees,  setEmployees]  = useState<EmployeeStat[]>([]);
@@ -364,7 +381,10 @@ export default function AnalyticsPage() {
         setEmployees(em.data);
         setWeekly(wk.data);
       })
-      .catch(() => setError('No se pudieron cargar las analíticas.'))
+      .catch(() => {
+        setError('No se pudieron cargar las analíticas.');
+        toastErrorRef.current('No pudimos cargar los datos de analíticas. Intenta recargar.');
+      })
       .finally(() => { setLoading(false); setRefreshing(false); });
   }, []);
 
@@ -452,6 +472,9 @@ export default function AnalyticsPage() {
       {/* ── Gráfica semanal ── */}
       {chartData.length > 0 && <WeeklyChart data={chartData} />}
 
+      {/* ── Tablas de cursos y empleados — lado a lado en pantallas grandes ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
       {/* ── Tabla de cursos ── */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -527,9 +550,9 @@ export default function AnalyticsPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody>
-                {sortedCourses.map((c, i) => (
-                  <tr key={c.id} className={`border-b border-border last:border-0 ${i % 2 !== 0 ? 'bg-muted/10' : ''}`}>
+              <tbody className="divide-y divide-border/60">
+                {sortedCourses.map(c => (
+                  <tr key={c.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-6 py-3.5">
                       <p className="font-medium text-foreground line-clamp-1">{c.title}</p>
                       <p className="text-xs text-muted-foreground">{c.totalLessons} lecciones</p>
@@ -566,7 +589,7 @@ export default function AnalyticsPage() {
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.16 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.14 }}
         className="rounded-2xl border border-border bg-card overflow-hidden"
         style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
       >
@@ -638,9 +661,9 @@ export default function AnalyticsPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody>
-                {sortedEmployees.map((e, i) => (
-                  <tr key={e.id} className={`border-b border-border last:border-0 ${i % 2 !== 0 ? 'bg-muted/10' : ''}`}>
+              <tbody className="divide-y divide-border/60">
+                {sortedEmployees.map(e => (
+                  <tr key={e.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-6 py-3.5">
                       <p className="font-medium text-foreground">{e.name}</p>
                       <p className="text-xs text-muted-foreground">{e.email}</p>
@@ -672,6 +695,8 @@ export default function AnalyticsPage() {
           </div>
         )}
       </motion.div>
+
+      </div>{/* fin grid cursos+empleados */}
 
     </div>
   );

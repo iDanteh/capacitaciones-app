@@ -472,6 +472,8 @@ model Evaluation {
   timeLimit    Int?
   /// Si true, el empleado debe aprobar para continuar al siguiente recurso.
   isRequired   Boolean @default(false)
+  /// Si false, las respuestas correctas NO se revelan al reprobar teniendo intentos restantes.
+  showAnswers  Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
