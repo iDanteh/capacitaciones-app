@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { refreshSocketToken } from './socket';
 
 /**
  * Instancia de Axios preconfigurada para comunicarse con el API.
@@ -13,17 +14,22 @@ import axios from 'axios';
  *                 Los requests concurrentes se encolan para no lanzar
  *                 múltiples refreshes en paralelo.
  */
+// Fallback a localhost para que la app funcione sin configurar NEXT_PUBLIC_API_URL en dev.
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 });
 
-// ── Request: adjunta access token ─────────────────────────────────────────────
+// ── Request: adjunta access token y tenant slug ───────────────────────────────
 
 api.interceptors.request.use((config) => {
   if (typeof window === 'undefined') return config;
   const token = localStorage.getItem('access_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  const tenantSlug = localStorage.getItem('tenant_slug');
+  if (tenantSlug) config.headers['X-Tenant-Slug'] = tenantSlug;
   return config;
 });
 
@@ -72,7 +78,7 @@ api.interceptors.response.use(
 
       // El endpoint /auth/refresh espera { refreshToken } en el body
       const { data } = await axios.post<{ accessToken: string; refreshToken: string }>(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
+        `${API_BASE}/auth/refresh`,
         { refreshToken },
       );
 
@@ -81,12 +87,18 @@ api.interceptors.response.use(
       api.defaults.headers.common.Authorization = `Bearer ${data.accessToken}`;
       original.headers.Authorization = `Bearer ${data.accessToken}`;
 
+      // Actualizar el socket con el nuevo token — si estaba conectado, reconecta
+      // inmediatamente para que el gateway valide las nuevas credenciales.
+      try { refreshSocketToken(data.accessToken); } catch { /* socket no inicializado */ }
+
       flushQueue(null, data.accessToken);
       return api(original);
     } catch (refreshError) {
       flushQueue(refreshError);
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
+      localStorage.removeItem('tenant_slug');
+      localStorage.removeItem('user');
       if (typeof window !== 'undefined') window.location.href = '/login';
       return Promise.reject(refreshError);
     } finally {

@@ -19,7 +19,7 @@ class EnvironmentVariables {
 
   @IsNumber()
   @IsOptional()
-  PORT: number = 3001;
+  PORT: number = 5000;
 
   @IsString()
   DATABASE_URL: string;
@@ -40,7 +40,19 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
+  STRIPE_WEBHOOK_SECRET: string;
+
+  @IsString()
+  @IsOptional()
   FRONTEND_URL: string;
+
+  @IsString()
+  @IsOptional()
+  MFA_ENCRYPTION_KEY: string;
+
+  @IsString()
+  @IsOptional()
+  MFA_JWT_SECRET: string;
 }
 
 export function validate(config: Record<string, unknown>) {

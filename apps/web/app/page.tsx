@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { CaptaLogo } from '@/components/capta-logo';
+import { Icon } from '@/components/capta-icon';
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
 
@@ -6,36 +9,32 @@ function Navbar() {
   return (
     <header className="fixed top-0 z-50 w-full">
       <div className="mx-auto mt-3 max-w-6xl px-4">
-        <div className="flex h-14 items-center justify-between rounded-2xl border border-navy/10 bg-white/80 px-5 shadow-sm shadow-navy/5 backdrop-blur-xl">
-          {/* Logo placeholder */}
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky to-navy shadow-sm shadow-sky/30">
-              <span className="text-xs font-bold text-white">L</span>
-            </div>
-            <span className="text-sm font-semibold text-navy tracking-tight">LMS</span>
-          </div>
+        <div className="flex h-14 items-center justify-between rounded-2xl border border-border/80 bg-background/88 px-5 shadow-sm shadow-black/4 backdrop-blur-xl">
+          <CaptaLogo markSize={26} showText />
 
-          {/* Nav links */}
-          <nav className="hidden items-center gap-8 md:flex">
+          <nav className="hidden items-center gap-7 md:flex">
             {[
-              { label: 'Características', href: '#caracteristicas' },
-              { label: 'Precios', href: '#precios' },
+              { label: 'Producto', href: '#caracteristicas' },
+              { label: 'Precios',  href: '#precios' },
+              { label: 'Clientes', href: '#clientes' },
             ].map(({ label, href }) => (
               <a key={label} href={href}
-                className="text-sm text-muted-foreground transition-colors hover:text-navy">
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
                 {label}
               </a>
             ))}
           </nav>
 
-          {/* CTAs */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
+            <div className="mx-1 h-4 w-px bg-border" aria-hidden />
             <Link href="/login"
-              className="rounded-xl px-4 py-2 text-sm font-medium text-navy/70 transition-all hover:bg-secondary hover:text-navy">
+              className="rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground">
               Iniciar sesión
             </Link>
             <Link href="/register"
-              className="rounded-xl bg-gradient-to-r from-navy to-[#0E6FAD] px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-navy/20 transition-all hover:shadow-navy/40 hover:scale-105 active:scale-95">
+              className="rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all hover:scale-[1.03] active:scale-[0.97]"
+              style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 8px rgba(30,79,122,0.3)' }}>
               Comenzar gratis
             </Link>
           </div>
@@ -49,100 +48,180 @@ function Navbar() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-white px-6 pb-24 pt-36">
-      {/* Gradiente suave de fondo */}
-      <div aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          background:
-            'radial-gradient(ellipse 70% 50% at 50% -5%, #5AC8FA18 0%, transparent 65%),' +
-            'radial-gradient(ellipse 40% 30% at 85% 20%, #14B8A610 0%, transparent 60%),' +
-            'radial-gradient(ellipse 30% 25% at 10% 30%, #0B5A8C08 0%, transparent 50%)',
-        }}
-      />
-      {/* Dot grid decorativo */}
-      <div aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.025]"
-        style={{
-          backgroundImage: 'radial-gradient(#0B5A8C 1px, transparent 1px)',
-          backgroundSize: '28px 28px',
-        }}
-      />
+    <section className="relative overflow-hidden bg-background px-6 pb-20 pt-36">
+      {/* Radial gradient fondo */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(ellipse 75% 50% at 50% -8%, rgba(143,196,232,0.12) 0%, transparent 60%),' +
+              'radial-gradient(ellipse 45% 35% at 80% 15%, rgba(127,209,174,0.08) 0%, transparent 55%),' +
+              'radial-gradient(ellipse 30% 25% at 15% 25%, rgba(30,79,122,0.06) 0%, transparent 50%)',
+          }}
+        />
+        {/* Dot grid */}
+        <div className="absolute inset-0 opacity-[0.04] dark:opacity-[0.07]"
+          style={{
+            backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
+          }}
+        />
+      </div>
 
       <div className="mx-auto max-w-5xl text-center">
         {/* Badge */}
-        <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-sky/25 bg-sky/5 px-4 py-1.5">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky" />
-          <span className="text-xs font-medium text-navy/80">Plataforma de capacitación empresarial</span>
+        <div className="mb-7 inline-flex items-center gap-2 rounded-full border px-4 py-1.5"
+          style={{ borderColor: 'rgba(143,196,232,0.3)', background: 'rgba(143,196,232,0.06)' }}>
+          <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full" style={{ background: '#7FD1AE' }} />
+          <span className="text-xs font-semibold tracking-wide text-muted-foreground">
+            Capacitación empresarial · Todo en uno
+          </span>
         </div>
 
         {/* Headline */}
-        <h1 className="mx-auto max-w-4xl text-5xl font-bold leading-[1.1] tracking-tight text-foreground sm:text-6xl lg:text-7xl">
+        <h1 className="mx-auto max-w-4xl text-5xl font-semibold leading-[1.08] tracking-tight text-foreground sm:text-6xl lg:text-[68px]">
           Capacita a tu equipo.{' '}
-          <span className="bg-clip-text text-transparent"
-            style={{ backgroundImage: 'linear-gradient(135deg, #0B5A8C 0%, #5AC8FA 55%, #14B8A6 100%)' }}>
+          <span
+            className="bg-clip-text text-transparent"
+            style={{ backgroundImage: 'linear-gradient(135deg, #1E4F7A 0%, #8FC4E8 50%, #7FD1AE 100%)' }}
+          >
             Escala tu empresa.
           </span>
         </h1>
 
-        <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-          Una plataforma centralizada para crear cursos, asignar capacitaciones y medir
-          el progreso de cada colaborador — sin importar el tamaño de tu organización.
+        <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+          Crea cursos, asigna capacitaciones y mide el progreso de cada colaborador
+          desde una sola plataforma — sin importar el tamaño de tu organización.
         </p>
 
         {/* CTAs */}
-        <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link href="/register"
-            className="group relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-navy to-[#0E6FAD] px-8 py-4 text-base font-semibold text-white shadow-lg shadow-navy/20 transition-all hover:shadow-navy/40 hover:scale-105 active:scale-95 sm:w-auto">
-            Comenzar gratis
+            className="group relative w-full overflow-hidden rounded-2xl px-8 py-4 text-base font-semibold text-white transition-all hover:scale-[1.03] hover:shadow-lg active:scale-[0.97] sm:w-auto"
+            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 6px 28px rgba(30,79,122,0.28)' }}>
+            <span className="relative z-10">Comenzar gratis</span>
+            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
           </Link>
-          <Link href="/login"
-            className="w-full rounded-2xl border border-border bg-white px-8 py-4 text-base font-semibold text-foreground transition-all hover:border-navy/25 hover:bg-secondary hover:text-navy sm:w-auto">
-            Iniciar sesión
-          </Link>
+          <a href="#caracteristicas"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background px-8 py-4 text-base font-semibold text-foreground transition-all hover:border-capta-soft/40 hover:bg-muted sm:w-auto">
+            <Icon name="play" size={14} className="text-capta-deep dark:text-capta-soft" />
+            Ver demo · 2 min
+          </a>
         </div>
-        <p className="mt-4 text-xs text-muted-foreground/60">Sin tarjeta de crédito · Plan gratuito disponible</p>
+        <p className="mt-4 text-xs font-medium text-muted-foreground/50">
+          Sin tarjeta de crédito · Plan gratuito disponible
+        </p>
       </div>
 
       {/* Browser mockup */}
-      <div className="mx-auto mt-20 max-w-5xl">
+      <div className="mx-auto mt-16 max-w-5xl">
         <div className="relative">
-          {/* Glow detrás */}
-          <div aria-hidden="true"
-            className="absolute -inset-3 -z-10 rounded-3xl opacity-40 blur-2xl"
-            style={{ background: 'linear-gradient(135deg, #5AC8FA30, #0B5A8C20, #14B8A620)' }}
+          <div aria-hidden
+            className="absolute -inset-4 -z-10 rounded-3xl opacity-25 blur-3xl"
+            style={{ background: 'linear-gradient(135deg, rgba(143,196,232,0.4), rgba(30,79,122,0.2), rgba(127,209,174,0.3))' }}
           />
-          <div className="overflow-hidden rounded-2xl border border-navy/10 shadow-2xl shadow-navy/10">
-            {/* Barra browser */}
-            <div className="flex items-center gap-1.5 border-b border-navy/8 bg-frost px-4 py-3">
+          <div className="overflow-hidden rounded-2xl border border-border shadow-card-lg">
+            {/* Browser bar */}
+            <div className="flex items-center gap-1.5 border-b border-border bg-muted/60 px-4 py-2.5">
               <span className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
               <span className="h-2.5 w-2.5 rounded-full bg-yellow-400/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-green-400/70" />
-              <div className="ml-4 flex-1 rounded-lg border border-navy/8 bg-white/60 px-3 py-1 text-xs text-muted-foreground/60">
-                app.tudominio.com/dashboard
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
+              <div className="ml-4 flex flex-1 items-center gap-2 rounded-lg border border-border bg-background/60 px-3 py-1">
+                <div className="h-2 w-2 rounded-full opacity-50"
+                  style={{ background: 'linear-gradient(135deg, #1F5C4D, #7FD1AE)' }} />
+                <span className="text-xs text-muted-foreground/50">app.capta.io/dashboard</span>
               </div>
             </div>
-            {/* Preview area */}
-            <div className="flex min-h-[360px] items-center justify-center p-8 sm:min-h-[460px]"
-              style={{ background: 'linear-gradient(180deg, #F4F8FB 0%, #FFFFFF 100%)' }}>
-              <div className="w-full max-w-2xl space-y-3 opacity-30">
-                <div className="grid grid-cols-3 gap-3">
-                  {[`#5AC8FA`, `#14B8A6`, `#0B5A8C`].map((c, i) => (
-                    <div key={i} className="h-16 rounded-xl border"
-                      style={{ borderColor: `${c}30`, background: `${c}10` }} />
+            {/* Dashboard preview */}
+            <div className="flex min-h-[380px] bg-background sm:min-h-[440px]">
+              {/* Fake sidebar */}
+              <div className="hidden w-[180px] flex-shrink-0 border-r border-border bg-card p-4 sm:block">
+                <div className="mb-5 flex items-center gap-2">
+                  <div className="h-5 w-5 rounded-md"
+                    style={{ background: 'linear-gradient(135deg, #1F5C4D, #7FD1AE)' }} />
+                  <div className="h-2.5 w-12 rounded bg-muted" />
+                </div>
+                <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/30">Plataforma</p>
+                <div className="space-y-1">
+                  {[false, true, false, false, false].map((active, i) => (
+                    <div key={i} className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 ${active ? 'bg-capta-tint/60' : ''}`}>
+                      <div className={`h-3 w-3 rounded-sm ${active ? 'opacity-60' : 'opacity-20'}`}
+                        style={{ background: active ? '#1E4F7A' : 'currentColor' }} />
+                      <div className={`h-2 w-full rounded ${active ? 'opacity-30' : 'opacity-10'}`}
+                        style={{ background: active ? '#1E4F7A' : 'currentColor' }} />
+                    </div>
                   ))}
                 </div>
-                <div className="h-40 rounded-xl border border-navy/10 bg-white" />
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="h-24 rounded-xl border border-navy/10 bg-white" />
-                  <div className="h-24 rounded-xl border border-navy/10 bg-white" />
+              </div>
+              {/* Content */}
+              <div className="flex-1 space-y-4 p-5">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1.5">
+                    <div className="h-3 w-36 rounded bg-foreground/12" />
+                    <div className="h-2 w-52 rounded bg-muted-foreground/10" />
+                  </div>
+                  <div className="h-8 w-28 rounded-xl"
+                    style={{ background: 'linear-gradient(135deg, rgba(30,79,122,0.15), rgba(143,196,232,0.10))' }} />
                 </div>
-                <p className="pt-4 text-center text-xs text-muted-foreground/60">
-                  Esta sección se actualizará con capturas reales del producto
-                </p>
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[
+                    { color: '#1E4F7A', v: '24' },
+                    { color: '#7FD1AE', v: '78%' },
+                    { color: '#8FC4E8', v: '312' },
+                    { color: '#F59E0B', v: '89' },
+                  ].map((s, i) => (
+                    <div key={i} className="rounded-xl border border-border bg-card p-3">
+                      <div className="mb-2 h-5 w-5 rounded-lg"
+                        style={{ background: `${s.color}18`, border: `1px solid ${s.color}22` }} />
+                      <div className="text-sm font-semibold text-foreground">{s.v}</div>
+                      <div className="mt-0.5 h-2 w-16 rounded bg-muted-foreground/10" />
+                    </div>
+                  ))}
+                </div>
+                {/* Progress section */}
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <div className="mb-3 h-2.5 w-32 rounded bg-foreground/10" />
+                  <div className="space-y-2.5">
+                    {[
+                      { w: '82%', c: '#1E4F7A', label: 'Lumen' },
+                      { w: '67%', c: '#7FD1AE', label: 'Stellar' },
+                      { w: '51%', c: '#8FC4E8', label: 'Nimbus' },
+                    ].map(t => (
+                      <div key={t.label} className="flex items-center gap-3">
+                        <span className="w-12 text-[10px] text-muted-foreground">{t.label}</span>
+                        <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                          <div className="h-full rounded-full" style={{ width: t.w, background: t.c, opacity: 0.7 }} />
+                        </div>
+                        <span className="w-8 text-right text-[10px] text-muted-foreground">{t.w}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Social proof ─────────────────────────────────────────────────────────────
+
+function SocialProof() {
+  return (
+    <section id="clientes" className="border-y border-border/60 bg-muted/40 px-6 py-10">
+      <div className="mx-auto max-w-5xl">
+        <p className="mb-7 text-center text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/40">
+          Empresas que capacitan con Capta
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-8">
+          {['Lumen', 'Stellar', 'Nimbus', 'Acuario', 'Pampa', 'Cobalto'].map(name => (
+            <span key={name} className="text-sm font-semibold text-muted-foreground/30 transition-colors hover:text-muted-foreground/60">
+              {name}
+            </span>
+          ))}
         </div>
       </div>
     </section>
@@ -152,23 +231,23 @@ function Hero() {
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
 const STATS = [
-  { value: 'Multi', label: 'empresa desde el día 1' },
-  { value: '3', label: 'planes disponibles' },
-  { value: '∞', label: 'cursos en Enterprise' },
-  { value: '100%', label: 'datos aislados por empresa' },
+  { value: 'Multi',  label: 'empresa desde el día 1', color: '#1E4F7A' },
+  { value: '3',      label: 'planes disponibles',     color: '#7FD1AE' },
+  { value: '∞',      label: 'cursos en Enterprise',   color: '#8FC4E8' },
+  { value: '100%',   label: 'datos aislados',         color: '#1E4F7A' },
 ] as const;
 
 function Stats() {
   return (
-    <section className="border-y border-navy/8 bg-frost px-6 py-12">
-      <div className="mx-auto max-w-6xl grid grid-cols-2 gap-8 sm:grid-cols-4">
-        {STATS.map(({ value, label }) => (
+    <section className="bg-background px-6 py-16">
+      <div className="mx-auto max-w-5xl grid grid-cols-2 gap-8 sm:grid-cols-4">
+        {STATS.map(({ value, label, color }) => (
           <div key={label} className="text-center">
-            <div className="text-3xl font-bold sm:text-4xl bg-clip-text text-transparent"
-              style={{ backgroundImage: 'linear-gradient(135deg, #0B5A8C, #5AC8FA)' }}>
+            <div className="text-4xl font-semibold tracking-tight sm:text-5xl bg-clip-text text-transparent"
+              style={{ backgroundImage: `linear-gradient(135deg, ${color}, ${color}BB)` }}>
               {value}
             </div>
-            <div className="mt-1.5 text-sm text-muted-foreground">{label}</div>
+            <div className="mt-2 text-sm font-medium text-muted-foreground">{label}</div>
           </div>
         ))}
       </div>
@@ -176,85 +255,82 @@ function Stats() {
   );
 }
 
-// ─── Features Bento Grid ──────────────────────────────────────────────────────
+// ─── Features ─────────────────────────────────────────────────────────────────
 
-const BENTO_CARDS = [
+const FEATURES = [
   {
-    span: 'sm:col-span-2',
-    accentFrom: '#5AC8FA',
-    accentTo: '#38BDF8',
+    span: 'lg:col-span-2',
+    iconName: 'grid' as const,
+    accent: '#8FC4E8',
     title: 'Gestión de cursos',
-    desc: 'Crea y organiza cursos con videos, documentos y evaluaciones. Asigna capacitaciones a equipos o empleados específicos.',
-    extra: true,
+    desc: 'Crea y organiza cursos con videos, documentos y evaluaciones. Asigna capacitaciones a equipos o empleados específicos con un clic.',
+    tag: 'Editor visual',
   },
   {
     span: '',
-    accentFrom: '#14B8A6',
-    accentTo: '#0D9488',
+    iconName: 'chart-line' as const,
+    accent: '#7FD1AE',
     title: 'Progreso en tiempo real',
-    desc: 'Visualiza el avance de cada colaborador por curso y módulo. Reportes para managers y directivos.',
-    extra: false,
+    desc: 'Visualiza el avance de cada colaborador. Reportes automáticos para managers y directivos.',
+    tag: 'Analytics',
   },
   {
     span: '',
-    accentFrom: '#0B5A8C',
-    accentTo: '#0E6FAD',
+    iconName: 'certificate' as const,
+    accent: '#F59E0B',
     title: 'Certificaciones',
-    desc: 'Genera certificados automáticos al completar cursos. Personaliza el diseño con tu marca.',
-    extra: false,
+    desc: 'Genera certificados automáticos al completar cursos con tu marca y diseño personalizado.',
+    tag: 'Próximamente',
   },
   {
-    span: 'sm:col-span-2',
-    accentFrom: '#5AC8FA',
-    accentTo: '#14B8A6',
+    span: 'lg:col-span-2',
+    iconName: 'shield' as const,
+    accent: '#1E4F7A',
     title: 'Multi-empresa nativo',
-    desc: 'Row Level Security en PostgreSQL garantiza aislamiento de datos. Cada empresa ve solo lo suyo — a nivel de base de datos.',
-    extra: true,
+    desc: 'Row Level Security en PostgreSQL garantiza aislamiento total. Cada empresa ve solo lo suyo — a nivel de base de datos, sin configuración adicional.',
+    tag: 'Seguridad',
   },
-] as const;
+];
 
 function Features() {
   return (
-    <section id="caracteristicas" className="bg-white px-6 py-24">
+    <section id="caracteristicas" className="bg-muted/30 px-6 py-24">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-16 text-center">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-widest bg-clip-text text-transparent"
-            style={{ backgroundImage: 'linear-gradient(90deg, #0B5A8C, #5AC8FA)' }}>
-            Características
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        <div className="mb-14 text-center">
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground/40">Características</p>
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             Todo lo que necesita tu empresa
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
-            Diseñado para crecer contigo, desde 5 hasta 500 colaboradores.
+            Diseñado para crecer contigo, desde 5 hasta 5,000 colaboradores.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {BENTO_CARDS.map((card) => (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {FEATURES.map(card => (
             <div key={card.title}
-              className={`group relative overflow-hidden rounded-2xl border border-navy/8 bg-white p-7 transition-all hover:-translate-y-0.5 hover:border-navy/15 hover:shadow-xl hover:shadow-navy/8 ${card.span}`}>
+              className={`group relative overflow-hidden rounded-2xl border border-border bg-card p-7 transition-all duration-200 hover:-translate-y-0.5 ${card.span}`}
+              style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
+            >
               {/* Top accent line */}
-              <div className="absolute inset-x-0 top-0 h-px"
-                style={{ background: `linear-gradient(90deg, transparent, ${card.accentFrom}60, transparent)` }}
-                aria-hidden="true" />
-              {/* Glow al hover */}
-              <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-15"
-                style={{ background: card.accentFrom }} aria-hidden="true" />
-              {/* Placeholder ícono */}
-              <div className="mb-5 h-9 w-9 rounded-xl"
-                style={{ background: `linear-gradient(135deg, ${card.accentFrom}25, ${card.accentTo}10)`, border: `1px solid ${card.accentFrom}20` }} />
-              <h3 className="text-base font-semibold text-foreground">{card.title}</h3>
+              <div className="absolute inset-x-0 top-0 h-px opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                style={{ background: `linear-gradient(90deg, transparent, ${card.accent}80, transparent)` }} />
+              {/* Glow */}
+              <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-15"
+                style={{ background: card.accent }} />
+
+              <div className="mb-5 inline-flex h-10 w-10 items-center justify-center rounded-xl"
+                style={{ background: `${card.accent}15`, color: card.accent, border: `1px solid ${card.accent}22` }}>
+                <Icon name={card.iconName} size={18} />
+              </div>
+
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-base font-semibold text-foreground">{card.title}</h3>
+                <span className="flex-shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                  {card.tag}
+                </span>
+              </div>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{card.desc}</p>
-              {card.extra && (
-                <div className="mt-4 flex gap-2">
-                  {['Empresa A', 'Empresa B', 'Empresa C'].map((e) => (
-                    <span key={e} className="rounded-lg border border-navy/10 bg-frost px-2.5 py-1 text-xs text-muted-foreground">
-                      {e}
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -281,7 +357,7 @@ const PLANS = [
     name: 'Business',
     price: '$49',
     period: '/mes',
-    desc: 'Para empresas en crecimiento.',
+    desc: 'Para equipos en crecimiento.',
     features: ['5 empresas', '500 empleados', 'Evaluaciones', 'Certificados', 'Analíticas', '20 GB storage'],
     addons: true,
     cta: 'Elegir Business',
@@ -303,54 +379,55 @@ const PLANS = [
 
 function Pricing() {
   return (
-    <section id="precios" className="bg-frost px-6 py-24">
+    <section id="precios" className="bg-background px-6 py-24">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-16 text-center">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-widest bg-clip-text text-transparent"
-            style={{ backgroundImage: 'linear-gradient(90deg, #0B5A8C, #5AC8FA)' }}>
-            Precios
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        <div className="mb-14 text-center">
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground/40">Precios</p>
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             Planes para cada etapa
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
-            Empieza gratis. Amplía tu storage sin cambiar de plan cuando lo necesites.
+            Empieza gratis. Amplía sin cambiar de plan cuando lo necesites.
           </p>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {PLANS.map((plan) => (
+          {PLANS.map(plan => (
             <div key={plan.name}
-              className={`relative flex flex-col overflow-hidden rounded-2xl transition-all hover:-translate-y-1 ${
+              className={`relative flex flex-col overflow-hidden rounded-2xl transition-all duration-200 hover:-translate-y-1 ${
                 plan.highlighted
-                  ? 'shadow-2xl shadow-navy/20'
-                  : 'border border-navy/10 bg-white shadow-sm hover:shadow-md hover:shadow-navy/8'
+                  ? ''
+                  : 'border border-border bg-card hover:border-capta-soft/30 hover:shadow-md'
               }`}
               style={plan.highlighted ? {
-                background: 'linear-gradient(160deg, #0B5A8C 0%, #071F30 100%)',
-              } : {}}>
+                background: 'linear-gradient(155deg, #1E4F7A 0%, #0A1F35 100%)',
+                boxShadow: '0 1px 0 rgba(143,196,232,0.15) inset, 0 20px 60px rgba(30,79,122,0.3)',
+              } : {
+                boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)',
+              }}
+            >
               {plan.highlighted && (
-                <div className="absolute inset-x-0 top-0 h-px"
-                  style={{ background: 'linear-gradient(90deg, transparent, #5AC8FA80, transparent)' }} />
-              )}
-              {plan.highlighted && (
-                <div className="absolute right-5 top-5">
-                  <span className="rounded-full px-3 py-1 text-xs font-bold"
-                    style={{ background: 'linear-gradient(135deg, #5AC8FA, #38BDF8)', color: '#050E1A' }}>
-                    Popular
-                  </span>
-                </div>
+                <>
+                  <div className="absolute inset-x-0 top-0 h-px"
+                    style={{ background: 'linear-gradient(90deg, transparent, rgba(143,196,232,0.6), transparent)' }} />
+                  <div className="absolute right-5 top-5">
+                    <span className="rounded-full px-2.5 py-0.5 text-xs font-bold"
+                      style={{ background: 'linear-gradient(135deg, #7FD1AE, #A8E6CF)', color: '#0B1F2A' }}>
+                      Popular
+                    </span>
+                  </div>
+                </>
               )}
 
               <div className="p-7">
-                <p className={`text-sm font-semibold ${plan.highlighted ? 'text-sky' : 'text-navy'}`}>
+                <p className={`text-sm font-bold tracking-wide ${plan.highlighted ? 'text-capta-soft' : 'text-capta-deep dark:text-capta-soft'}`}>
                   {plan.name}
                 </p>
                 <div className="mt-3 flex items-baseline gap-1">
-                  <span className={`text-4xl font-bold ${plan.highlighted ? 'text-white' : 'text-foreground'}`}>
+                  <span className={`text-4xl font-semibold tracking-tight ${plan.highlighted ? 'text-white' : 'text-foreground'}`}>
                     {plan.price}
                   </span>
-                  <span className={`text-sm ${plan.highlighted ? 'text-white/40' : 'text-muted-foreground'}`}>
+                  <span className={`text-sm font-medium ${plan.highlighted ? 'text-white/40' : 'text-muted-foreground'}`}>
                     {plan.period}
                   </span>
                 </div>
@@ -359,9 +436,13 @@ function Pricing() {
                 </p>
 
                 <ul className="mt-7 space-y-2.5">
-                  {plan.features.map((f) => (
+                  {plan.features.map(f => (
                     <li key={f} className="flex items-center gap-2.5 text-sm">
-                      <span className={`flex-shrink-0 leading-none ${plan.highlighted ? 'text-sky' : 'text-navy'}`}>✓</span>
+                      <Icon
+                        name="check"
+                        size={14}
+                        className={plan.highlighted ? 'text-brand-mid flex-shrink-0' : 'flex-shrink-0 text-capta-deep dark:text-capta-soft'}
+                      />
                       <span className={plan.highlighted ? 'text-white/65' : 'text-muted-foreground'}>{f}</span>
                     </li>
                   ))}
@@ -375,10 +456,10 @@ function Pricing() {
 
               <div className="mt-auto p-7 pt-0">
                 <Link href={plan.href}
-                  className="block w-full rounded-xl py-3.5 text-center text-sm font-semibold transition-all hover:scale-105 active:scale-95"
+                  className="block w-full rounded-xl py-3.5 text-center text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
                   style={plan.highlighted
-                    ? { background: 'linear-gradient(135deg, #5AC8FA, #38BDF8)', color: '#050E1A', boxShadow: '0 4px 20px #5AC8FA35' }
-                    : { background: '#0B5A8C', color: '#fff' }}>
+                    ? { background: 'linear-gradient(135deg, #7FD1AE, #A8E6CF)', color: '#0B1F2A', boxShadow: '0 4px 20px rgba(127,209,174,0.3)' }
+                    : { background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', color: '#fff', boxShadow: '0 2px 12px rgba(30,79,122,0.2)' }}>
                   {plan.cta}
                 </Link>
               </div>
@@ -387,15 +468,14 @@ function Pricing() {
         </div>
 
         {/* Add-on callout */}
-        <div className="mt-8 rounded-2xl border border-sky/20 bg-white p-6 text-center shadow-sm">
-          <p className="text-sm">
-            <span className="font-semibold text-navy">¿Necesitas más espacio?</span>{' '}
-            <span className="text-muted-foreground">
-              Amplía sin cambiar de plan —{' '}
-              <span className="text-navy font-medium">+10 GB $5/mes</span>{' · '}
-              <span className="text-navy font-medium">+50 GB $19/mes</span>{' · '}
-              <span className="text-navy font-medium">+200 GB $59/mes</span>
-            </span>
+        <div className="mt-8 rounded-2xl border border-border bg-card p-5 text-center"
+          style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 16px rgba(11,31,42,0.04)' }}>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-capta-deep dark:text-capta-soft">¿Necesitas más espacio?</span>{' '}
+            Amplía sin cambiar de plan —{' '}
+            <span className="font-medium text-capta-deep dark:text-capta-soft">+10 GB $5/mes</span>{' · '}
+            <span className="font-medium text-capta-deep dark:text-capta-soft">+50 GB $19/mes</span>{' · '}
+            <span className="font-medium text-capta-deep dark:text-capta-soft">+200 GB $59/mes</span>
           </p>
         </div>
       </div>
@@ -407,20 +487,17 @@ function Pricing() {
 
 function CtaBanner() {
   return (
-    <section className="bg-white px-6 py-20">
-      <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl px-8 py-16 text-center"
-        style={{
-          background: 'linear-gradient(135deg, #0B5A8C 0%, #071F30 60%, #0B3D5A 100%)',
-          boxShadow: '0 0 80px #0B5A8C20, inset 0 0 60px #5AC8FA05',
-        }}>
-        <div aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-1/2 -z-0 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-15 blur-3xl"
-          style={{ background: '#5AC8FA' }} />
-        <div className="absolute inset-x-0 top-0 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent, #5AC8FA50, transparent)' }}
-          aria-hidden="true" />
+    <section className="bg-muted/30 px-6 py-20">
+      <div className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl px-8 py-16 text-center"
+        style={{ background: 'linear-gradient(150deg, #1E4F7A 0%, #0A1F35 60%, #102840 100%)' }}>
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(143,196,232,0.5), transparent)' }} />
+        <div aria-hidden
+          className="pointer-events-none absolute left-1/2 top-1/2 -z-0 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-10 blur-3xl"
+          style={{ background: '#8FC4E8' }} />
+
         <div className="relative z-10">
-          <h2 className="text-3xl font-bold text-white sm:text-4xl">
+          <h2 className="text-3xl font-semibold text-white sm:text-4xl">
             Listo para capacitar a tu equipo
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-base text-white/50">
@@ -428,12 +505,12 @@ function CtaBanner() {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/register"
-              className="w-full rounded-2xl px-8 py-4 text-base font-semibold transition-all hover:scale-105 active:scale-95 sm:w-auto"
-              style={{ background: 'linear-gradient(135deg, #5AC8FA, #38BDF8)', color: '#050E1A', boxShadow: '0 4px 24px #5AC8FA35' }}>
+              className="w-full rounded-2xl px-8 py-4 text-base font-semibold transition-all hover:scale-[1.03] active:scale-[0.97] sm:w-auto"
+              style={{ background: 'linear-gradient(135deg, #7FD1AE, #A8E6CF)', color: '#0B1F2A', boxShadow: '0 4px 24px rgba(127,209,174,0.3)' }}>
               Crear cuenta gratis
             </Link>
             <Link href="/login"
-              className="w-full rounded-2xl border border-white/15 bg-white/8 px-8 py-4 text-base font-semibold text-white/70 backdrop-blur-sm transition-all hover:border-white/25 hover:bg-white/12 hover:text-white sm:w-auto">
+              className="w-full rounded-2xl border border-white/15 bg-white/5 px-8 py-4 text-base font-semibold text-white/70 backdrop-blur-sm transition-all hover:border-white/25 hover:bg-white/10 hover:text-white sm:w-auto">
               Ya tengo cuenta
             </Link>
           </div>
@@ -447,17 +524,11 @@ function CtaBanner() {
 
 function Footer() {
   return (
-    <footer className="border-t border-navy/8 bg-frost px-6 py-10">
+    <footer className="border-t border-border bg-muted/30 px-6 py-10">
       <div className="mx-auto max-w-6xl flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg"
-            style={{ background: 'linear-gradient(135deg, #5AC8FA, #0B5A8C)' }}>
-            <span className="text-xs font-bold text-white">L</span>
-          </div>
-          <span className="text-sm font-semibold text-navy/60">LMS</span>
-        </div>
-        <p className="text-xs text-muted-foreground/60">
-          © {new Date().getFullYear()} Plataforma LMS. Todos los derechos reservados.
+        <CaptaLogo markSize={22} showText />
+        <p className="text-xs text-muted-foreground/50">
+          © {new Date().getFullYear()} Capta. Todos los derechos reservados.
         </p>
       </div>
     </footer>
@@ -472,6 +543,7 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
+        <SocialProof />
         <Stats />
         <Features />
         <Pricing />

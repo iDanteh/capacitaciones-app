@@ -9,6 +9,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service';
+import { MfaService } from './mfa.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
@@ -34,6 +35,14 @@ export interface AuthResponse extends AuthTokens {
     tenantSlug: string;
   };
 }
+
+/** Respuesta cuando el login requiere un segundo factor. */
+export interface MfaChallengeResponse {
+  mfaPending: true;
+  mfaToken:   string; // JWT de 5 min para POST /auth/mfa/verify
+}
+
+export type LoginResponse = AuthResponse | MfaChallengeResponse;
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -62,9 +71,10 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly jwt: JwtService,
-    private readonly config: ConfigService,
+    private readonly prisma:  PrismaService,
+    private readonly jwt:     JwtService,
+    private readonly config:  ConfigService,
+    private readonly mfa:     MfaService,
   ) {}
 
   // ── Register ───────────────────────────────────────────────────────────────
@@ -146,7 +156,7 @@ export class AuthService {
 
   // ── Login ──────────────────────────────────────────────────────────────────
 
-  async login(dto: LoginDto): Promise<AuthResponse> {
+  async login(dto: LoginDto): Promise<LoginResponse> {
     // Buscar tenant por slug
     const tenant = await this.prisma.tenant.findUnique({
       where: { slug: dto.tenantSlug },
@@ -177,6 +187,12 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
+    // Si el usuario tiene 2FA activo, emitir un token temporal y pedir el código
+    if (user.mfaEnabled) {
+      const mfaToken = await this.mfa.issueMfaToken(user.id);
+      return { mfaPending: true, mfaToken };
+    }
+
     // Actualizar lastLoginAt de forma no bloqueante
     void this.prisma.user.update({
       where: { id: user.id },
@@ -195,6 +211,106 @@ export class AuthService {
         role: user.role,
         tenantId: tenant.id,
         tenantSlug: tenant.slug,
+      },
+    };
+  }
+
+  // ── MFA verify (step 2 del login) ──────────────────────────────────────────
+
+  /**
+   * Completa el login de un usuario con 2FA activo.
+   * Valida el mfaToken temporal + el código TOTP/backup, luego emite el par de tokens.
+   */
+  async verifyMfa(mfaToken: string, code: string): Promise<AuthResponse> {
+    const user = await this.mfa.verifyLoginCode(mfaToken, code);
+
+    // Actualizar lastLoginAt de forma no bloqueante
+    void this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    const tokens = await this.issueTokenPair(
+      user.id, user.email, user.tenantId, user.role, user.tenant.slug,
+    );
+
+    return {
+      ...tokens,
+      user: {
+        id:         user.id,
+        email:      user.email,
+        firstName:  user.firstName,
+        lastName:   user.lastName,
+        role:       user.role,
+        tenantId:   user.tenantId,
+        tenantSlug: user.tenant.slug,
+      },
+    };
+  }
+
+  // ── Switch tenant ──────────────────────────────────────────────────────────
+
+  /**
+   * Permite al OWNER de una empresa padre acceder a una sub-empresa
+   * sin necesidad de un login separado.
+   *
+   * Si el usuario padre aún no tiene cuenta en la sub-empresa, se crea
+   * un usuario espejo (mismas credenciales) con rol OWNER.
+   */
+  async switchTenant(
+    userId:         string,
+    parentTenantId: string,
+    childTenantId:  string,
+  ): Promise<AuthResponse> {
+    // 1. Verificar que la sub-empresa pertenece al tenant padre
+    const child = await this.prisma.tenant.findFirst({
+      where: { id: childTenantId, parentTenantId, deletedAt: null, isActive: true },
+    });
+    if (!child) {
+      throw new ForbiddenException('No tienes acceso a esta empresa.');
+    }
+
+    // 2. Obtener usuario padre
+    const parentUser = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId: parentTenantId, deletedAt: null, isActive: true },
+    });
+    if (!parentUser) {
+      throw new UnauthorizedException('Usuario no encontrado.');
+    }
+
+    // 3. Buscar o crear usuario espejo en la sub-empresa
+    let childUser = await this.prisma.user.findUnique({
+      where: { tenantId_email: { tenantId: childTenantId, email: parentUser.email } },
+    });
+
+    if (!childUser) {
+      childUser = await this.prisma.user.create({
+        data: {
+          tenantId:     childTenantId,
+          email:        parentUser.email,
+          passwordHash: parentUser.passwordHash,
+          firstName:    parentUser.firstName,
+          lastName:     parentUser.lastName,
+          role:         'OWNER',
+        },
+      });
+      this.logger.log(`Usuario espejo creado para ${parentUser.email} en tenant ${childTenantId}`);
+    }
+
+    const tokens = await this.issueTokenPair(
+      childUser.id, childUser.email, childTenantId, childUser.role, child.slug,
+    );
+
+    return {
+      ...tokens,
+      user: {
+        id:         childUser.id,
+        email:      childUser.email,
+        firstName:  childUser.firstName,
+        lastName:   childUser.lastName,
+        role:       childUser.role,
+        tenantId:   childTenantId,
+        tenantSlug: child.slug,
       },
     };
   }

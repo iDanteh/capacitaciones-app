@@ -4,7 +4,7 @@
  * via ConfigService.get('database.url') en lugar de process.env directamente.
  */
 export default () => ({
-  port: parseInt(process.env.PORT ?? '3001', 10),
+  port: parseInt(process.env.PORT ?? '5000', 10),
   nodeEnv: process.env.NODE_ENV ?? 'development',
 
   database: {
@@ -30,21 +30,32 @@ export default () => ({
   // Storage S3-compatible — MinIO en dev/VPS, Backblaze B2 o AWS S3 en prod.
   // Cambiar de proveedor = solo cambiar estas env vars. El SDK es el mismo.
   storage: {
-    endpoint:  process.env.STORAGE_ENDPOINT,
-    accessKey: process.env.STORAGE_ACCESS_KEY,
-    secretKey: process.env.STORAGE_SECRET_KEY,
-    bucket:    process.env.STORAGE_BUCKET,
-    publicUrl: process.env.STORAGE_PUBLIC_URL,
+    endpoint:  process.env.STORAGE_ENDPOINT  ?? 'localhost',
+    port:      parseInt(process.env.STORAGE_PORT ?? '9000', 10),
+    useSSL:    process.env.STORAGE_USE_SSL   ?? 'false',
+    accessKey: process.env.STORAGE_ACCESS_KEY ?? 'minioadmin',
+    secretKey: process.env.STORAGE_SECRET_KEY ?? 'minioadmin',
+    bucket:    process.env.STORAGE_BUCKET    ?? 'lms-files',
+    publicUrl: process.env.STORAGE_PUBLIC_URL ?? 'http://localhost:9000/lms-files',
   },
 
   mux: {
-    tokenId: process.env.MUX_TOKEN_ID,
-    tokenSecret: process.env.MUX_TOKEN_SECRET,
+    tokenId:       process.env.MUX_TOKEN_ID,
+    tokenSecret:   process.env.MUX_TOKEN_SECRET,
+    webhookSecret: process.env.MUX_WEBHOOK_SECRET,
   },
 
   email: {
     apiKey: process.env.RESEND_API_KEY,
     from: process.env.EMAIL_FROM ?? 'noreply@capacitaciones.app',
+  },
+
+  mfa: {
+    /// Clave AES-256-GCM para cifrar los secrets TOTP en DB.
+    /// Formato: 64 hex chars (32 bytes). Generar con: openssl rand -hex 32
+    encryptionKey: process.env.MFA_ENCRYPTION_KEY ?? '',
+    /// JWT secret exclusivo para tokens temporales mfaPending (5 min).
+    jwtSecret: process.env.MFA_JWT_SECRET ?? '',
   },
 
   frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:3000',

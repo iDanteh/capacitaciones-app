@@ -12,7 +12,14 @@
     "lint": "turbo lint",
     "type-check": "turbo type-check",
     "test": "turbo test",
-    "format": "prettier --write \"**/*.{ts,tsx,json,md}\" --ignore-path .prettierignore"
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\" --ignore-path .prettierignore",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "infra:logs": "docker compose logs -f",
+    "infra:reset": "docker compose down -v && docker compose up -d",
+    "db:migrate": "npm run --workspace=apps/api db:migrate",
+    "db:seed": "npm run --workspace=apps/api db:seed",
+    "db:studio": "npm run --workspace=apps/api db:studio"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

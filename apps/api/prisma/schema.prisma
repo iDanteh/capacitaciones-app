@@ -43,6 +43,39 @@ enum SubscriptionStatus {
   CANCELED  // Cancelada por el cliente o por falta de pago
 }
 
+enum CourseStatus {
+  DRAFT      // Solo visible para admins
+  PUBLISHED  // Visible y disponible para inscripción
+  ARCHIVED   // Oculto del catálogo, pero conserva datos de progreso
+}
+
+enum LessonType {
+  VIDEO // Video vía Mux
+  TEXT  // Markdown / contenido enriquecido
+  FILE  // Archivo descargable (PDF, ZIP, etc.)
+}
+
+enum EnrollmentStatus {
+  ACTIVE    // Inscripción vigente
+  COMPLETED // Completó todos los módulos
+  DROPPED   // Abandonó el curso
+}
+
+enum ResetRequestStatus {
+  PENDING  // Esperando revisión del admin
+  APPROVED // Aprobada — intentos del usuario fueron reiniciados
+  DENIED   // Rechazada por el admin
+}
+
+enum NotificationType {
+  RESET_REQUEST    // Admin: estudiante solicita nueva oportunidad en quiz
+  ENROLLMENT       // Admin: usuario se inscribe en un curso
+  COURSE_COMPLETED // Admin: usuario completó un curso
+  VIDEO_READY      // Usuario: su video terminó de procesar en Mux
+  RESET_APPROVED   // Estudiante: admin aprobó su solicitud de reinicio
+  RESET_DENIED     // Estudiante: admin rechazó su solicitud de reinicio
+}
+
 // ─── MODELS ───────────────────────────────────────────────────────────────────
 
 /// Planes de suscripción disponibles en la plataforma.
@@ -82,24 +115,37 @@ model Plan {
 
 /// Empresa / organización que contrata el servicio.
 /// Es la unidad raíz de multi-tenancy.
+/// parentTenantId no nulo = sub-empresa; hereda la suscripción del padre.
 model Tenant {
-  id      String  @id @default(cuid())
-  name    String
+  id       String  @id @default(cuid())
+  name     String
   /// Identificador URL-friendly único. Ej: "acme-corp". Inmutable tras creación.
-  slug    String  @unique
+  slug     String  @unique
   /// Dominio personalizado. Solo disponible en plan Enterprise.
-  domain  String? @unique
-  logoUrl String?
-  isActive Boolean @default(true)
+  domain   String? @unique
+  logoUrl      String?
+  /// Color primario de marca en hex (ej: "#1E4F7A"). Solo disponible en planes con hasWhiteLabel.
+  primaryColor String?
+  isActive     Boolean @default(true)
+
+  /// Si no es null, este tenant es una sub-empresa del tenant padre.
+  parentTenantId String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   /// Soft delete — preserva historial de facturación y progreso de empleados.
   deletedAt DateTime?
 
+  parent   Tenant?  @relation("SubCompanies", fields: [parentTenantId], references: [id])
+  children Tenant[] @relation("SubCompanies")
+
   users        User[]
   subscription Subscription?
+  userInvites  UserInvite[]
+  courses      Course[]
+  enrollments  Enrollment[]
 
+  @@index([parentTenantId])
   @@map("tenants")
 }
 
@@ -117,6 +163,11 @@ model User {
   isActive     Boolean  @default(true)
   lastLoginAt  DateTime?
 
+  /// 2FA / MFA — TOTP (RFC 6238). El secret se guarda cifrado con AES-256-GCM.
+  mfaEnabled     Boolean  @default(false)
+  mfaSecret      String?
+  mfaBackupCodes String[] @default([]) // hashes bcrypt de 8 códigos de un solo uso
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   /// Soft delete — requerido por GDPR/compliance. El email se anonimiza aparte.
@@ -124,12 +175,16 @@ model User {
 
   tenant        Tenant         @relation(fields: [tenantId], references: [id])
   refreshTokens RefreshToken[]
+  sentInvites   UserInvite[]  @relation("SentInvites")
+  courses       Course[]      @relation("CourseAuthor")
+  enrollments   Enrollment[]
 
   /// El email es único DENTRO de un tenant, no globalmente.
-  /// Un usuario puede existir con el mismo email en distintas empresas.
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([email])
+  // Compound index para queries de soft delete: WHERE tenantId = X AND deletedAt IS NULL
+  @@index([tenantId, deletedAt])
   @@map("users")
 }
 
@@ -173,27 +228,47 @@ model Subscription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant        Tenant                   @relation(fields: [tenantId], references: [id])
-  plan          Plan                     @relation(fields: [planId], references: [id])
-  storagePacks  SubscriptionStoragePack[]
+  tenant       Tenant                    @relation(fields: [tenantId], references: [id])
+  plan         Plan                      @relation(fields: [planId], references: [id])
+  storagePacks SubscriptionStoragePack[]
 
   @@index([tenantId])
   @@map("subscriptions")
 }
 
+/// Invitaciones de usuarios pendientes de activación.
+model UserInvite {
+  id          String    @id @default(cuid())
+  tenantId    String
+  email       String
+  role        UserRole  @default(EMPLOYEE)
+  firstName   String
+  lastName    String
+  /// Hash SHA-256 del token enviado por email.
+  tokenHash   String    @unique
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  invitedBy User   @relation("SentInvites", fields: [invitedById], references: [id])
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("user_invites")
+}
+
 // ─── STORAGE ADD-ONS ──────────────────────────────────────────────────────────
 
-/// Packs de almacenamiento extra disponibles para compra a-la-carte.
-/// Solo Business y Enterprise pueden adquirirlos.
-/// Administrado por el equipo interno.
 model StoragePack {
-  id          String  @id @default(cuid())
-  name        String  // "Pack S", "Pack M", "Pack L"
-  storageGb   Int     // Gigabytes que suma al cupo base del plan
-  priceUsd    Decimal @db.Decimal(10, 2)
-  isActive    Boolean @default(true)
+  id        String  @id @default(cuid())
+  name      String
+  storageGb Int
+  priceUsd  Decimal @db.Decimal(10, 2)
+  isActive  Boolean @default(true)
 
-  // ── Stripe ────────────────────────────────────────────────────────────────
   stripePriceId   String? @unique
   stripeProductId String?
 
@@ -205,17 +280,12 @@ model StoragePack {
   @@map("storage_packs")
 }
 
-/// Pivot entre Subscription y StoragePack.
-/// quantity > 1 permite acumular múltiples unidades del mismo pack.
 model SubscriptionStoragePack {
   id             String @id @default(cuid())
   subscriptionId String
   storagePackId  String
+  quantity       Int    @default(1)
 
-  /// Cantidad de este pack activa. Normalmente 1, pero acumulable.
-  quantity Int @default(1)
-
-  // ── Stripe — cada item en la suscripción tiene su propio subscriptionItemId ──
   stripeSubscriptionItemId String? @unique
 
   createdAt DateTime @default(now())
@@ -227,4 +297,343 @@ model SubscriptionStoragePack {
   @@unique([subscriptionId, storagePackId])
   @@index([subscriptionId])
   @@map("subscription_storage_packs")
+}
+
+// ─── FASE 2: CORE LMS ─────────────────────────────────────────────────────────
+
+/// Curso de capacitación perteneciente a un tenant.
+/// Estructura: Course → CourseModule[] → Lesson[]
+model Course {
+  id           String       @id @default(cuid())
+  tenantId     String
+  /// Usuario que creó el curso (ADMIN u OWNER).
+  authorId     String?
+  title        String
+  description  String?      @db.Text
+  thumbnailUrl String?      // URL pública de la miniatura
+  thumbnailKey String?      // Object key en MinIO para gestión del archivo
+  status       CourseStatus @default(DRAFT)
+  /// Contador desnormalizado — se actualiza al crear/eliminar lecciones.
+  /// Permite mostrar el conteo sin hacer JOIN, mejorando el rendimiento.
+  totalLessons Int          @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  author      User?          @relation("CourseAuthor", fields: [authorId], references: [id])
+  modules     CourseModule[]
+  enrollments Enrollment[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  // Compound index para soft delete: WHERE tenantId = X AND deletedAt IS NULL
+  @@index([tenantId, deletedAt])
+  @@map("courses")
+}
+
+/// Módulo dentro de un curso — agrupa lecciones relacionadas.
+/// El campo `order` determina el orden de presentación (0-based).
+model CourseModule {
+  id          String  @id @default(cuid())
+  courseId    String
+  /// Desnormalizado para filtros RLS eficientes sin JOIN a Course.
+  tenantId    String
+  title       String
+  description String?
+  /// Posición dentro del curso. Los valores se reasignan al reordenar.
+  order       Int     @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId])
+  @@index([courseId, deletedAt])
+  @@map("course_modules")
+}
+
+/// Lección dentro de un módulo. Puede ser video, texto o archivo.
+model Lesson {
+  id          String     @id @default(cuid())
+  moduleId    String
+  /// Desnormalizado para filtros RLS eficientes sin JOIN a CourseModule.
+  tenantId    String
+  title       String
+  /// Contenido en Markdown — solo aplica para type = TEXT.
+  content     String?    @db.Text
+  type        LessonType @default(TEXT)
+  /// Posición dentro del módulo.
+  order       Int        @default(0)
+  /// Si true, el contenido es accesible sin inscripción (preview).
+  isPreview   Boolean    @default(false)
+  /// Duración estimada en segundos (real para videos, estimada para texto).
+  duration    Int?
+
+  // ── Archivo (MinIO/S3) ──────────────────────────────────────────────────────
+  fileKey       String? // Object key en el bucket
+  fileName      String? // Nombre original del archivo
+  fileSizeBytes Int?
+  fileMimeType  String?
+
+  // ── Video (Mux) ────────────────────────────────────────────────────────────
+  /// ID del asset en Mux — usado para gestión (eliminar, etc.).
+  muxAssetId    String?
+  /// ID de reproducción — se combina con el player de Mux para streaming.
+  muxPlaybackId String?
+  /// Estado del procesamiento: "preparing" | "ready" | "errored"
+  muxStatus     String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  module     CourseModule    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress   LessonProgress[]
+  evaluation Evaluation?
+
+  @@index([moduleId])
+  @@index([moduleId, deletedAt])
+  @@map("lessons")
+}
+
+/// Inscripción de un usuario en un curso.
+/// Un mismo usuario no puede inscribirse dos veces al mismo curso en el mismo tenant.
+model Enrollment {
+  id          String           @id @default(cuid())
+  tenantId    String
+  userId      String
+  courseId    String
+  status      EnrollmentStatus @default(ACTIVE)
+  /// Progreso general del 0 al 100. Se recalcula al completar cada lección.
+  progress    Int              @default(0)
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant         Tenant           @relation(fields: [tenantId], references: [id])
+  user           User             @relation(fields: [userId], references: [id])
+  course         Course           @relation(fields: [courseId], references: [id])
+  lessonProgress LessonProgress[]
+  certificate    Certificate?
+
+  @@unique([tenantId, userId, courseId])
+  @@index([tenantId])
+  @@index([userId])
+  @@map("enrollments")
+}
+
+/// Progreso por lección — registra qué lecciones completó cada estudiante.
+/// Tabla pivote entre Enrollment y Lesson con datos de seguimiento.
+model LessonProgress {
+  id           String    @id @default(cuid())
+  enrollmentId String
+  lessonId     String
+  /// Desnormalizado para consultas rápidas por usuario.
+  userId       String
+  /// Desnormalizado para RLS.
+  tenantId     String
+  completedAt  DateTime?
+  /// Segundos visualizados — para videos, permite retomar desde el punto exacto.
+  watchedSeconds Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lesson     Lesson     @relation(fields: [lessonId], references: [id])
+
+  @@unique([enrollmentId, lessonId])
+  @@index([enrollmentId])
+  @@index([userId])
+  @@map("lesson_progress")
+}
+
+// ─── FASE 3: EVALUACIONES ─────────────────────────────────────────────────────
+
+/// Evaluación (quiz) vinculada 1:1 a una lección.
+/// Solo disponible en planes con hasEvaluations = true.
+model Evaluation {
+  id           String  @id @default(cuid())
+  tenantId     String
+  lessonId     String  @unique // 1 evaluación por lección
+  title        String
+  instructions String? @db.Text
+  /// Porcentaje mínimo para aprobar (0–100).
+  minScore     Int     @default(70)
+  /// Intentos máximos permitidos. -1 = ilimitado.
+  maxAttempts  Int     @default(3)
+  /// Tiempo límite en segundos. null = sin límite.
+  timeLimit    Int?
+  /// Si true, el empleado debe aprobar para continuar al siguiente recurso.
+  isRequired   Boolean @default(false)
+  /// Si false, las respuestas correctas NO se revelan al reprobar teniendo intentos restantes.
+  showAnswers  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lesson        Lesson                @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions     Question[]
+  attempts      EvaluationAttempt[]
+  resetRequests AttemptResetRequest[]
+
+  @@index([tenantId])
+  @@map("evaluations")
+}
+
+/// Pregunta de opción múltiple dentro de una evaluación.
+model Question {
+  id           String  @id @default(cuid())
+  evaluationId String
+  tenantId     String
+  text         String  @db.Text
+  /// Peso de la pregunta al calcular la puntuación final.
+  points       Int     @default(1)
+  order        Int     @default(0)
+  /// Explicación que aparece al revisar resultados (puede ser null).
+  explanation  String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  evaluation Evaluation       @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  options    QuestionOption[]
+  answers    AttemptAnswer[]
+
+  @@index([evaluationId])
+  @@map("questions")
+}
+
+/// Opción de respuesta para una pregunta.
+model QuestionOption {
+  id         String  @id @default(cuid())
+  questionId String
+  text       String
+  isCorrect  Boolean @default(false)
+  order      Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  question Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  AttemptAnswer[]
+
+  @@index([questionId])
+  @@map("question_options")
+}
+
+/// Intento de evaluación realizado por un usuario.
+model EvaluationAttempt {
+  id           String   @id @default(cuid())
+  tenantId     String
+  evaluationId String
+  userId       String
+  enrollmentId String
+  /// Porcentaje de aciertos (0–100), calculado por el servidor.
+  score        Int
+  passed       Boolean
+  completedAt  DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  evaluation Evaluation    @relation(fields: [evaluationId], references: [id])
+  answers    AttemptAnswer[]
+
+  @@index([evaluationId, userId])
+  @@index([tenantId])
+  @@map("evaluation_attempts")
+}
+
+/// Respuesta de un usuario a una pregunta específica en un intento.
+model AttemptAnswer {
+  id         String  @id @default(cuid())
+  attemptId  String
+  questionId String
+  optionId   String
+  isCorrect  Boolean
+
+  attempt  EvaluationAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question          @relation(fields: [questionId], references: [id])
+  option   QuestionOption    @relation(fields: [optionId], references: [id])
+
+  @@unique([attemptId, questionId])
+  @@map("attempt_answers")
+}
+
+/// Solicitud de reinicio de intentos.
+/// El estudiante la crea cuando agota sus intentos; el admin la aprueba o rechaza.
+/// Al aprobar, se eliminan todos los EvaluationAttempt del usuario para esa evaluación.
+model AttemptResetRequest {
+  id           String             @id @default(cuid())
+  tenantId     String
+  evaluationId String
+  userId       String
+  /// Mensaje opcional del estudiante explicando por qué necesita otra oportunidad.
+  message      String?            @db.Text
+  status       ResetRequestStatus @default(PENDING)
+  requestedAt  DateTime           @default(now())
+  processedAt  DateTime?
+  /// userId del admin que procesó la solicitud.
+  processedBy  String?
+
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  @@index([evaluationId, tenantId])
+  @@index([userId])
+  @@map("attempt_reset_requests")
+}
+
+/// Notificación persistente — se entrega también en tiempo real por WebSocket.
+/// `data` contiene el contexto de navegación (courseId, lessonId, etc.) para el redirect al hacer click.
+model Notification {
+  id        String           @id @default(cuid())
+  tenantId  String
+  /// ID del usuario receptor de la notificación.
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  /// JSON con contexto de navegación: courseId, lessonId, evaluationId, etc.
+  data      Json?
+  /// null = no leída. Populated = ya leída.
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, tenantId])
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+// ─── FASE 3: CERTIFICADOS ─────────────────────────────────────────────────────
+
+/// Certificado de finalización emitido al completar un curso al 100%.
+/// Se genera automáticamente cuando enrollment.progress = 100.
+model Certificate {
+  id           String   @id @default(cuid())
+  tenantId     String
+  userId       String
+  courseId     String
+  enrollmentId String   @unique // 1 certificado por inscripción
+  /// UUID v4 público para verificación — no derivable del id interno.
+  publicUuid   String   @unique @default(uuid())
+  issuedAt     DateTime @default(now())
+
+  // Snapshot inmutable — preserva los datos aunque cambien el nombre del usuario,
+  // el título del curso o el nombre de la empresa.
+  recipientName String
+  courseTitle   String
+  tenantName    String
+
+  createdAt DateTime @default(now())
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+
+  @@unique([tenantId, userId, courseId])
+  @@index([tenantId])
+  @@map("certificates")
 }
