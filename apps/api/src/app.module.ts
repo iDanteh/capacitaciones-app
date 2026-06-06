@@ -21,6 +21,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { CleanupModule } from './cleanup/cleanup.module';
 import { SearchModule } from './search/search.module';
 import { AuditModule } from './audit/audit.module';
+import { SuperAdminModule } from './super-admin/super-admin.module';
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
 
@@ -71,6 +72,9 @@ import { validate } from './config/env.validation';
 
     // Mantenimiento — tareas programadas:
     CleanupModule,           // ✓ Limpieza de invitaciones expiradas (cron diario)
+
+    // Fase 4 — Gestión interna:
+    SuperAdminModule,        // ✓ Panel SUPER_ADMIN — gestión centralizada de tenants
   ],
   providers: [
     // ThrottlerGuard aplicado globalmente — todas las rutas heredan el límite base.

@@ -59,9 +59,14 @@ const NAV_COMPANY = [
   { label: 'Plan y facturación', icon: 'credit-card' as IconName, href: '/dashboard/subscription', roles: ['OWNER'] },
 ] as const;
 
+const NAV_SYSTEM = [
+  { label: 'Panel Admin', icon: 'shield' as IconName, href: '/dashboard/super-admin', roles: ['SUPER_ADMIN'] },
+] as const;
+
 type PlatformItem = (typeof NAV_PLATFORM)[number];
 type CompanyItem  = (typeof NAV_COMPANY)[number];
-type AnyNavItem   = PlatformItem | CompanyItem;
+type SystemItem   = (typeof NAV_SYSTEM)[number];
+type AnyNavItem   = PlatformItem | CompanyItem | SystemItem;
 
 // ─── Role labels ──────────────────────────────────────────────────────────────
 
@@ -269,6 +274,9 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
   const visibleCompany = NAV_COMPANY.filter(item =>
     user?.role && item.roles.includes(user.role as never),
   );
+  const visibleSystem = NAV_SYSTEM.filter(item =>
+    user?.role && item.roles.includes(user.role as never),
+  );
 
   const accent = accentColor ?? '#1E4F7A';
   const isOwner = user?.role === 'OWNER';
@@ -450,6 +458,26 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
                   active={pathname === navItem.href || pathname.startsWith(navItem.href + '/')}
                   onClick={onNavClick}
                   accentColor={accent}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SISTEMA (solo SUPER_ADMIN) */}
+        {visibleSystem.length > 0 && (
+          <div>
+            <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-500/60">
+              Sistema
+            </p>
+            <div className="space-y-0.5">
+              {visibleSystem.map((navItem) => (
+                <NavItem
+                  key={navItem.href}
+                  item={navItem}
+                  active={pathname === navItem.href || pathname.startsWith(navItem.href + '/')}
+                  onClick={onNavClick}
+                  accentColor="#7C3AED"
                 />
               ))}
             </div>
