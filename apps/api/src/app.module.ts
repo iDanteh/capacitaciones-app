@@ -20,6 +20,7 @@ import { CertificatesModule } from './certificates/certificates.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CleanupModule } from './cleanup/cleanup.module';
 import { SearchModule } from './search/search.module';
+import { AuditModule } from './audit/audit.module';
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
 
@@ -37,6 +38,7 @@ import { validate } from './config/env.validation';
     // Soporte para tareas programadas (@Cron, @Interval, @Timeout)
     ScheduleModule.forRoot(),
     DatabaseModule,          // @Global — PrismaService disponible en toda la app
+    AuditModule,             // @Global — AuditService + AsyncLocalStorage de contexto HTTP
 
     // ── Módulos de la aplicación ────────────────────────────────────────────
     HealthModule,
