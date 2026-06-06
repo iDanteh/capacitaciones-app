@@ -33,6 +33,7 @@ export function ModuleAccordion({
   onLessonDelete,
   onLessonAdd,
   onLessonEdit,
+  activeLessonId,
 }: {
   module: Module;
   index: number;
@@ -42,6 +43,7 @@ export function ModuleAccordion({
   onLessonDelete: (moduleId: string, lessonId: string) => void;
   onLessonAdd: (moduleId: string, lesson: Lesson) => void;
   onLessonEdit: (lesson: Lesson, moduleId: string) => void;
+  activeLessonId?: string | null;
 }) {
   const [expanded,      setExpanded]      = useState(true);
   const [addingLesson,  setAddingLesson]  = useState(false);
@@ -107,12 +109,12 @@ export function ModuleAccordion({
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       {/* ── Header del módulo ── */}
-      <div className="flex items-center gap-3 px-4 py-3" style={{ background: 'rgba(0,0,0,0.02)' }}>
-        <GripVertical size={15} className="text-muted-foreground/30 flex-shrink-0 cursor-grab" />
+      <div className="flex items-center gap-[9px] px-3 py-[11px]" style={{ background: 'rgba(0,0,0,0.02)' }}>
+        <GripVertical size={14} className="text-muted-foreground/30 flex-shrink-0 cursor-grab" />
 
         {/* Número del módulo */}
         <div
-          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[11px] font-bold tabular-nums"
+          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[7px] text-[11px] font-bold tabular-nums"
           style={{
             background: 'linear-gradient(135deg, #1E4F7A18, #2D6FA018)',
             color:      '#1E4F7A',
@@ -134,18 +136,18 @@ export function ModuleAccordion({
                   if (e.key === 'Enter') handleSaveTitle();
                   if (e.key === 'Escape') { setEditingTitle(false); setTitleInput(module.title); }
                 }}
-                className="flex-1 rounded-lg border border-capta-soft/40 bg-background px-2.5 py-1 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40"
+                className="flex-1 rounded-lg border border-capta-soft/40 bg-background px-2.5 py-1.5 text-[14px] font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40"
               />
               <button
                 onClick={handleSaveTitle}
                 disabled={savingTitle}
-                className="flex h-6 w-6 items-center justify-center rounded-lg bg-capta-deep text-white hover:bg-capta-deep/90 disabled:opacity-50 transition-colors flex-shrink-0"
+                className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-capta-deep text-white hover:bg-capta-deep/90 disabled:opacity-50 transition-colors flex-shrink-0"
               >
                 {savingTitle ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
               </button>
               <button
                 onClick={() => { setEditingTitle(false); setTitleInput(module.title); }}
-                className="flex h-6 w-6 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                className="flex h-7 w-7 items-center justify-center rounded-[7px] border border-border text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
               >
                 <X size={11} />
               </button>
@@ -154,12 +156,12 @@ export function ModuleAccordion({
             <>
               <button
                 onClick={() => setExpanded(!expanded)}
-                className="flex-1 min-w-0 flex items-center gap-3 text-left"
+                className="flex-1 min-w-0 flex items-center gap-2 text-left"
               >
                 <div className="flex-1 min-w-0">
-                  <span className="block text-sm font-semibold text-foreground truncate">{module.title}</span>
+                  <span className="block text-[14.5px] font-bold text-foreground truncate">{module.title}</span>
                   {totalCount > 0 && (
-                    <div className="mt-1 flex items-center gap-2">
+                    <div className="mt-0.5 flex items-center gap-2">
                       <div className="h-1 flex-1 max-w-[80px] rounded-full bg-muted overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-500"
@@ -171,68 +173,70 @@ export function ModuleAccordion({
                           }}
                         />
                       </div>
-                      <span className="text-[10px] text-muted-foreground tabular-nums">
+                      <span className="text-[11.5px] text-muted-foreground/70 font-semibold tabular-nums">
                         {completedCount}/{totalCount}
                       </span>
                     </div>
                   )}
                 </div>
                 {expanded
-                  ? <ChevronDown  size={15} className="flex-shrink-0 text-muted-foreground/60" />
-                  : <ChevronRight size={15} className="flex-shrink-0 text-muted-foreground/60" />
+                  ? <ChevronDown  size={14} className="flex-shrink-0 text-muted-foreground/50" />
+                  : <ChevronRight size={14} className="flex-shrink-0 text-muted-foreground/50" />
                 }
               </button>
               <button
                 onClick={e => { e.stopPropagation(); setEditingTitle(true); setTitleInput(module.title); }}
-                className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground opacity-0 group-hover/module:opacity-100 hover:text-capta-deep hover:bg-capta-tint/60 dark:hover:text-capta-soft dark:hover:bg-capta-soft/10 transition-all flex-shrink-0"
+                className="flex h-7 w-7 items-center justify-center rounded-[7px] text-muted-foreground opacity-0 group-hover/module:opacity-100 hover:text-capta-deep hover:bg-capta-tint/60 dark:hover:text-capta-soft dark:hover:bg-capta-soft/10 transition-all flex-shrink-0"
                 title="Renombrar módulo"
               >
-                <Edit3 size={11} />
+                <Edit3 size={12} />
               </button>
             </>
           )}
         </div>
 
-        {/* Eliminar: toggle ícono ↔ mini-confirmación */}
-        <AnimatePresence mode="wait">
-          {deleteConfirm ? (
-            <motion.div
-              key="confirm"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.12 }}
-              className="flex items-center gap-1.5 flex-shrink-0"
-            >
-              <span className="hidden text-[11px] text-muted-foreground sm:block">¿Eliminar módulo?</span>
-              <button
-                onClick={() => setDeleteConfirm(false)}
-                className="rounded-lg px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted transition-colors"
+        {/* Eliminar: oculto mientras se edita el título para evitar solapamiento */}
+        {!editingTitle && (
+          <AnimatePresence mode="wait">
+            {deleteConfirm ? (
+              <motion.div
+                key="confirm"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.12 }}
+                className="flex items-center gap-1.5 flex-shrink-0"
               >
-                No
-              </button>
-              <button
-                onClick={handleDeleteModule}
-                disabled={deleting}
-                className="flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] font-semibold text-white bg-destructive hover:bg-destructive/90 disabled:opacity-60 transition-all"
+                <span className="hidden text-[11px] text-muted-foreground sm:block">¿Eliminar módulo?</span>
+                <button
+                  onClick={() => setDeleteConfirm(false)}
+                  className="rounded-lg px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  No
+                </button>
+                <button
+                  onClick={handleDeleteModule}
+                  disabled={deleting}
+                  className="flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] font-semibold text-white bg-destructive hover:bg-destructive/90 disabled:opacity-60 transition-all"
+                >
+                  {deleting && <Loader2 size={10} className="animate-spin" />}
+                  Eliminar
+                </button>
+              </motion.div>
+            ) : (
+              <motion.button
+                key="trash"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setDeleteConfirm(true)}
+                className="flex h-7 w-7 items-center justify-center rounded-[7px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all flex-shrink-0"
               >
-                {deleting && <Loader2 size={10} className="animate-spin" />}
-                Eliminar
-              </button>
-            </motion.div>
-          ) : (
-            <motion.button
-              key="trash"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setDeleteConfirm(true)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all flex-shrink-0"
-            >
-              <Trash2 size={13} />
-            </motion.button>
-          )}
-        </AnimatePresence>
+                <Trash2 size={13} />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        )}
       </div>
 
       {/* ── Lecciones ── */}
@@ -245,7 +249,7 @@ export function ModuleAccordion({
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="space-y-2 p-4">
+            <div className="px-2 pt-1 pb-3 space-y-1.5">
               {module.lessons.map(lesson => (
                 <LessonRow
                   key={lesson.id}
@@ -254,6 +258,7 @@ export function ModuleAccordion({
                   moduleId={module.id}
                   onDelete={id => onLessonDelete(module.id, id)}
                   onEdit={l => onLessonEdit(l, module.id)}
+                  isActive={activeLessonId === lesson.id}
                 />
               ))}
 
@@ -266,14 +271,15 @@ export function ModuleAccordion({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.15 }}
-                    className="rounded-xl border border-capta-soft/30 bg-capta-soft/5 p-3 space-y-3"
+                    className="rounded-xl border border-capta-soft/40 bg-capta-soft/5 p-3.5 space-y-3"
+                    style={{ boxShadow: '0 0 0 3px rgba(143,196,232,0.10)' }}
                   >
-                    {/* Selector visual de tipo — PRIMERO para definir intención */}
+                    {/* Selector visual de tipo */}
                     <div>
-                      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                      <p className="mb-2 text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground">
                         ¿Qué tipo de lección?
                       </p>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-3 gap-[7px]">
                         {LESSON_TYPES.map(t => {
                           const active = lessonType === t.value;
                           return (
@@ -281,7 +287,7 @@ export function ModuleAccordion({
                               key={t.value}
                               type="button"
                               onClick={() => setLessonType(t.value)}
-                              className="flex flex-col items-center gap-1.5 rounded-xl border py-3 text-xs font-semibold transition-all hover:scale-[1.02] active:scale-[0.97]"
+                              className="flex flex-col items-center gap-[5px] rounded-[10px] border py-[11px] text-[12px] font-bold transition-all hover:scale-[1.02] active:scale-[0.97]"
                               style={
                                 active
                                   ? { background: t.color, borderColor: t.color, color: '#fff', boxShadow: `0 2px 8px ${t.color}40` }
@@ -296,7 +302,7 @@ export function ModuleAccordion({
                       </div>
                     </div>
 
-                    {/* Título — DESPUÉS del tipo, con placeholder contextual */}
+                    {/* Título con placeholder contextual */}
                     <input
                       autoFocus
                       value={lessonTitle}
@@ -307,23 +313,23 @@ export function ModuleAccordion({
                         lessonType === 'TEXT'  ? 'Ej: Fundamentos teóricos' :
                         'Ej: Material de referencia PDF'
                       }
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft"
+                      className="w-full rounded-xl border border-border bg-background px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft"
                     />
 
                     <div className="flex items-center justify-between">
                       <button
                         onClick={() => setAddingLesson(false)}
-                        className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 transition-colors"
+                        className="text-sm text-muted-foreground hover:text-foreground px-2 py-1 transition-colors"
                       >
                         Cancelar
                       </button>
                       <button
                         onClick={handleAddLesson}
                         disabled={!lessonTitle.trim() || saving}
-                        className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.97]"
+                        className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.97]"
                         style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
                       >
-                        {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                        {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
                         Crear lección
                       </button>
                     </div>
@@ -335,7 +341,7 @@ export function ModuleAccordion({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={() => setAddingLesson(true)}
-                    className="flex w-full items-center gap-2 rounded-xl border-2 border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:border-capta-soft/50 hover:text-capta-soft transition-all"
+                    className="flex w-full items-center gap-2 rounded-[9px] border border-dashed border-border px-[11px] py-[9px] text-[13.5px] font-semibold text-muted-foreground hover:border-capta-soft/50 hover:text-capta-soft transition-all"
                   >
                     <Plus size={14} /> Agregar lección
                   </motion.button>

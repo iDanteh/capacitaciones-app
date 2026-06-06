@@ -16,12 +16,14 @@ export function LessonRow({
   onEdit,
   courseId,
   moduleId,
+  isActive = false,
 }: {
   lesson: Lesson;
   onDelete: (id: string) => void;
   onEdit: (lesson: Lesson) => void;
   courseId: string;
   moduleId: string;
+  isActive?: boolean;
 }) {
   const [deleting,      setDeleting]      = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -43,28 +45,35 @@ export function LessonRow({
   const typeConfig  = LESSON_TYPE_CONFIG[lesson.type];
 
   return (
-    <div className="group relative flex items-center gap-3 rounded-xl border border-border bg-background pl-3 pr-3 py-2.5 hover:border-capta-soft/30 hover:shadow-sm transition-all overflow-hidden">
+    <div
+      className={`group relative flex items-center gap-[9px] rounded-[9px] border py-[9px] pr-[10px] transition-all overflow-hidden cursor-pointer ${
+        isActive
+          ? 'border-capta-soft/50 bg-capta-tint/40 dark:bg-capta-soft/10 shadow-sm'
+          : 'border-border bg-background hover:border-capta-soft/30 hover:bg-muted/40 hover:shadow-sm'
+      }`}
+      style={{ paddingLeft: 10 }}
+      onClick={() => !deleteConfirm && onEdit(lesson)}
+    >
       {/* Borde izquierdo coloreado por tipo */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl"
-        style={{ background: typeConfig.color }}
+        className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full transition-all"
+        style={{ background: isActive ? typeConfig.color : `${typeConfig.color}70` }}
       />
 
-      <GripVertical size={14} className="ml-1 text-muted-foreground/40 flex-shrink-0 cursor-grab" />
+      <GripVertical size={13} className="ml-0.5 text-muted-foreground/35 flex-shrink-0 cursor-grab" />
 
-      {/* Ícono del tipo con fondo sutil */}
+      {/* Ícono del tipo */}
       <div
-        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"
+        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[8px]"
         style={{ background: `${typeConfig.color}12`, color: typeConfig.color }}
       >
         <Icon name={typeConfig.iconName} size={13} />
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{lesson.title}</p>
-        <div className="flex items-center gap-2 mt-0.5">
-          {/* Tipo */}
-          <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: typeConfig.color }}>
+        <p className="text-[13.5px] font-semibold text-foreground truncate">{lesson.title}</p>
+        <div className="flex items-center gap-2 mt-px">
+          <span className="text-[11px] font-semibold capitalize" style={{ color: 'var(--muted-foreground)' }}>
             {typeConfig.label}
           </span>
           {lesson.isPreview && (
@@ -100,7 +109,7 @@ export function LessonRow({
 
       {/* Acciones: editar + eliminar */}
       {deleteConfirm ? (
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
           <span className="text-[11px] text-muted-foreground">¿Eliminar?</span>
           <button
             onClick={() => setDeleteConfirm(false)}
@@ -118,13 +127,7 @@ export function LessonRow({
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
-          <button
-            onClick={() => onEdit(lesson)}
-            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-capta-deep hover:border-capta-soft/40 dark:hover:text-capta-soft transition-all"
-          >
-            <Edit3 size={11} /> Editar
-          </button>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" onClick={e => e.stopPropagation()}>
           <button
             onClick={() => setDeleteConfirm(true)}
             className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
