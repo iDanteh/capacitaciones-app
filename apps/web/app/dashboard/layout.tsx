@@ -693,12 +693,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto scrollbar-thin">
+        <main className="flex-1 overflow-hidden">
           <motion.div
             key={pathname}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.04 }}
+            className="h-full overflow-y-auto scrollbar-thin"
           >
             {children}
           </motion.div>
