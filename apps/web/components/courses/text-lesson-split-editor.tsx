@@ -28,6 +28,8 @@ interface Props {
   initialContent: string;
   onSave:         (content: string) => void;
   onClose:        () => void;
+  /** 'modal' (default): overlay fixed full-screen. 'inline': fills parent container. */
+  variant?:       'modal' | 'inline';
 }
 
 // ─── Toolbar button ───────────────────────────────────────────────────────────
@@ -76,6 +78,7 @@ export function TextLessonSplitEditor({
   initialContent,
   onSave,
   onClose,
+  variant = 'modal',
 }: Props) {
   const { error: toastError } = useToast();
 
@@ -448,9 +451,205 @@ export function TextLessonSplitEditor({
   //  Render
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── Split body — compartido entre modal e inline ─────────────────────────
+
+  const toolbar = (
+    <div className="relative flex-shrink-0 border-b border-border bg-card/60 backdrop-blur-sm">
+      <div className="flex items-center gap-0.5 px-3 py-1.5 flex-wrap">
+        <TBtn title="Negrita (Cmd+B)" onClick={() => wrapSelection('**', '**')}>
+          <span className="text-xs font-bold leading-none">B</span>
+        </TBtn>
+        <TBtn title="Cursiva (Cmd+I)" onClick={() => wrapSelection('*', '*')}>
+          <span className="text-xs italic leading-none">I</span>
+        </TBtn>
+        <div className="mx-1 h-4 w-px flex-shrink-0 bg-border" />
+        <TBtn title="Encabezado 2" onClick={() => insertAtCursor('\n## ')}>
+          <span className="text-[10px] font-bold leading-none">H2</span>
+        </TBtn>
+        <TBtn title="Encabezado 3" onClick={() => insertAtCursor('\n### ')}>
+          <span className="text-[10px] font-bold leading-none">H3</span>
+        </TBtn>
+        <div className="mx-1 h-4 w-px flex-shrink-0 bg-border" />
+        <TBtn title="Lista sin orden" onClick={() => insertAtCursor('\n- ')}>
+          <Icon name="menu" size={13} />
+        </TBtn>
+        <TBtn title="Lista numerada" onClick={() => insertAtCursor('\n1. ')}>
+          <span className="text-[10px] font-bold leading-none">1.</span>
+        </TBtn>
+        <div className="mx-1 h-4 w-px flex-shrink-0 bg-border" />
+        <TBtn
+          title="Insertar enlace (Cmd+K)"
+          active={linkOpen}
+          onClick={() => {
+            const sel = window.getSelection();
+            if (sel?.rangeCount) {
+              savedRangeRef.current   = sel.getRangeAt(0).cloneRange();
+              savedSelTextRef.current = sel.getRangeAt(0).toString();
+            }
+            setLinkOpen(o => !o);
+          }}
+        >
+          <Icon name="external-link" size={13} />
+        </TBtn>
+        <TBtn
+          title="Insertar imagen (drag/paste también funcionan)"
+          disabled={imgUploading}
+          onClick={() => imgInputRef.current?.click()}
+        >
+          {imgUploading
+            ? <Icon name="refresh" size={13} className="animate-spin" />
+            : <Icon name="upload" size={13} />}
+        </TBtn>
+        <input ref={imgInputRef} type="file" accept="image/*" className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) uploadImageFile(f); e.target.value = ''; }} />
+        <div className="mx-1 h-4 w-px flex-shrink-0 bg-border" />
+        <TBtn title="Línea divisoria (---)" onClick={() => insertAtCursor('\n\n---\n\n')}>
+          <span className="text-xs font-mono leading-none text-muted-foreground">—</span>
+        </TBtn>
+        <span className="ml-auto text-[10px] text-muted-foreground/50 hidden sm:block flex-shrink-0 pr-1">
+          Cmd+B · Cmd+I · Cmd+K · Cmd+S
+        </span>
+      </div>
+
+      {/* Popover de link */}
+      <AnimatePresence>
+        {linkOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.12 }}
+            className="absolute top-full left-0 right-0 z-10 flex items-center gap-2 border-b border-border bg-card px-3 py-2 shadow-sm"
+          >
+            <Icon name="external-link" size={13} className="text-muted-foreground flex-shrink-0" />
+            <input
+              ref={linkInputRef}
+              value={linkUrl}
+              onChange={e => setLinkUrl(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter')  { e.preventDefault(); confirmLink(); }
+                if (e.key === 'Escape') { setLinkOpen(false); setLinkUrl(''); }
+              }}
+              placeholder="https://…"
+              className="flex-1 bg-transparent text-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40"
+            />
+            <button onClick={confirmLink}
+              className="text-xs font-semibold text-capta-deep dark:text-capta-soft hover:opacity-75 transition-opacity flex-shrink-0">
+              Insertar
+            </button>
+            <button onClick={() => { setLinkOpen(false); setLinkUrl(''); }}
+              className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+              <Icon name="close" size={13} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
+  const splitBody = (
+    <div
+      ref={containerRef}
+      className="flex flex-1 min-h-0 overflow-hidden"
+      style={{ userSelect: isDragging ? 'none' : 'auto', cursor: isDragging ? 'col-resize' : 'auto' }}
+    >
+      {/* ── Panel izquierdo: editor ─────────────────────────────────────── */}
+      <div className="relative flex flex-col overflow-hidden" style={{ width: `${splitPct}%` }}>
+        {toolbar}
+        <div className="flex-1 overflow-y-auto" onDragOver={handleDragOver} onDrop={handleDrop}>
+          <style>{`
+            [data-editor]:empty:before {
+              content: attr(data-placeholder);
+              color: #94a3b8;
+              pointer-events: none;
+            }
+          `}</style>
+          <div
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            data-editor="true"
+            data-placeholder={`# Título de la lección\n\nEscribe el contenido en Markdown…\n\n## Sección\n\nPuedes usar **negrita**, *cursiva*, \`código\`, listas, etc.`}
+            onInput={handleInput}
+            onPaste={handlePaste}
+            onKeyDown={handleKeyDown}
+            className="min-h-full w-full px-5 py-5 text-sm text-foreground leading-relaxed focus:outline-none"
+            style={{
+              fontFamily: 'ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace',
+              fontSize:   '13px',
+              lineHeight: '1.8',
+              whiteSpace: 'pre-wrap',
+              wordBreak:  'break-word',
+              tabSize:    2,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* ── Resize handle ──────────────────────────────────────────────── */}
+      <div
+        onMouseDown={handleResizeDown}
+        className="group relative flex w-2 flex-shrink-0 cursor-col-resize items-center justify-center transition-colors hover:bg-capta-soft/20"
+        style={{ background: isDragging ? 'rgba(143,196,232,0.2)' : undefined }}
+      >
+        <div className="h-10 w-0.5 rounded-full bg-border group-hover:bg-capta-soft transition-colors" />
+      </div>
+
+      {/* ── Panel derecho: preview ──────────────────────────────────────── */}
+      <div className="flex flex-col overflow-hidden border-l border-border" style={{ width: `${100 - splitPct}%` }}>
+        <div className="flex h-9 flex-shrink-0 items-center gap-2 border-b border-border px-4 bg-muted/30">
+          <Icon name="eye" size={13} className="text-muted-foreground" />
+          <span className="text-xs font-semibold text-muted-foreground">Vista previa</span>
+          <span className="ml-auto text-[10px] text-muted-foreground/40">400 ms delay</span>
+        </div>
+        <div className="flex-1 overflow-y-auto px-7 py-6">
+          <MarkdownRenderer content={previewContent} />
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Inline variant — se renderiza dentro del panel derecho ───────────────
+
+  if (variant === 'inline') {
+    return (
+      <div className="flex flex-col h-full bg-card overflow-hidden">
+        {/* Mini header con indicador de autosave + botón guardar */}
+        <div className="flex h-10 flex-shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md"
+              style={{ background: '#16a34a12', color: '#16a34a' }}>
+              <Icon name="file" size={11} />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground flex-shrink-0">
+              Markdown
+            </span>
+            <motion.span
+              ref={saveIndicatorRef}
+              className="text-[11px] font-medium ml-0.5 flex-shrink-0"
+              style={{ color: '#94a3b8' }}
+            />
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {isSaving && <Icon name="refresh" size={12} className="animate-spin text-muted-foreground" />}
+            <button
+              onClick={() => performSave(contentRef.current)}
+              disabled={isSaving}
+              className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-50 transition-all active:scale-[0.97]"
+            >
+              <Icon name="save" size={11} /> Guardar
+            </button>
+          </div>
+        </div>
+        {splitBody}
+      </div>
+    );
+  }
+
+  // ── Modal variant (default) — overlay fixed full-screen ──────────────────
+
   return (
     <>
-      {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -459,58 +658,41 @@ export function TextLessonSplitEditor({
         className="fixed inset-0 z-[58] bg-black/40 backdrop-blur-sm"
         onClick={handleClose}
       />
-
-      {/* Panel principal */}
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.98 }}
         transition={{ duration: 0.18, ease: 'easeOut' }}
         className="fixed inset-3 z-[59] flex flex-col rounded-2xl border border-border bg-card overflow-hidden"
-        style={{
-          boxShadow: '0 24px 80px rgba(0,0,0,.22), 0 1px 0 rgba(255,255,255,.6) inset',
-        }}
+        style={{ boxShadow: '0 24px 80px rgba(0,0,0,.22), 0 1px 0 rgba(255,255,255,.6) inset' }}
         onClick={e => e.stopPropagation()}
       >
-
-        {/* ── Header ─────────────────────────────────────────────────────── */}
+        {/* Header completo con título y botón cerrar */}
         <div className="flex h-12 flex-shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4">
-
-          {/* Izquierda: ícono + título + indicador */}
           <div className="flex items-center gap-2 min-w-0">
-            <div
-              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg"
-              style={{ background: '#16a34a12', color: '#16a34a' }}
-            >
+            <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg"
+              style={{ background: '#16a34a12', color: '#16a34a' }}>
               <Icon name="file" size={13} />
             </div>
             <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground flex-shrink-0">
               Editor Texto
             </span>
             <span className="text-muted-foreground/30 flex-shrink-0">/</span>
-            <span className="text-sm font-semibold text-foreground truncate">
-              {lessonTitle}
-            </span>
-            {/* Indicador de autosave — actualizado por ref, sin setState */}
+            <span className="text-sm font-semibold text-foreground truncate">{lessonTitle}</span>
             <motion.span
               ref={saveIndicatorRef}
               className="text-[11px] font-medium ml-1 flex-shrink-0"
               style={{ color: '#94a3b8' }}
             />
           </div>
-
-          {/* Derecha: botón guardar + cerrar */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {isSaving && (
-              <Icon name="refresh" size={13} className="animate-spin text-muted-foreground" />
-            )}
+            {isSaving && <Icon name="refresh" size={13} className="animate-spin text-muted-foreground" />}
             <button
               onClick={() => performSave(contentRef.current)}
               disabled={isSaving}
               className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-50 transition-all active:scale-[0.97]"
             >
-              <Icon name="save" size={12} />
-              Guardar
+              <Icon name="save" size={12} /> Guardar
             </button>
             <button
               onClick={handleClose}
@@ -521,210 +703,7 @@ export function TextLessonSplitEditor({
             </button>
           </div>
         </div>
-
-        {/* ── Split body ─────────────────────────────────────────────────── */}
-        <div
-          ref={containerRef}
-          className="flex flex-1 overflow-hidden"
-          style={{ userSelect: isDragging ? 'none' : 'auto', cursor: isDragging ? 'col-resize' : 'auto' }}
-        >
-
-          {/* ── Panel izquierdo: editor ──────────────────────────────────── */}
-          <div
-            className="relative flex flex-col overflow-hidden"
-            style={{ width: `${splitPct}%` }}
-          >
-            {/* Toolbar */}
-            <div className="relative flex-shrink-0 border-b border-border bg-card/60 backdrop-blur-sm">
-              <div className="flex items-center gap-0.5 px-3 py-1.5 flex-wrap">
-
-                {/* Bold */}
-                <TBtn title="Negrita (Cmd+B)" onClick={() => wrapSelection('**', '**')}>
-                  <span className="text-xs font-bold leading-none">B</span>
-                </TBtn>
-                {/* Italic */}
-                <TBtn title="Cursiva (Cmd+I)" onClick={() => wrapSelection('*', '*')}>
-                  <span className="text-xs italic leading-none">I</span>
-                </TBtn>
-
-                <div className="mx-1 h-4 w-px flex-shrink-0 bg-border" />
-
-                {/* H2 */}
-                <TBtn title="Encabezado 2" onClick={() => insertAtCursor('\n## ')}>
-                  <span className="text-[10px] font-bold leading-none">H2</span>
-                </TBtn>
-                {/* H3 */}
-                <TBtn title="Encabezado 3" onClick={() => insertAtCursor('\n### ')}>
-                  <span className="text-[10px] font-bold leading-none">H3</span>
-                </TBtn>
-
-                <div className="mx-1 h-4 w-px flex-shrink-0 bg-border" />
-
-                {/* Lista sin orden */}
-                <TBtn title="Lista sin orden" onClick={() => insertAtCursor('\n- ')}>
-                  <Icon name="menu" size={13} />
-                </TBtn>
-                {/* Lista numerada */}
-                <TBtn title="Lista numerada" onClick={() => insertAtCursor('\n1. ')}>
-                  <span className="text-[10px] font-bold leading-none">1.</span>
-                </TBtn>
-
-                <div className="mx-1 h-4 w-px flex-shrink-0 bg-border" />
-
-                {/* Link (Cmd+K) */}
-                <TBtn
-                  title="Insertar enlace (Cmd+K)"
-                  active={linkOpen}
-                  onClick={() => {
-                    const sel = window.getSelection();
-                    if (sel?.rangeCount) {
-                      savedRangeRef.current   = sel.getRangeAt(0).cloneRange();
-                      savedSelTextRef.current = sel.getRangeAt(0).toString();
-                    }
-                    setLinkOpen(o => !o);
-                  }}
-                >
-                  <Icon name="external-link" size={13} />
-                </TBtn>
-
-                {/* Imagen */}
-                <TBtn
-                  title="Insertar imagen (drag/paste también funcionan)"
-                  disabled={imgUploading}
-                  onClick={() => imgInputRef.current?.click()}
-                >
-                  {imgUploading
-                    ? <Icon name="refresh" size={13} className="animate-spin" />
-                    : <Icon name="upload" size={13} />}
-                </TBtn>
-                <input
-                  ref={imgInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={e => {
-                    const f = e.target.files?.[0];
-                    if (f) uploadImageFile(f);
-                    e.target.value = '';
-                  }}
-                />
-
-                <div className="mx-1 h-4 w-px flex-shrink-0 bg-border" />
-
-                {/* Separador horizontal */}
-                <TBtn title="Línea divisoria (---)" onClick={() => insertAtCursor('\n\n---\n\n')}>
-                  <span className="text-xs font-mono leading-none text-muted-foreground">—</span>
-                </TBtn>
-
-                {/* Atajos hint */}
-                <span className="ml-auto text-[10px] text-muted-foreground/50 hidden sm:block flex-shrink-0 pr-1">
-                  Cmd+B · Cmd+I · Cmd+K · Cmd+S
-                </span>
-              </div>
-
-              {/* Popover de link */}
-              <AnimatePresence>
-                {linkOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.12 }}
-                    className="absolute top-full left-0 right-0 z-10 flex items-center gap-2 border-b border-border bg-card px-3 py-2 shadow-sm"
-                  >
-                    <Icon name="external-link" size={13} className="text-muted-foreground flex-shrink-0" />
-                    <input
-                      ref={linkInputRef}
-                      value={linkUrl}
-                      onChange={e => setLinkUrl(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter')  { e.preventDefault(); confirmLink(); }
-                        if (e.key === 'Escape') { setLinkOpen(false); setLinkUrl(''); }
-                      }}
-                      placeholder="https://…"
-                      className="flex-1 bg-transparent text-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40"
-                    />
-                    <button
-                      onClick={confirmLink}
-                      className="text-xs font-semibold text-capta-deep dark:text-capta-soft hover:opacity-75 transition-opacity flex-shrink-0"
-                    >
-                      Insertar
-                    </button>
-                    <button
-                      onClick={() => { setLinkOpen(false); setLinkUrl(''); }}
-                      className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                    >
-                      <Icon name="close" size={13} />
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Área editable */}
-            <div
-              className="flex-1 overflow-y-auto"
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-            >
-              {/* Placeholder vía CSS cuando div está vacío */}
-              <style>{`
-                [data-editor]:empty:before {
-                  content: attr(data-placeholder);
-                  color: #94a3b8;
-                  pointer-events: none;
-                }
-              `}</style>
-              <div
-                ref={editorRef}
-                contentEditable
-                suppressContentEditableWarning
-                data-editor="true"
-                data-placeholder={`# Título de la lección\n\nEscribe el contenido en Markdown…\n\n## Sección\n\nPuedes usar **negrita**, *cursiva*, \`código\`, listas, etc.`}
-                onInput={handleInput}
-                onPaste={handlePaste}
-                onKeyDown={handleKeyDown}
-                className="min-h-full w-full px-5 py-5 text-sm text-foreground leading-relaxed focus:outline-none"
-                style={{
-                  fontFamily: 'ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace',
-                  fontSize:   '13px',
-                  lineHeight: '1.8',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak:  'break-word',
-                  tabSize:    2,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* ── Resize handle ────────────────────────────────────────────── */}
-          <div
-            onMouseDown={handleResizeDown}
-            className="group relative flex w-2 flex-shrink-0 cursor-col-resize items-center justify-center transition-colors hover:bg-capta-soft/20"
-            style={{ background: isDragging ? 'rgba(143,196,232,0.2)' : undefined }}
-          >
-            <div className="h-10 w-0.5 rounded-full bg-border group-hover:bg-capta-soft transition-colors" />
-          </div>
-
-          {/* ── Panel derecho: preview ────────────────────────────────────── */}
-          <div
-            className="flex flex-col overflow-hidden border-l border-border"
-            style={{ width: `${100 - splitPct}%` }}
-          >
-            {/* Subheader del preview */}
-            <div className="flex h-9 flex-shrink-0 items-center gap-2 border-b border-border px-4 bg-muted/30">
-              <Icon name="eye" size={13} className="text-muted-foreground" />
-              <span className="text-xs font-semibold text-muted-foreground">Vista previa</span>
-              <span className="ml-auto text-[10px] text-muted-foreground/40">400 ms delay</span>
-            </div>
-
-            {/* Contenido del preview */}
-            <div className="flex-1 overflow-y-auto px-7 py-6">
-              <MarkdownRenderer content={previewContent} />
-            </div>
-          </div>
-
-        </div>
+        {splitBody}
       </motion.div>
     </>
   );
