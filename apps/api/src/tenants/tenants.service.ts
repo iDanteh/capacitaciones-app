@@ -212,13 +212,14 @@ export class TenantsService {
       });
 
       // Email (fallo silencioso)
-      await this.email.sendInvite({
+      // Fire-and-forget — sendInvite ya maneja reintentos y errores internamente
+      this.email.sendInvite({
         to:          dto.ownerEmail,
         inviterName: `${inviter.firstName} ${inviter.lastName}`,
         companyName: `${dto.name} (sub-empresa de ${parentTenant.name})`,
         role:        'OWNER',
         token:       rawToken,
-      }).catch(() => {});
+      });
     }
 
     this.logger.log(`Sub-empresa "${child.name}" creada por ${inviterId}`);

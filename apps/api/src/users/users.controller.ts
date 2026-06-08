@@ -105,7 +105,7 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Cancelar una invitación pendiente' })
   cancelInvite(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.usersService.cancelInvite(user.tenantId, id);
+    return this.usersService.cancelInvite(user.tenantId, id, user.sub);
   }
 
   // ── :id debe ir DESPUÉS de rutas literales (me, invites) ──────────────────

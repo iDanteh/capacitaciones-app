@@ -24,9 +24,18 @@ interface Course {
   updatedAt: string;
 }
 
-type ViewMode      = 'grid' | 'list';
-type AdminFilter   = 'ALL' | 'PUBLISHED' | 'DRAFT' | 'ARCHIVED';
+type ViewMode       = 'grid' | 'list';
+type AdminFilter    = 'ALL' | 'PUBLISHED' | 'DRAFT' | 'ARCHIVED';
 type EmployeeFilter = 'ALL' | 'ENROLLED' | 'AVAILABLE' | 'COMPLETED';
+type SortBy         = 'newest' | 'oldest' | 'az' | 'za' | 'popular';
+
+const SORT_OPTIONS: { key: SortBy; label: string }[] = [
+  { key: 'newest',  label: 'Más recientes' },
+  { key: 'oldest',  label: 'Más antiguos'  },
+  { key: 'az',      label: 'A → Z'          },
+  { key: 'za',      label: 'Z → A'          },
+  { key: 'popular', label: 'Más inscritos'  },
+];
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
@@ -510,6 +519,7 @@ export default function CoursesPage() {
 
   const [adminFilter,    setAdminFilter]    = useState<AdminFilter>('ALL');
   const [employeeFilter, setEmployeeFilter] = useState<EmployeeFilter>('ALL');
+  const [sortBy,         setSortBy]         = useState<SortBy>('newest');
 
   useEffect(() => {
     const raw = localStorage.getItem('user');
@@ -566,21 +576,41 @@ export default function CoursesPage() {
     completed:  courses.filter(c => c.isEnrolled && c.myProgress === 100).length,
   }), [courses]);
 
-  const adminFiltered = useMemo(() => courses.filter(c => {
-    const matchSearch = c.title.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = adminFilter === 'ALL' || c.status === adminFilter;
-    return matchSearch && matchFilter;
-  }), [courses, search, adminFilter]);
+  const adminFiltered = useMemo(() => {
+    const q = search.toLowerCase();
+    const filtered = courses.filter(c => {
+      const matchSearch =
+        c.title.toLowerCase().includes(q) ||
+        (c.description ?? '').toLowerCase().includes(q);
+      const matchFilter = adminFilter === 'ALL' || c.status === adminFilter;
+      return matchSearch && matchFilter;
+    });
 
-  const employeeFiltered = useMemo(() => courses.filter(c => {
-    const matchSearch = c.title.toLowerCase().includes(search.toLowerCase());
-    const matchFilter =
-      employeeFilter === 'ENROLLED'  ? (c.isEnrolled && (c.myProgress ?? 0) < 100) :
-      employeeFilter === 'AVAILABLE' ? !c.isEnrolled :
-      employeeFilter === 'COMPLETED' ? (c.isEnrolled && c.myProgress === 100) :
-      true;
-    return matchSearch && matchFilter;
-  }), [courses, search, employeeFilter]);
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'oldest':  return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'az':      return a.title.localeCompare(b.title, 'es');
+        case 'za':      return b.title.localeCompare(a.title, 'es');
+        case 'popular': return (b.enrollmentCount ?? 0) - (a.enrollmentCount ?? 0);
+        default:        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // newest
+      }
+    });
+  }, [courses, search, adminFilter, sortBy]);
+
+  const employeeFiltered = useMemo(() => {
+    const q = search.toLowerCase();
+    return courses.filter(c => {
+      const matchSearch =
+        c.title.toLowerCase().includes(q) ||
+        (c.description ?? '').toLowerCase().includes(q);
+      const matchFilter =
+        employeeFilter === 'ENROLLED'  ? (c.isEnrolled && (c.myProgress ?? 0) < 100) :
+        employeeFilter === 'AVAILABLE' ? !c.isEnrolled :
+        employeeFilter === 'COMPLETED' ? (c.isEnrolled && c.myProgress === 100) :
+        true;
+      return matchSearch && matchFilter;
+    });
+  }, [courses, search, employeeFilter]);
 
   // ── Search clear button ────────────────────────────────────────────────────
   const SearchInput = (
@@ -673,9 +703,25 @@ export default function CoursesPage() {
 
         {/* Toolbar */}
         <div className="flex flex-col gap-3">
-          {/* Row 1: search + view toggle */}
+          {/* Row 1: search + sort + view toggle */}
           <div className="flex items-center gap-3">
             {SearchInput}
+
+            {/* Sort dropdown */}
+            <div className="relative flex-shrink-0">
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value as SortBy)}
+                className="appearance-none h-10 rounded-xl border border-border bg-background pl-3 pr-8 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft/60 transition-all cursor-pointer"
+              >
+                {SORT_OPTIONS.map(o => (
+                  <option key={o.key} value={o.key}>{o.label}</option>
+                ))}
+              </select>
+              <Icon name="chevron-down" size={12}
+                className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            </div>
+
             {/* View toggle */}
             <div className="flex rounded-xl border border-border p-0.5 gap-0.5 bg-background flex-shrink-0">
               {([
@@ -753,8 +799,8 @@ export default function CoursesPage() {
                     style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}>
                     <Icon name="plus" size={15} /> Crear primer curso
                   </Link>
-                ) : (search || adminFilter !== 'ALL') ? (
-                  <button onClick={() => { setSearchInput(''); setAdminFilter('ALL'); }}
+                ) : (search || adminFilter !== 'ALL' || sortBy !== 'newest') ? (
+                  <button onClick={() => { setSearchInput(''); setAdminFilter('ALL'); setSortBy('newest'); }}
                     className="text-xs font-semibold text-capta-deep dark:text-capta-soft hover:underline transition-colors">
                     Limpiar filtros →
                   </button>

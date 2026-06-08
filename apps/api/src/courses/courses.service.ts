@@ -32,15 +32,48 @@ export class CoursesService {
 
   // ── Cursos ───────────────────────────────────────────────────────────────────
 
-  async findAll(tenantId: string, userId: string, role: string): Promise<CourseResponseDto[]> {
-    // EMPLOYEE solo ve cursos publicados
-    const statusFilter = ['EMPLOYEE'].includes(role)
-      ? { status: CourseStatus.PUBLISHED }
+  async findAll(
+    tenantId: string,
+    userId:   string,
+    role:     string,
+    filters?: {
+      search?:    string;
+      status?:    string;
+      sortBy?:    string;
+      sortOrder?: 'asc' | 'desc';
+    },
+  ): Promise<CourseResponseDto[]> {
+    // EMPLOYEE solo ve cursos publicados; admins pueden filtrar por status
+    const statusFilter =
+      ['EMPLOYEE'].includes(role)
+        ? { status: CourseStatus.PUBLISHED }
+        : filters?.status && Object.values(CourseStatus).includes(filters.status as CourseStatus)
+        ? { status: filters.status as CourseStatus }
+        : {};
+
+    // Búsqueda por título o descripción (case-insensitive)
+    const searchFilter = filters?.search?.trim()
+      ? {
+          OR: [
+            { title:       { contains: filters.search.trim(), mode: 'insensitive' as const } },
+            { description: { contains: filters.search.trim(), mode: 'insensitive' as const } },
+          ],
+        }
       : {};
 
+    // Ordenamiento — solo campos seguros de la whitelist
+    const SORT_WHITELIST: Record<string, { field: string }> = {
+      createdAt:       { field: 'createdAt' },
+      title:           { field: 'title' },
+      totalLessons:    { field: 'totalLessons' },
+    };
+    const sortField = SORT_WHITELIST[filters?.sortBy ?? 'createdAt'] ?? SORT_WHITELIST.createdAt;
+    const sortDir   = filters?.sortOrder === 'asc' ? 'asc' : 'desc';
+
     const courses = await this.prisma.course.findMany({
-      where: { tenantId, deletedAt: null, ...statusFilter },
-      orderBy: { createdAt: 'desc' },
+      where: { tenantId, deletedAt: null, ...statusFilter, ...searchFilter },
+      orderBy: { [sortField.field]: sortDir },
+      take: 500, // safety cap — paginación real en fase de escala
       include: {
         author: { select: { firstName: true, lastName: true } },
         _count: { select: { enrollments: true } },

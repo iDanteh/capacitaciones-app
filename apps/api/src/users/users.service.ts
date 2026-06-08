@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { EmailService } from '../email/email.service';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/audit.types';
 import { UserResponseDto } from './dto/user-response.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -34,7 +36,8 @@ export class UsersService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly email: EmailService,
+    private readonly email:  EmailService,
+    private readonly audit:  AuditService,
   ) {}
 
   // ── Profile (self) ────────────────────────────────────────────────────────
@@ -75,7 +78,7 @@ export class UsersService {
   ): Promise<void> {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, tenantId, deletedAt: null },
-      select: { id: true, passwordHash: true },
+      select: { id: true, email: true, firstName: true, passwordHash: true },
     });
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
@@ -96,7 +99,17 @@ export class UsersService {
       }),
     ]);
 
+    // Notificar al usuario — fire-and-forget
+    this.email.sendPasswordChanged({ to: user.email, firstName: user.firstName });
+
     this.logger.log(`Contraseña cambiada para usuario ${userId}`);
+    this.audit.log({
+      action:   AuditAction.USER_PASSWORD_CHANGED,
+      userId,
+      tenantId,
+      entity:   'User',
+      entityId: userId,
+    });
   }
 
   // ── List ───────────────────────────────────────────────────────────────────
@@ -161,6 +174,15 @@ export class UsersService {
       data: { ...dto },
     });
 
+    this.audit.log({
+      action:   AuditAction.USER_UPDATED,
+      userId:   requesterId,
+      tenantId,
+      entity:   'User',
+      entityId: userId,
+      meta:     { changes: dto },
+    });
+
     return UserResponseDto.from(updated);
   }
 
@@ -186,6 +208,14 @@ export class UsersService {
     });
 
     this.logger.log(`Usuario ${userId} eliminado por ${requesterId}`);
+    this.audit.log({
+      action:   AuditAction.USER_DELETED,
+      userId:   requesterId,
+      tenantId,
+      entity:   'User',
+      entityId: userId,
+      meta:     { deletedEmail: user.email, deletedRole: user.role },
+    });
   }
 
   // ── Invite ─────────────────────────────────────────────────────────────────
@@ -265,8 +295,8 @@ export class UsersService {
       },
     });
 
-    // Enviar email (fallo silencioso — no revierte la invitación en DB)
-    await this.email.sendInvite({
+    // Fire-and-forget — la invitación ya está en BD; el email no bloquea el response
+    this.email.sendInvite({
       to:          dto.email,
       inviterName: `${inviter.firstName} ${inviter.lastName}`,
       companyName: tenant.name,
@@ -275,6 +305,12 @@ export class UsersService {
     });
 
     this.logger.log(`Invitación enviada a ${normalizedEmail} por ${inviterId}`);
+    this.audit.log({
+      action:   AuditAction.USER_INVITED,
+      userId:   inviterId,
+      tenantId,
+      meta:     { invitedEmail: normalizedEmail, role: dto.role },
+    });
   }
 
   // ── Bulk Invite ────────────────────────────────────────────────────────────
@@ -304,9 +340,14 @@ export class UsersService {
       }
     }
 
-    this.logger.log(
-      `Bulk invite — ${results.filter(r => r.status === 'sent').length}/${dto.users.length} enviadas por ${inviterId}`,
-    );
+    const sent = results.filter(r => r.status === 'sent').length;
+    this.logger.log(`Bulk invite — ${sent}/${dto.users.length} enviadas por ${inviterId}`);
+    this.audit.log({
+      action:   AuditAction.USER_BULK_INVITED,
+      userId:   inviterId,
+      tenantId,
+      meta:     { total: dto.users.length, sent, duplicates: results.filter(r => r.status === 'duplicate').length },
+    });
 
     return results;
   }
@@ -379,6 +420,14 @@ export class UsersService {
     });
 
     this.logger.log(`Invitación aceptada: ${user.email} en tenant ${user.tenantId}`);
+    this.audit.log({
+      action:   AuditAction.INVITE_ACCEPTED,
+      userId:   user.id,
+      tenantId: user.tenantId,
+      entity:   'User',
+      entityId: user.id,
+      meta:     { email: user.email, role: user.role },
+    });
 
     return UserResponseDto.from(user);
   }
@@ -403,7 +452,7 @@ export class UsersService {
     return invites;
   }
 
-  async cancelInvite(tenantId: string, inviteId: string): Promise<void> {
+  async cancelInvite(tenantId: string, inviteId: string, requesterId: string): Promise<void> {
     const invite = await this.prisma.userInvite.findFirst({
       where: { id: inviteId, tenantId, acceptedAt: null },
     });
@@ -412,6 +461,12 @@ export class UsersService {
     await this.prisma.userInvite.update({
       where: { id: inviteId },
       data:  { expiresAt: new Date() },
+    });
+    this.audit.log({
+      action:   AuditAction.INVITE_CANCELLED,
+      userId:   requesterId,
+      tenantId,
+      meta:     { cancelledEmail: invite.email },
     });
   }
 }

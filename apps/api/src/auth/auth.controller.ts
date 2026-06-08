@@ -29,6 +29,8 @@ import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { JwtRefreshPayload } from './strategies/jwt-refresh.strategy';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/audit.types';
 
 /**
  * Controller de autenticación.
@@ -50,6 +52,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly mfaService:  MfaService,
+    private readonly audit:       AuditService,
   ) {}
 
   @Post('register')
@@ -90,8 +93,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cerrar sesión (revoca el refresh token)' })
   @ApiResponse({ status: 204, description: 'Sesión cerrada.' })
-  logout(@Body() dto: RefreshTokenDto) {
-    return this.authService.logout(dto.refreshToken);
+  logout(@CurrentUser() user: JwtPayload, @Body() dto: RefreshTokenDto) {
+    return this.authService.logout(dto.refreshToken, user.sub, user.tenantId);
   }
 
   @Get('me')
@@ -138,6 +141,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Iniciar configuración de 2FA — retorna QR y secret' })
   @ApiResponse({ status: 201, description: 'QR generado. Escanea y luego confirma con /mfa/confirm.' })
   mfaSetup(@CurrentUser() user: JwtPayload) {
+    this.audit.log({ action: AuditAction.MFA_SETUP, userId: user.sub, tenantId: user.tenantId });
     return this.mfaService.setup(user.sub);
   }
 
@@ -148,6 +152,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Confirmar 2FA con primer código TOTP — activa el 2FA y retorna backup codes' })
   @ApiResponse({ status: 201, description: '2FA activado. Guarda los backup codes en un lugar seguro.' })
   mfaConfirm(@CurrentUser() user: JwtPayload, @Body() dto: MfaConfirmDto) {
+    this.audit.log({ action: AuditAction.MFA_CONFIRMED, userId: user.sub, tenantId: user.tenantId });
     return this.mfaService.confirm(user.sub, dto.code);
   }
 
@@ -159,6 +164,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Desactivar 2FA (requiere código TOTP o backup code)' })
   @ApiResponse({ status: 204, description: '2FA desactivado.' })
   mfaDisable(@CurrentUser() user: JwtPayload, @Body() dto: MfaDisableDto) {
+    this.audit.log({ action: AuditAction.MFA_DISABLED, userId: user.sub, tenantId: user.tenantId });
     return this.mfaService.disable(user.sub, dto.code);
   }
 }

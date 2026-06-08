@@ -71,6 +71,7 @@ export class AnalyticsService {
     const courses = await this.prisma.course.findMany({
       where: { tenantId, deletedAt: null },
       orderBy: { createdAt: 'desc' },
+      take: 500, // safety cap — ningún tenant debería tener >500 cursos
       select: {
         id: true,
         title: true,
@@ -248,15 +249,27 @@ export class AnalyticsService {
    * Estadísticas por empleado: cursos inscritos, completados, progreso promedio.
    * Solo incluye usuarios con rol EMPLOYEE, MANAGER.
    */
-  async getEmployeeStats(tenantId: string) {
+  async getEmployeeStats(tenantId: string, search?: string) {
+    const searchFilter = search?.trim()
+      ? {
+          OR: [
+            { firstName: { contains: search.trim(), mode: 'insensitive' as const } },
+            { lastName:  { contains: search.trim(), mode: 'insensitive' as const } },
+            { email:     { contains: search.trim(), mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+
     const users = await this.prisma.user.findMany({
       where: {
         tenantId,
         deletedAt: null,
         isActive: true,
         role: { in: ['EMPLOYEE', 'MANAGER'] },
+        ...searchFilter,
       },
       orderBy: { firstName: 'asc' },
+      take: 500, // safety cap — usar search param para reducir antes de este límite
       select: {
         id: true,
         firstName: true,
