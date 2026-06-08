@@ -637,3 +637,32 @@ model Certificate {
   @@index([tenantId])
   @@map("certificates")
 }
+
+// ─── AUDIT LOG ────────────────────────────────────────────────────────────────
+
+/// Registro inmutable de acciones críticas del sistema.
+/// Se escribe de forma asíncrona (fire-and-forget) sin bloquear el response.
+/// No se permite soft delete — los registros de auditoría son permanentes.
+model AuditLog {
+  id       String  @id @default(cuid())
+  /// null cuando la acción ocurre antes de autenticar (ej. login fallido).
+  userId   String?
+  /// null para acciones de SUPER_ADMIN o en rutas pre-autenticación.
+  tenantId String?
+  /// Valor del enum AuditAction definido en audit.types.ts.
+  action   String
+  /// Nombre del modelo Prisma afectado: "User", "Course", "Tenant", etc.
+  entity   String?
+  /// ID del registro afectado.
+  entityId String?
+  /// Datos extra: email, valores anteriores/nuevos, conteos, etc.
+  meta      Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}

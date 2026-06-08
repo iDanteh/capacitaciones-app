@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards,
+  Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
@@ -26,8 +26,19 @@ export class CoursesController {
 
   @Get()
   @ApiOperation({ summary: 'Listar cursos del tenant (incluye isEnrolled y myProgress del usuario)' })
-  findAll(@CurrentUser() user: JwtPayload) {
-    return this.coursesService.findAll(user.tenantId, user.sub, user.role);
+  findAll(
+    @CurrentUser() user: JwtPayload,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+  ) {
+    return this.coursesService.findAll(user.tenantId, user.sub, user.role, {
+      search,
+      status,
+      sortBy,
+      sortOrder,
+    });
   }
 
   @Get(':id')

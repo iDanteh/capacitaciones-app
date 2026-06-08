@@ -10,6 +10,8 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service';
 import { MfaService } from './mfa.service';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/audit.types';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
@@ -75,6 +77,7 @@ export class AuthService {
     private readonly jwt:     JwtService,
     private readonly config:  ConfigService,
     private readonly mfa:     MfaService,
+    private readonly audit:   AuditService,
   ) {}
 
   // ── Register ───────────────────────────────────────────────────────────────
@@ -137,6 +140,14 @@ export class AuthService {
     });
 
     this.logger.log(`Nuevo tenant registrado: ${tenant.slug} (${user.email})`);
+    this.audit.log({
+      action:   AuditAction.USER_REGISTERED,
+      userId:   user.id,
+      tenantId: tenant.id,
+      entity:   'User',
+      entityId: user.id,
+      meta:     { email: user.email, tenantSlug: tenant.slug },
+    });
 
     const tokens = await this.issueTokenPair(user.id, user.email, tenant.id, user.role, tenant.slug);
 
@@ -184,12 +195,23 @@ export class AuthService {
       : await bcrypt.hash(dto.password, BCRYPT_ROUNDS); // dummy hash
 
     if (!user || !isPasswordValid || !user.isActive || user.deletedAt) {
+      this.audit.log({
+        action:   AuditAction.USER_LOGIN_FAILED,
+        tenantId: tenant.id,
+        meta:     { email: dto.email.toLowerCase().trim() },
+      });
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
     // Si el usuario tiene 2FA activo, emitir un token temporal y pedir el código
     if (user.mfaEnabled) {
       const mfaToken = await this.mfa.issueMfaToken(user.id);
+      this.audit.log({
+        action:   AuditAction.MFA_CHALLENGE,
+        userId:   user.id,
+        tenantId: tenant.id,
+        meta:     { email: user.email },
+      });
       return { mfaPending: true, mfaToken };
     }
 
@@ -197,6 +219,13 @@ export class AuthService {
     void this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
+    });
+
+    this.audit.log({
+      action:   AuditAction.USER_LOGIN,
+      userId:   user.id,
+      tenantId: tenant.id,
+      meta:     { email: user.email, role: user.role },
     });
 
     const tokens = await this.issueTokenPair(user.id, user.email, tenant.id, user.role, tenant.slug);
@@ -228,6 +257,13 @@ export class AuthService {
     void this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
+    });
+
+    this.audit.log({
+      action:   AuditAction.MFA_VERIFIED,
+      userId:   user.id,
+      tenantId: user.tenantId,
+      meta:     { email: user.email },
     });
 
     const tokens = await this.issueTokenPair(
@@ -300,6 +336,15 @@ export class AuthService {
     const tokens = await this.issueTokenPair(
       childUser.id, childUser.email, childTenantId, childUser.role, child.slug,
     );
+
+    this.audit.log({
+      action:   AuditAction.TENANT_SWITCHED,
+      userId:   userId,
+      tenantId: parentTenantId,
+      entity:   'Tenant',
+      entityId: childTenantId,
+      meta:     { fromTenantId: parentTenantId, toTenantId: childTenantId, toSlug: child.slug },
+    });
 
     return {
       ...tokens,
@@ -375,11 +420,16 @@ export class AuthService {
 
   // ── Logout ─────────────────────────────────────────────────────────────────
 
-  async logout(refreshToken: string): Promise<void> {
+  async logout(refreshToken: string, userId?: string, tenantId?: string): Promise<void> {
     const tokenHash = this.hashToken(refreshToken);
     await this.prisma.refreshToken.updateMany({
       where: { tokenHash, revokedAt: null },
       data: { revokedAt: new Date() },
+    });
+    this.audit.log({
+      action: AuditAction.USER_LOGOUT,
+      userId,
+      tenantId,
     });
   }
 

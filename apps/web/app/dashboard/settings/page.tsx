@@ -23,7 +23,7 @@ interface PlanInfo {
   hasWhiteLabel: boolean;
 }
 
-// ─── Palette de colores preestablecidos ───────────────────────────────────────
+// ─── Paleta ───────────────────────────────────────────────────────────────────
 
 const COLOR_PALETTE = [
   { hex: '#1E4F7A', label: 'Capta Navy' },
@@ -38,100 +38,162 @@ const COLOR_PALETTE = [
   { hex: '#0F172A', label: 'Slate' },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function isValidHex(v: string) {
   return /^#([0-9a-fA-F]{6})$/.test(v);
 }
 
-// ─── Section card ─────────────────────────────────────────────────────────────
+// ─── Bento card wrapper ───────────────────────────────────────────────────────
 
-function Section({ title, description, children }: {
-  title: string; description?: string; children: React.ReactNode;
+function BentoCard({
+  icon,
+  title,
+  description,
+  children,
+  className = '',
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden"
-      style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 16px rgba(11,31,42,0.04)' }}>
-      <div className="px-6 py-5 border-b border-border">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
+    <div
+      className={`rounded-[20px] border border-border bg-card overflow-hidden ${className}`}
+      style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 20px rgba(11,31,42,0.05)' }}
+    >
+      <div className="flex items-center gap-2.5 px-[18px] py-[14px] border-b border-border">
+        <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[8px] bg-capta-tint/70 dark:bg-capta-deep/20">
+          {icon}
+        </div>
+        <div>
+          <h2 className="text-[12.5px] font-semibold text-foreground leading-tight">{title}</h2>
+          {description && (
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{description}</p>
+          )}
+        </div>
       </div>
-      <div className="p-6">{children}</div>
+      <div className="p-[18px]">{children}</div>
     </div>
   );
 }
 
-// ─── Logo upload zone ─────────────────────────────────────────────────────────
+// ─── Save button ──────────────────────────────────────────────────────────────
 
-function LogoUpload({ currentUrl, tenantName, onUploaded, onError }: {
+function SaveButton({
+  saving,
+  disabled,
+  onClick,
+}: {
+  saving: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center gap-2 rounded-[12px] px-[18px] py-[9px] text-[13px] font-semibold text-white
+        transition-all duration-150
+        hover:-translate-y-px hover:scale-[1.01]
+        active:scale-[0.97]
+        disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:scale-100"
+      style={{
+        background: 'linear-gradient(140deg, #1E4F7A 0%, #2D6FA0 100%)',
+        boxShadow: disabled
+          ? 'none'
+          : '0 2px 10px rgba(30,79,122,0.28), 0 1px 0 rgba(255,255,255,0.15) inset',
+      }}
+    >
+      {saving ? (
+        <>
+          <Icon name="refresh" size={14} className="animate-spin" />
+          Guardando…
+        </>
+      ) : (
+        <>
+          <Icon name="save" size={14} />
+          Guardar cambios
+        </>
+      )}
+    </button>
+  );
+}
+
+// ─── Logo upload ──────────────────────────────────────────────────────────────
+
+function LogoUpload({
+  currentUrl,
+  tenantName,
+  onUploaded,
+  onError,
+}: {
   currentUrl: string | null;
   tenantName: string;
   onUploaded: (url: string) => void;
-  onError:    (msg: string) => void;
+  onError: (msg: string) => void;
 }) {
-  const [uploading,     setUploading]     = useState(false);
-  const [dragOver,      setDragOver]      = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      onError('Solo se permiten archivos de imagen (PNG, SVG, WebP, JPG)');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      onError('El archivo supera el tamaño máximo de 2 MB');
-      return;
-    }
-    setUploading(true);
-    try {
-      // 1. Obtener URL firmada de MinIO
-      const { data: presigned } = await api.post<{ uploadUrl: string; key: string; publicUrl: string }>('/storage/presigned-upload', {
-        fileName:    file.name,
-        folder:      'logos',
-        contentType: file.type,
-        isPublic:    true,
-      });
-
-      // 2. Subir directamente a MinIO con la URL firmada (timeout 20s)
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20_000);
-      let uploadRes: Response;
+  const handleFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith('image/')) {
+        onError('Solo se permiten archivos de imagen (PNG, SVG, WebP, JPG)');
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        onError('El archivo supera el tamaño máximo de 2 MB');
+        return;
+      }
+      setUploading(true);
       try {
-        uploadRes = await fetch(presigned.uploadUrl, {
-          method:  'PUT',
-          body:    file,
-          headers: { 'Content-Type': file.type },
-          signal:  controller.signal,
+        const { data: presigned } = await api.post<{
+          uploadUrl: string;
+          key: string;
+          publicUrl: string;
+        }>('/storage/presigned-upload', {
+          fileName: file.name,
+          folder: 'logos',
+          contentType: file.type,
+          isPublic: true,
         });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20_000);
+        let uploadRes: Response;
+        try {
+          uploadRes = await fetch(presigned.uploadUrl, {
+            method: 'PUT',
+            body: file,
+            headers: { 'Content-Type': file.type },
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
+        if (!uploadRes.ok) throw new Error(`Error al subir el archivo (${uploadRes.status})`);
+        onUploaded(presigned.publicUrl);
+      } catch (err: unknown) {
+        onError(err instanceof Error ? err.message : 'Error al subir el logo');
       } finally {
-        clearTimeout(timeout);
+        setUploading(false);
       }
-
-      if (!uploadRes.ok) {
-        throw new Error(`Error al subir el archivo (${uploadRes.status})`);
-      }
-
-      // 3. Notificar al padre con la URL pública
-      onUploaded(presigned.publicUrl);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al subir el logo';
-      onError(msg);
-    } finally {
-      setUploading(false);
-    }
-  }, [onUploaded, onError]);
+    },
+    [onUploaded, onError],
+  );
 
   const initials = tenantName
-    ? tenantName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    ? tenantName.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
     : '?';
 
   return (
-    <div className="flex items-start gap-6">
-      {/* Preview */}
+    <div className="flex items-start gap-3">
+      {/* Preview avatar */}
       <div className="relative flex-shrink-0">
         <div
-          className="h-20 w-20 rounded-2xl overflow-hidden flex items-center justify-center border-2 border-border"
+          className="h-[64px] w-[64px] rounded-[16px] overflow-hidden flex items-center justify-center border border-border"
           style={{
             background: currentUrl ? 'transparent' : 'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
           }}
@@ -140,47 +202,47 @@ function LogoUpload({ currentUrl, tenantName, onUploaded, onError }: {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={currentUrl} alt="Logo" className="h-full w-full object-contain" />
           ) : (
-            <span className="text-xl font-bold text-white">{initials}</span>
+            <span className="text-lg font-bold text-white tracking-tight">{initials}</span>
           )}
         </div>
         {uploading && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40">
-            <Icon name="refresh" size={20} className="text-white animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center rounded-[16px] bg-black/40">
+            <Icon name="refresh" size={16} className="text-white animate-spin" />
           </div>
         )}
       </div>
 
-      {/* Upload zone */}
-      <div className="flex-1">
+      {/* Drop zone */}
+      <div className="flex-1 flex flex-col">
         <div
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
-          onDrop={e => {
+          onDrop={(e) => {
             e.preventDefault();
             setDragOver(false);
             const file = e.dataTransfer.files[0];
             if (file) handleFile(file);
           }}
           onClick={() => inputRef.current?.click()}
-          className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 transition-all ${
+          className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[12px] border-[1.5px] border-dashed px-4 py-4 transition-all ${
             dragOver
-              ? 'border-capta-deep bg-capta-tint/30 dark:border-capta-soft dark:bg-capta-soft/5'
-              : 'border-border hover:border-capta-deep/30 hover:bg-muted/30'
+              ? 'border-capta-deep bg-capta-tint/30 dark:border-capta-soft dark:bg-capta-deep/10'
+              : 'border-border hover:border-capta-deep/30 hover:bg-muted/40'
           }`}
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
-            <Icon name="upload" size={16} className="text-muted-foreground" />
+          <div className="flex h-[28px] w-[28px] items-center justify-center rounded-[8px] bg-muted">
+            <Icon name="upload" size={13} className="text-muted-foreground" />
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-foreground">Arrastra tu logo aquí</p>
-            <p className="text-xs text-muted-foreground">PNG, SVG, WebP — máx 2 MB</p>
+            <p className="text-[12px] font-medium text-foreground">Arrastra tu logo aquí</p>
+            <p className="text-[10.5px] text-muted-foreground">PNG, SVG, WebP · máx 2 MB</p>
           </div>
           <input
             ref={inputRef}
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
           />
         </div>
 
@@ -193,7 +255,7 @@ function LogoUpload({ currentUrl, tenantName, onUploaded, onError }: {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setConfirmRemove(true)}
-              className="mt-2 text-xs text-muted-foreground hover:text-destructive transition-colors"
+              className="mt-1.5 self-start text-[11px] text-muted-foreground hover:text-destructive transition-colors"
             >
               Eliminar logo
             </motion.button>
@@ -201,10 +263,10 @@ function LogoUpload({ currentUrl, tenantName, onUploaded, onError }: {
           {confirmRemove && (
             <motion.div
               key="remove-confirm"
-              initial={{ opacity: 0, y: -4 }}
+              initial={{ opacity: 0, y: -3 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              className="mt-2 flex items-center gap-2 text-xs"
+              exit={{ opacity: 0, y: -3 }}
+              className="mt-1.5 flex items-center gap-1.5 text-[11px]"
             >
               <span className="text-muted-foreground">¿Eliminar el logo?</span>
               <button
@@ -212,7 +274,7 @@ function LogoUpload({ currentUrl, tenantName, onUploaded, onError }: {
                 onClick={() => { onUploaded(''); setConfirmRemove(false); }}
                 className="font-semibold text-destructive hover:underline"
               >
-                Sí, eliminar
+                Sí
               </button>
               <span className="text-muted-foreground/30">·</span>
               <button
@@ -232,58 +294,73 @@ function LogoUpload({ currentUrl, tenantName, onUploaded, onError }: {
 
 // ─── Color picker ─────────────────────────────────────────────────────────────
 
-function ColorPicker({ value, onChange }: {
+function ColorPicker({
+  value,
+  onChange,
+}: {
   value: string;
   onChange: (hex: string) => void;
 }) {
-  const [custom, setCustom] = useState(value && !COLOR_PALETTE.some(c => c.hex === value) ? value : '');
+  const [custom, setCustom] = useState(
+    value && !COLOR_PALETTE.some((c) => c.hex === value) ? value : '',
+  );
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {COLOR_PALETTE.map(c => (
+    <div className="space-y-3">
+      {/* Swatches */}
+      <div className="flex flex-wrap gap-[7px]">
+        {COLOR_PALETTE.map((c) => (
           <button
             key={c.hex}
             type="button"
             title={c.label}
             onClick={() => { onChange(c.hex); setCustom(''); }}
-            className="relative h-9 w-9 rounded-xl border-2 transition-all hover:scale-110"
+            className="relative h-8 w-8 rounded-[8px] border-2 transition-all duration-150 hover:scale-110 focus:outline-none"
             style={{
               background: c.hex,
               borderColor: value === c.hex ? '#fff' : 'transparent',
-              boxShadow:   value === c.hex ? `0 0 0 2px ${c.hex}` : 'none',
+              boxShadow: value === c.hex ? `0 0 0 2.5px ${c.hex}` : 'none',
             }}
           >
             {value === c.hex && (
-              <Icon name="check" size={14} className="absolute inset-0 m-auto text-white drop-shadow" />
+              <Icon
+                name="check"
+                size={11}
+                strokeWidth={2.5}
+                className="absolute inset-0 m-auto text-white drop-shadow"
+              />
             )}
           </button>
         ))}
       </div>
 
-      {/* Custom hex */}
-      <div className="flex items-center gap-3">
+      {/* Custom hex input */}
+      <div className="flex items-center gap-2">
         <div
-          className="h-9 w-9 flex-shrink-0 rounded-xl border border-border"
-          style={{ background: isValidHex(custom) ? custom : '#e5e7eb' }}
+          className="h-8 w-8 flex-shrink-0 rounded-[8px] border border-border transition-colors"
+          style={{ background: isValidHex(custom) ? custom : 'hsl(var(--muted))' }}
         />
         <input
           type="text"
           placeholder="#1E4F7A"
           value={custom}
-          onChange={e => {
+          onChange={(e) => {
             const v = e.target.value;
             setCustom(v);
             if (isValidHex(v)) onChange(v);
           }}
           maxLength={7}
-          className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-capta-deep/20 dark:focus:ring-capta-soft/20"
+          className="flex-1 rounded-[8px] border border-border bg-muted/60 px-2.5 py-1.5 text-[12px] font-mono text-foreground
+            placeholder:text-muted-foreground/40
+            focus:outline-none focus:ring-2 focus:ring-capta-deep/20 focus:border-capta-deep/30
+            dark:focus:ring-capta-soft/20 dark:focus:border-capta-soft/30
+            transition-shadow"
         />
         {isValidHex(custom) && custom !== value && (
           <button
             type="button"
             onClick={() => onChange(custom)}
-            className="text-xs font-medium text-capta-deep dark:text-capta-soft"
+            className="text-[11.5px] font-semibold text-capta-deep dark:text-capta-soft whitespace-nowrap hover:opacity-70 transition-opacity"
           >
             Aplicar
           </button>
@@ -293,40 +370,131 @@ function ColorPicker({ value, onChange }: {
       <button
         type="button"
         onClick={() => { onChange(''); setCustom(''); }}
-        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+        className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
       >
         Usar color predeterminado (Capta)
       </button>
+
+      {/* Live preview bar */}
+      <AnimatePresence>
+        {value && isValidHex(value) && (
+          <motion.div
+            initial={{ opacity: 0, y: 3 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 3 }}
+            transition={{ duration: 0.15 }}
+            className="flex items-center gap-2.5 rounded-[12px] border border-border bg-muted/30 px-3 py-2.5"
+          >
+            <div
+              className="relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[8px]"
+              style={{ background: `${value}20` }}
+            >
+              <div
+                className="absolute left-0 top-1/2 h-3.5 w-[3px] -translate-y-1/2 rounded-r-sm"
+                style={{ background: value }}
+              />
+              <Icon name="book-open" size={13} style={{ color: value }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11.5px] font-medium text-foreground">Elemento activo</p>
+              <p className="text-[10.5px] text-muted-foreground">Sidebar de navegación</p>
+            </div>
+            <div
+              className="flex-shrink-0 flex h-[20px] items-center rounded-full px-2 text-[10.5px] font-semibold text-white tracking-wide"
+              style={{ background: value }}
+            >
+              {value}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
+// ─── Enterprise tooltip ───────────────────────────────────────────────────────
+
+function EnterpriseBadge() {
+  return (
+    <div className="group relative inline-flex normal-case ml-1.5">
+      <span className="flex cursor-help items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9.5px] font-semibold text-amber-700 dark:border-amber-800/30 dark:bg-amber-900/20 dark:text-amber-400 tracking-normal whitespace-nowrap">
+        <Icon name="shield" size={8} strokeWidth={2} />
+        Enterprise
+      </span>
+      <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-[190px] -translate-x-1/2 translate-y-1 rounded-[12px] border border-border bg-card px-3 py-2.5 opacity-0 shadow-xl transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0">
+        <p className="mb-1.5 text-[11px] font-semibold text-foreground">Plan Enterprise incluye:</p>
+        <ul className="text-[10.5px] text-muted-foreground leading-[1.9]">
+          <li>· Dominio personalizado</li>
+          <li>· White-label completo</li>
+          <li>· SSO / SAML</li>
+          <li>· Soporte prioritario</li>
+          <li>· Sub-empresas ilimitadas</li>
+        </ul>
+        <p className="mt-2 text-[10px] font-semibold text-capta-deep dark:text-capta-soft">
+          Contacta a ventas para upgradar →
+        </p>
+        <div className="absolute -bottom-[5px] left-1/2 h-2.5 w-2.5 -translate-x-1/2 rotate-45 border-b border-r border-border bg-card" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Field label ──────────────────────────────────────────────────────────────
+
+function FieldLabel({
+  children,
+  htmlFor,
+}: {
+  children: React.ReactNode;
+  htmlFor?: string;
+}) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      className="mb-1.5 flex items-center text-[10px] font-semibold uppercase tracking-[0.5px] text-muted-foreground"
+    >
+      {children}
+    </label>
+  );
+}
+
+// ─── Input base styles (shared string) ───────────────────────────────────────
+
+const INPUT_CLS = `
+  w-full rounded-[12px] border border-border bg-muted/40 px-3 py-2.5 text-[13px] text-foreground
+  placeholder:text-muted-foreground/40
+  focus:outline-none focus:ring-2 focus:ring-capta-deep/10 focus:border-capta-deep/30
+  dark:focus:ring-capta-soft/20 dark:focus:border-capta-soft/30
+  transition-shadow
+`.trim();
 
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
   const { success: toastSuccess, error: toastError } = useToast();
-  const [tenant,  setTenant]  = useState<TenantData | null>(null);
-  const [plan,    setPlan]    = useState<PlanInfo | null>(null);
+  const [tenant, setTenant] = useState<TenantData | null>(null);
+  const [plan, setPlan] = useState<PlanInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  // Form state
-  const [name,         setName]         = useState('');
-  const [logoUrl,      setLogoUrl]      = useState('');
+  const [name, setName] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
   const [primaryColor, setPrimaryColor] = useState('');
-  const [domain,       setDomain]       = useState('');
+  const [domain, setDomain] = useState('');
 
   const isDirty = tenant
-    ? name         !== tenant.name
-      || logoUrl      !== (tenant.logoUrl      ?? '')
-      || primaryColor !== (tenant.primaryColor ?? '')
-      || domain       !== (tenant.domain       ?? '')
+    ? name !== tenant.name ||
+      logoUrl !== (tenant.logoUrl ?? '') ||
+      primaryColor !== (tenant.primaryColor ?? '') ||
+      domain !== (tenant.domain ?? '')
     : false;
 
   useEffect(() => {
     Promise.all([
       api.get<TenantData>('/tenants/me'),
-      api.get<{ plan: PlanInfo }>('/subscriptions/me').catch(() => ({ data: { plan: { type: 'FREE', hasWhiteLabel: false } } })),
+      api
+        .get<{ plan: PlanInfo }>('/subscriptions/me')
+        .catch(() => ({ data: { plan: { type: 'FREE', hasWhiteLabel: false } } })),
     ])
       .then(([t, s]) => {
         const d = t.data;
@@ -339,7 +507,7 @@ export default function SettingsPage() {
       })
       .catch(() => toastError('No se pudo cargar la configuración'))
       .finally(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSave = async () => {
@@ -347,16 +515,15 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       const { data } = await api.patch<TenantData>('/tenants/me', {
-        name:         name.trim() || undefined,
-        logoUrl:      logoUrl || undefined,
+        name: name.trim() || undefined,
+        logoUrl: logoUrl || undefined,
         primaryColor: primaryColor || undefined,
-        domain:       domain || undefined,
+        domain: domain || undefined,
       });
       setTenant(data);
-      // Actualizar localStorage para que el layout refleje los cambios
-      localStorage.setItem('tenant_logo',  data.logoUrl      ?? '');
+      localStorage.setItem('tenant_logo', data.logoUrl ?? '');
       localStorage.setItem('tenant_color', data.primaryColor ?? '');
-      localStorage.setItem('tenant_name',  data.name);
+      localStorage.setItem('tenant_name', data.name);
       toastSuccess('Configuración guardada');
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Error al guardar';
@@ -366,15 +533,42 @@ export default function SettingsPage() {
     }
   };
 
+  // ── Skeleton ─────────────────────────────────────────────────────────────────
+
   if (loading) {
     return (
-      <div className="p-6 lg:p-8 space-y-6">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="rounded-2xl border border-border bg-card p-6 animate-pulse space-y-4">
-            <div className="h-4 w-40 bg-muted rounded" />
-            <div className="h-20 bg-muted rounded-xl" />
+      <div className="p-6 lg:p-8">
+        {/* Topbar skeleton */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="space-y-2">
+            <div className="h-4 w-52 bg-muted animate-pulse rounded-full" />
+            <div className="h-3 w-36 bg-muted animate-pulse rounded-full" />
           </div>
-        ))}
+          <div className="h-9 w-36 bg-muted animate-pulse rounded-[12px]" />
+        </div>
+        {/* Bento skeleton */}
+        <div className="grid grid-cols-2 gap-3">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="rounded-[20px] border border-border bg-card p-[18px] animate-pulse space-y-3">
+              <div className="flex items-center gap-2.5">
+                <div className="h-[30px] w-[30px] rounded-[8px] bg-muted" />
+                <div className="h-3 w-28 bg-muted rounded-full" />
+              </div>
+              <div className="h-24 bg-muted rounded-[12px]" />
+            </div>
+          ))}
+          <div className="col-span-2 rounded-[20px] border border-border bg-card p-[18px] animate-pulse space-y-3">
+            <div className="flex items-center gap-2.5">
+              <div className="h-[30px] w-[30px] rounded-[8px] bg-muted" />
+              <div className="h-3 w-32 bg-muted rounded-full" />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="h-14 bg-muted rounded-[12px]" />
+              <div className="h-14 bg-muted rounded-[12px]" />
+              <div className="h-14 bg-muted rounded-[12px]" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -382,203 +576,145 @@ export default function SettingsPage() {
   const isEnterprise = plan?.type === 'ENTERPRISE';
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="p-6 lg:p-8">
 
-      {/* Header */}
+      {/* ── Topbar sticky ─────────────────────────────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, y: 6 }}
+        initial={{ opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="flex items-start justify-between gap-4"
+        transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+        className="sticky top-0 z-10 -mx-6 -mt-6 mb-5 flex items-center justify-between gap-4
+          bg-background/80 backdrop-blur-md px-6 py-4 lg:-mx-8 lg:px-8
+          border-b border-border/50"
       >
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">Configuración de empresa</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-[17px] font-semibold tracking-tight text-foreground leading-tight">
+            Configuración de empresa
+          </h1>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
             Personaliza la identidad visual de tu empresa en la plataforma.
           </p>
         </div>
 
-        <AnimatePresence>
-          {isDirty && (
-            <motion.button
-              key="save"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all hover:scale-[1.02] disabled:opacity-60"
-              style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
-            >
-              {saving
-                ? <><Icon name="refresh" size={14} className="animate-spin" /> Guardando…</>
-                : <><Icon name="save" size={14} /> Guardar cambios</>
-              }
-            </motion.button>
-          )}
-        </AnimatePresence>
+        {/* El botón siempre está visible; disabled cuando no hay cambios */}
+        <SaveButton saving={saving} disabled={saving || !isDirty} onClick={handleSave} />
       </motion.div>
 
-      {/* Logo */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.05 }}
-      >
-        <Section title="Logo de la empresa" description="Aparece en el sidebar y en los certificados generados.">
-          <LogoUpload
-            currentUrl={logoUrl || null}
-            tenantName={name || tenant?.name || ''}
-            onUploaded={setLogoUrl}
-            onError={toastError}
-          />
-        </Section>
-      </motion.div>
+      {/* ── Bento grid ────────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3">
 
-      {/* Color */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.1 }}
-      >
-        <Section
-          title="Color de marca"
-          description="Se usa en acentos visuales y elementos de navegación activa."
+        {/* Logo — col 1 */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.04 }}
         >
-          <ColorPicker value={primaryColor} onChange={setPrimaryColor} />
+          <BentoCard
+            icon={<Icon name="grid" size={14} className="text-capta-deep dark:text-capta-soft" />}
+            title="Logo"
+            description="Sidebar y certificados"
+          >
+            <LogoUpload
+              currentUrl={logoUrl || null}
+              tenantName={name || tenant?.name || ''}
+              onUploaded={setLogoUrl}
+              onError={toastError}
+            />
+          </BentoCard>
+        </motion.div>
 
-          {/* Preview live */}
-          {primaryColor && isValidHex(primaryColor) && (
-            <div className="mt-4 flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
-              <div className="relative flex h-8 w-8 items-center justify-center rounded-lg"
-                style={{ background: `${primaryColor}20` }}>
-                <div className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r-full"
-                  style={{ background: primaryColor }} />
-                <Icon name="book-open" size={14} style={{ color: primaryColor }} />
-              </div>
+        {/* Color — col 2 */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.07 }}
+        >
+          <BentoCard
+            icon={<Icon name="sun" size={14} className="text-capta-deep dark:text-capta-soft" />}
+            title="Color de marca"
+            description="Acentos y navegación activa"
+          >
+            <ColorPicker value={primaryColor} onChange={setPrimaryColor} />
+          </BentoCard>
+        </motion.div>
+
+        {/* Datos empresa — full width */}
+        <motion.div
+          className="col-span-2"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.1 }}
+        >
+          <BentoCard
+            icon={<Icon name="building" size={14} className="text-capta-deep dark:text-capta-soft" />}
+            title="Datos de la empresa"
+          >
+            {/* 3 columnas en una sola fila: nombre · slug · dominio */}
+            <div className="grid grid-cols-3 gap-4">
+
+              {/* Nombre */}
               <div>
-                <p className="text-xs font-medium text-foreground">Vista previa del elemento activo</p>
-                <p className="text-[11px] text-muted-foreground">Así se verá en el sidebar de navegación</p>
-              </div>
-              <div className="ml-auto flex h-6 items-center rounded-full px-2 text-[11px] font-semibold text-white"
-                style={{ background: primaryColor }}>
-                {primaryColor}
-              </div>
-            </div>
-          )}
-        </Section>
-      </motion.div>
-
-      {/* Datos de empresa */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.15 }}
-      >
-        <Section title="Datos de la empresa">
-          <div className="space-y-4">
-            {/* Nombre */}
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Nombre de la empresa
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                maxLength={100}
-                placeholder="Acme Corp"
-                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-capta-deep/20 dark:focus:ring-capta-soft/20 transition-shadow"
-              />
-            </div>
-
-            {/* Slug (readonly) */}
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Identificador URL <span className="normal-case font-normal">(inmutable)</span>
-              </label>
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-4 py-2.5">
-                <Icon name="globe" size={14} className="text-muted-foreground/50 flex-shrink-0" />
-                <span className="text-sm text-muted-foreground font-mono">{tenant?.slug}</span>
-                <Icon name="shield" size={12} className="ml-auto text-muted-foreground/30" />
-              </div>
-            </div>
-
-            {/* Dominio */}
-            <div>
-              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Dominio personalizado
-                {!isEnterprise && (
-                  <div className="group relative inline-flex normal-case">
-                    <span className="flex cursor-help items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:border-amber-800/30 dark:bg-amber-900/20 dark:text-amber-400">
-                      <Icon name="shield" size={10} />
-                      Enterprise
-                    </span>
-                    {/* Tooltip */}
-                    <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-52 -translate-x-1/2 rounded-xl border border-border bg-card px-3 py-2.5 opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100">
-                      <p className="mb-1.5 text-[11px] font-semibold text-foreground">Plan Enterprise incluye:</p>
-                      <ul className="space-y-0.5 text-[11px] text-muted-foreground">
-                        <li>· Dominio personalizado</li>
-                        <li>· White-label completo</li>
-                        <li>· SSO / SAML</li>
-                        <li>· Soporte prioritario</li>
-                        <li>· Sub-empresas ilimitadas</li>
-                      </ul>
-                      <p className="mt-2 text-[10px] font-medium text-capta-deep dark:text-capta-soft">
-                        Contacta a ventas para upgradar →
-                      </p>
-                      {/* Arrow */}
-                      <div className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b border-r border-border bg-card" />
-                    </div>
-                  </div>
-                )}
-              </label>
-              <div className="relative">
+                <FieldLabel htmlFor="company-name">Nombre</FieldLabel>
                 <input
+                  id="company-name"
                   type="text"
-                  value={domain}
-                  onChange={e => setDomain(e.target.value)}
-                  maxLength={253}
-                  placeholder="app.tuempresa.com"
-                  disabled={!isEnterprise}
-                  className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-capta-deep/20 dark:focus:ring-capta-soft/20 transition-shadow disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-muted/40"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={100}
+                  placeholder="Acme Corp"
+                  className={INPUT_CLS}
                 />
+              </div>
+
+              {/* Slug */}
+              <div>
+                <FieldLabel>
+                  Identificador URL{' '}
+                  <span className="normal-case font-normal tracking-normal ml-0.5">(inmutable)</span>
+                </FieldLabel>
+                <div className="flex items-center gap-2 rounded-[12px] border border-border bg-muted/40 px-3 py-2.5">
+                  <Icon name="globe" size={12} className="text-muted-foreground/50 flex-shrink-0" />
+                  <span className="text-[12.5px] text-muted-foreground font-mono flex-1 truncate">
+                    {tenant?.slug}
+                  </span>
+                  <Icon name="shield" size={10} className="text-muted-foreground/30 flex-shrink-0" />
+                </div>
+              </div>
+
+              {/* Dominio */}
+              <div>
+                <FieldLabel>
+                  Dominio personalizado
+                  {!isEnterprise && <EnterpriseBadge />}
+                </FieldLabel>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={domain}
+                    onChange={(e) => setDomain(e.target.value)}
+                    maxLength={253}
+                    placeholder="app.tuempresa.com"
+                    disabled={!isEnterprise}
+                    className={`${INPUT_CLS} pr-9 disabled:cursor-not-allowed disabled:opacity-45`}
+                  />
+                  {!isEnterprise && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Icon name="shield" size={12} className="text-muted-foreground/30" />
+                    </div>
+                  )}
+                </div>
                 {!isEnterprise && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <Icon name="shield" size={14} className="text-muted-foreground/30" />
-                  </div>
+                  <p className="mt-1.5 text-[10.5px] text-muted-foreground/60 leading-relaxed">
+                    Disponible en Enterprise. Usa tu propio dominio.
+                  </p>
                 )}
               </div>
-              {!isEnterprise && (
-                <p className="mt-1 text-xs text-muted-foreground/60">
-                  Disponible en el plan Enterprise. Permite usar tu propio dominio para la plataforma.
-                </p>
-              )}
+
             </div>
-          </div>
-        </Section>
-      </motion.div>
+          </BentoCard>
+        </motion.div>
 
-      {/* Save bottom */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="flex justify-end pb-8"
-      >
-        <button
-          onClick={handleSave}
-          disabled={saving || !isDirty}
-          className="flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
-          style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: isDirty ? '0 2px 10px rgba(30,79,122,0.25)' : 'none' }}
-        >
-          {saving
-            ? <><Icon name="refresh" size={14} className="animate-spin" /> Guardando…</>
-            : <><Icon name="save" size={14} /> Guardar cambios</>
-          }
-        </button>
-      </motion.div>
-
+      </div>
     </div>
   );
 }

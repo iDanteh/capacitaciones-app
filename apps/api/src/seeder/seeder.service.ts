@@ -122,7 +122,33 @@ export class SeederService implements OnApplicationBootstrap {
   // ── Datos de desarrollo ────────────────────────────────────────────────────
 
   private async seedDevelopmentData(): Promise<void> {
-    // Tenant de prueba
+    // ── Tenant interno de la plataforma (para SUPER_ADMIN) ──────────────────
+    // El SUPER_ADMIN necesita un tenantId válido en la BD aunque conceptualmente
+    // no "pertenece" a ninguna empresa cliente. Se usa un tenant especial marcado
+    // como plataforma interna — nunca visible en el panel de clientes.
+    const platformTenant = await this.prisma.tenant.upsert({
+      where:  { slug: 'capta-platform' },
+      update: {},
+      create: { name: 'Capta Platform (Internal)', slug: 'capta-platform' },
+    });
+
+    const superAdminHash = await hash('SuperAdmin123!', 12);
+    await this.prisma.user.upsert({
+      where:  { tenantId_email: { tenantId: platformTenant.id, email: 'superadmin@capta.dev' } },
+      update: { passwordHash: superAdminHash, isActive: true, deletedAt: null },
+      create: {
+        tenantId:     platformTenant.id,
+        email:        'superadmin@capta.dev',
+        passwordHash: superAdminHash,
+        firstName:    'Super',
+        lastName:     'Admin',
+        role:         UserRole.SUPER_ADMIN,
+      },
+    });
+
+    this.logger.debug('  ✓ Tenant "capta-platform" + superadmin@capta.dev (SuperAdmin123!)');
+
+    // ── Tenant de prueba para clientes ──────────────────────────────────────
     const tenant = await this.prisma.tenant.upsert({
       where:  { slug: 'acme-corp' },
       update: {},
@@ -162,8 +188,6 @@ export class SeederService implements OnApplicationBootstrap {
     for (const user of devUsers) {
       await this.prisma.user.upsert({
         where:  { tenantId_email: { tenantId: tenant.id, email: user.email } },
-        // Siempre actualizar el hash para que sea correcto aunque el usuario
-        // haya sido creado manualmente con una contraseña en texto plano.
         update: { passwordHash, isActive: true, deletedAt: null },
         create: { tenantId: tenant.id, passwordHash, ...user },
       });

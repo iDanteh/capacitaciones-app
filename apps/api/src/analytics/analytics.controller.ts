@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -41,7 +41,10 @@ export class AnalyticsController {
 
   @Get('employees')
   @ApiOperation({ summary: 'Estadísticas por empleado: cursos inscritos, completados, último acceso' })
-  getEmployeeStats(@CurrentUser() user: JwtPayload) {
-    return this.analyticsService.getEmployeeStats(user.tenantId);
+  getEmployeeStats(
+    @CurrentUser() user: JwtPayload,
+    @Query('search') search?: string,
+  ) {
+    return this.analyticsService.getEmployeeStats(user.tenantId, search);
   }
 }

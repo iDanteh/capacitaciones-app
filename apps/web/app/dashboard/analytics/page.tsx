@@ -84,6 +84,39 @@ const listItem = {
   animate: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 30 } },
 };
 
+const PAGE_SIZE = 10;
+
+// ─── TablePager ───────────────────────────────────────────────────────────────
+
+function TablePager({ page, total, count, onChange }: {
+  page: number; total: number; count: number; onChange: (p: number) => void;
+}) {
+  if (total <= 1) return null;
+  return (
+    <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-muted/20">
+      <button
+        onClick={() => onChange(page - 1)}
+        disabled={page <= 1}
+        className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        ← Anterior
+      </button>
+      <span className="text-xs text-muted-foreground">
+        <span className="font-semibold text-foreground">{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, count)}</span>
+        {' '}de{' '}
+        <span className="font-semibold text-foreground">{count}</span>
+      </span>
+      <button
+        onClick={() => onChange(page + 1)}
+        disabled={page >= total}
+        className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        Siguiente →
+      </button>
+    </div>
+  );
+}
+
 function formatDate(iso: string | null): string {
   if (!iso) return 'Nunca';
   const d = new Date(iso);
@@ -365,6 +398,11 @@ export default function AnalyticsPage() {
   const [courseAsc,    setCourseAsc]    = useState(false);
   const [employeeAsc,  setEmployeeAsc]  = useState(false);
 
+  // Paginación client-side — los datos están en memoria, el CSV exporta todo
+  const [empSearch,   setEmpSearch]   = useState('');
+  const [empPage,     setEmpPage]     = useState(1);
+  const [coursePage,  setCoursePage]  = useState(1);
+
   const load = useCallback((isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError(null);
@@ -417,14 +455,32 @@ export default function AnalyticsPage() {
     return employeeAsc ? diff : -diff;
   });
 
+  // Paginación de cursos — resetea página al cambiar el sort
+  const courseTotalPages = Math.max(1, Math.ceil(sortedCourses.length / PAGE_SIZE));
+  const coursePageSafe   = Math.min(coursePage, courseTotalPages);
+  const pagedCourses     = sortedCourses.slice((coursePageSafe - 1) * PAGE_SIZE, coursePageSafe * PAGE_SIZE);
+
+  // Empleados: primero filtrar por búsqueda, luego paginar
+  const empQ              = empSearch.toLowerCase();
+  const filteredEmployees = empQ
+    ? sortedEmployees.filter(e =>
+        e.name.toLowerCase().includes(empQ) || e.email.toLowerCase().includes(empQ)
+      )
+    : sortedEmployees;
+  const empTotalPages  = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
+  const empPageSafe    = Math.min(empPage, empTotalPages);
+  const pagedEmployees = filteredEmployees.slice((empPageSafe - 1) * PAGE_SIZE, empPageSafe * PAGE_SIZE);
+
   function toggleCourseSort(col: CourseSort) {
     if (courseSort === col) setCourseAsc(p => !p);
     else { setCourseSort(col); setCourseAsc(false); }
+    setCoursePage(1);
   }
 
   function toggleEmployeeSort(col: EmployeeSort) {
     if (employeeSort === col) setEmployeeAsc(p => !p);
     else { setEmployeeSort(col); setEmployeeAsc(false); }
+    setEmpPage(1);
   }
 
   function SortIcon({ col, current, asc }: { col: string; current: string; asc: boolean }) {
@@ -518,6 +574,7 @@ export default function AnalyticsPage() {
             <p className="text-sm text-muted-foreground">Sin datos de cursos todavía.</p>
           </div>
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -551,7 +608,7 @@ export default function AnalyticsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {sortedCourses.map(c => (
+                {pagedCourses.map(c => (
                   <tr key={c.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-6 py-3.5">
                       <p className="font-medium text-foreground line-clamp-1">{c.title}</p>
@@ -582,6 +639,13 @@ export default function AnalyticsPage() {
               </tbody>
             </table>
           </div>
+          <TablePager
+            page={coursePageSafe}
+            total={courseTotalPages}
+            count={sortedCourses.length}
+            onChange={setCoursePage}
+          />
+          </>
         )}
       </motion.div>
 
@@ -629,70 +693,98 @@ export default function AnalyticsPage() {
             <p className="text-sm text-muted-foreground">Sin empleados registrados.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Empleado</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Inscritos</th>
-                  <th
-                    className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none"
-                    onClick={() => toggleEmployeeSort('completed')}
-                  >
-                    <span className="inline-flex items-center gap-1 justify-end">
-                      Completados <SortIcon col="completed" current={employeeSort} asc={employeeAsc} />
-                    </span>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none hidden lg:table-cell"
-                    onClick={() => toggleEmployeeSort('avgProgress')}
-                  >
-                    <span className="inline-flex items-center gap-1 justify-end">
-                      Progreso prom. <SortIcon col="avgProgress" current={employeeSort} asc={employeeAsc} />
-                    </span>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none"
-                    onClick={() => toggleEmployeeSort('lastLoginAt')}
-                  >
-                    <span className="inline-flex items-center gap-1 justify-end">
-                      Último acceso <SortIcon col="lastLoginAt" current={employeeSort} asc={employeeAsc} />
-                    </span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {sortedEmployees.map(e => (
-                  <tr key={e.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-6 py-3.5">
-                      <p className="font-medium text-foreground">{e.name}</p>
-                      <p className="text-xs text-muted-foreground">{e.email}</p>
-                    </td>
-                    <td className="px-4 py-3.5 text-right text-foreground font-semibold">{e.enrolled}</td>
-                    <td className="px-4 py-3.5 text-right">
-                      <span className={`font-semibold ${e.completed > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                        {e.completed}
+          <>
+            {/* Buscador de empleados */}
+            <div className="px-6 py-3 border-b border-border">
+              <div className="relative">
+                <Icon name="search" size={13}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <input
+                  value={empSearch}
+                  onChange={e => { setEmpSearch(e.target.value); setEmpPage(1); }}
+                  placeholder="Buscar por nombre o email..."
+                  className="w-full rounded-lg border border-border bg-background pl-8 pr-3 py-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft/60 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Empleado</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Inscritos</th>
+                    <th
+                      className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none"
+                      onClick={() => toggleEmployeeSort('completed')}
+                    >
+                      <span className="inline-flex items-center gap-1 justify-end">
+                        Completados <SortIcon col="completed" current={employeeSort} asc={employeeAsc} />
                       </span>
-                      {e.enrolled > 0 && (
-                        <span className="text-xs text-muted-foreground ml-1">
-                          ({Math.round((e.completed / e.enrolled) * 100)}%)
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5 w-36 hidden lg:table-cell">
-                      <MiniBar value={e.avgProgress} />
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
-                        <Icon name="clock" size={11} />
-                        {formatDate(e.lastLoginAt)}
-                      </div>
-                    </td>
+                    </th>
+                    <th
+                      className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none hidden lg:table-cell"
+                      onClick={() => toggleEmployeeSort('avgProgress')}
+                    >
+                      <span className="inline-flex items-center gap-1 justify-end">
+                        Progreso prom. <SortIcon col="avgProgress" current={employeeSort} asc={employeeAsc} />
+                      </span>
+                    </th>
+                    <th
+                      className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none"
+                      onClick={() => toggleEmployeeSort('lastLoginAt')}
+                    >
+                      <span className="inline-flex items-center gap-1 justify-end">
+                        Último acceso <SortIcon col="lastLoginAt" current={employeeSort} asc={employeeAsc} />
+                      </span>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {pagedEmployees.length > 0 ? pagedEmployees.map(e => (
+                    <tr key={e.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-6 py-3.5">
+                        <p className="font-medium text-foreground">{e.name}</p>
+                        <p className="text-xs text-muted-foreground">{e.email}</p>
+                      </td>
+                      <td className="px-4 py-3.5 text-right text-foreground font-semibold">{e.enrolled}</td>
+                      <td className="px-4 py-3.5 text-right">
+                        <span className={`font-semibold ${e.completed > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                          {e.completed}
+                        </span>
+                        {e.enrolled > 0 && (
+                          <span className="text-xs text-muted-foreground ml-1">
+                            ({Math.round((e.completed / e.enrolled) * 100)}%)
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 w-36 hidden lg:table-cell">
+                        <MiniBar value={e.avgProgress} />
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
+                          <Icon name="clock" size={11} />
+                          {formatDate(e.lastLoginAt)}
+                        </div>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-sm text-muted-foreground">
+                        Sin resultados para &ldquo;{empSearch}&rdquo;
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <TablePager
+              page={empPageSafe}
+              total={empTotalPages}
+              count={filteredEmployees.length}
+              onChange={setEmpPage}
+            />
+          </>
         )}
       </motion.div>
 
