@@ -77,6 +77,12 @@ interface Certificate {
   verifyUrl:     string;
 }
 
+interface TenantMe {
+  logoUrl:      string | null;
+  primaryColor: string | null;
+  appName?:     string | null;
+}
+
 // ─── Animation variants ───────────────────────────────────────────────────────
 
 const container = { animate: { transition: { staggerChildren: 0.07 } } };
@@ -196,7 +202,7 @@ function StatCard({
 // ─── Onboarding Card (admin sin datos) ───────────────────────────────────────
 
 const ONBOARDING_STEPS: { label: string; desc: string; href: string; icon: import('@/components/capta-icon').IconName; accent: string }[] = [
-  { label: 'Crea tu primer curso',  desc: 'Añade lecciones de video, texto o archivo',   href: '/dashboard/courses/new',  icon: 'book-open',   accent: '#1E4F7A' },
+  { label: 'Crea tu primer curso',  desc: 'Añade lecciones de video, texto o archivo',   href: '/dashboard/courses/new',  icon: 'book-open',   accent: 'var(--tenant-primary)' },
   { label: 'Invita a tu equipo',    desc: 'Envía invitaciones por email a tus empleados', href: '/dashboard/users',         icon: 'user-plus',   accent: '#7FD1AE' },
   { label: 'Personaliza tu empresa', desc: 'Logo, colores y nombre de marca',             href: '/dashboard/settings',      icon: 'gear',        accent: '#8FC4E8' },
   { label: 'Revisa las analíticas', desc: 'Mide el progreso y tasa de completado',        href: '/dashboard/analytics',     icon: 'chart-bar',   accent: '#F59E0B' },
@@ -322,7 +328,7 @@ function OnboardingCard({
 // ─── Quick Action ─────────────────────────────────────────────────────────────
 
 function QuickAction({
-  href, label, desc, iconName, accent = '#1E4F7A',
+  href, label, desc, iconName, accent = 'var(--tenant-primary)',
 }: {
   href:     string;
   label:    string;
@@ -762,8 +768,9 @@ export default function DashboardPage() {
       const u = JSON.parse(raw) as UserData;
       setUser(u);
 
-      // Onboarding: leer estado desde localStorage
+      // Onboarding: leer dismissed desde localStorage; tenantCustomized se confirma desde API
       setOnboardingDismissed(!!localStorage.getItem('onboarding_dismissed'));
+      // Warm-start desde localStorage para que el paso no parpadee en visitas previas
       const savedLogo  = localStorage.getItem('tenant_logo') || '';
       const savedColor = localStorage.getItem('tenant_color') || '';
       setTenantCustomized(!!savedLogo || !!savedColor);
@@ -776,12 +783,22 @@ export default function DashboardPage() {
           api.get<Course[]>('/courses').catch(() => ({ data: [] })),
           api.get<{ totalCertificates: number }>('/analytics/overview').catch(() => ({ data: { totalCertificates: 0 } })),
           api.get<WeeklyData>('/analytics/weekly').catch(() => ({ data: null })),
-        ]).then(([usersRes, coursesRes, overviewRes, weeklyRes]) => {
+          api.get<TenantMe>('/tenants/me').catch(() => ({ data: null })),
+        ]).then(([usersRes, coursesRes, overviewRes, weeklyRes, tenantRes]) => {
           setUsersCount(usersRes.data.total ?? 0);
           setPublished(coursesRes.data.filter(c => c.status === 'PUBLISHED').length);
           setEnrolled(coursesRes.data.reduce((s, c) => s + (c.enrollmentCount ?? 0), 0));
           setTotalCerts(overviewRes.data.totalCertificates ?? 0);
           setWeekly(weeklyRes.data);
+
+          // Tenantcustomized desde la API — fuente de verdad, sin depender de localStorage
+          const t = tenantRes.data;
+          if (t) {
+            setTenantCustomized(!!(t.logoUrl || t.primaryColor || t.appName));
+            // Mantener localStorage sincronizado para lecturas rápidas posteriores
+            if (t.logoUrl)      localStorage.setItem('tenant_logo',  t.logoUrl);
+            if (t.primaryColor) localStorage.setItem('tenant_color', t.primaryColor);
+          }
         }).finally(() => setLoading(false));
 
         // Actividad reciente — fetch independiente para no bloquear los stats
@@ -889,7 +906,7 @@ export default function DashboardPage() {
               label="Usuarios registrados"
               value={usersCount}
               iconName="users"
-              accent="#1E4F7A"
+              accent="var(--tenant-primary)"
               loading={loading}
               sparkData={weekly?.users}
             />
@@ -920,7 +937,7 @@ export default function DashboardPage() {
           </>
         ) : (
           <>
-            <StatCard label="Cursos inscritos" value={enrollments.length}                              iconName="book-open"   accent="#1E4F7A" loading={loading} />
+            <StatCard label="Cursos inscritos" value={enrollments.length}                              iconName="book-open"   accent="var(--tenant-primary)" loading={loading} />
             <StatCard label="En progreso"      value={inProgress}                                  iconName="play"        accent="#7FD1AE" loading={loading} />
             <StatCard label="Completados"      value={completed}                                   iconName="check"       accent="#8FC4E8" loading={loading} />
             <StatCard label="Certificados"     value={certLoading ? '—' : certificates.length}    iconName="certificate" accent="#F59E0B" loading={loading && certLoading} />
@@ -949,7 +966,7 @@ export default function DashboardPage() {
             >
               <h2 className="mb-4 text-sm font-semibold text-foreground">Acciones rápidas</h2>
               <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
-                <QuickAction href="/dashboard/courses/new" label="Crear curso"      desc="Video, PDF o quiz"       iconName="plus"        accent="#1E4F7A" />
+                <QuickAction href="/dashboard/courses/new" label="Crear curso"      desc="Video, PDF o quiz"       iconName="plus"        accent="var(--tenant-primary)" />
                 <QuickAction href="/dashboard/users"       label="Invitar personas" desc="Email o SSO"             iconName="user-plus"   accent="#7FD1AE" />
                 <QuickAction href="/dashboard/analytics"   label="Ver analíticas"   desc="Progreso del equipo"     iconName="chart-bar"   accent="#8FC4E8" />
                 <QuickAction href="/dashboard/subscription" label="Facturación"     desc="Plan y almacenamiento"   iconName="credit-card" accent="#F59E0B" />

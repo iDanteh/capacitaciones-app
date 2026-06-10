@@ -11,6 +11,7 @@ import { NotificationBell } from '@/components/notification-bell';
 import { CommandPalette } from '@/components/command-palette';
 import { api } from '@/lib/api';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
+import { applyTenantHead } from '@/lib/tenant-head';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -122,13 +123,14 @@ function NavItem({ item, active, onClick, accentColor }: {
 
 // ─── Sidebar content ──────────────────────────────────────────────────────────
 
-function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, accentColor }: {
+function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, accentColor, appName }: {
   user: UserData | null;
   pathname: string;
   onNavClick?: () => void;
   tenantLogo?: string;
   tenantName?: string;
   accentColor?: string;
+  appName?: string;
 }) {
   const router = useRouter();
 
@@ -203,12 +205,13 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
       } else {
         // At parent level — save current session as parent before switching
         localStorage.setItem('parent_session', JSON.stringify({
-          accessToken:  localStorage.getItem('access_token'),
-          refreshToken: localStorage.getItem('refresh_token'),
-          user:         localStorage.getItem('user'),
-          tenantLogo:   localStorage.getItem('tenant_logo'),
-          tenantName:   localStorage.getItem('tenant_name'),
-          tenantColor:  localStorage.getItem('tenant_color'),
+          accessToken:    localStorage.getItem('access_token'),
+          refreshToken:   localStorage.getItem('refresh_token'),
+          user:           localStorage.getItem('user'),
+          tenantLogo:     localStorage.getItem('tenant_logo'),
+          tenantName:     localStorage.getItem('tenant_name'),
+          tenantColor:    localStorage.getItem('tenant_color'),
+          tenantAppname:  localStorage.getItem('tenant_appname'),
         }));
       }
 
@@ -221,6 +224,7 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
       localStorage.removeItem('tenant_logo');
       localStorage.removeItem('tenant_name');
       localStorage.removeItem('tenant_color');
+      localStorage.removeItem('tenant_appname');
 
       window.location.replace('/dashboard');
     } catch {
@@ -239,9 +243,10 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
       if (sess.accessToken)  localStorage.setItem('access_token',  sess.accessToken);
       if (sess.refreshToken) localStorage.setItem('refresh_token', sess.refreshToken);
       if (sess.user)         localStorage.setItem('user',          sess.user);
-      localStorage.setItem('tenant_logo',  sess.tenantLogo  ?? '');
-      localStorage.setItem('tenant_name',  sess.tenantName  ?? '');
-      localStorage.setItem('tenant_color', sess.tenantColor ?? '');
+      localStorage.setItem('tenant_logo',    sess.tenantLogo     ?? '');
+      localStorage.setItem('tenant_name',    sess.tenantName     ?? '');
+      localStorage.setItem('tenant_color',   sess.tenantColor    ?? '');
+      localStorage.setItem('tenant_appname', sess.tenantAppname  ?? '');
       localStorage.removeItem('parent_session');
     } catch { /* corrupted */ }
     window.location.replace('/dashboard');
@@ -293,7 +298,16 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
 
       {/* ── Logo ── */}
       <div className="flex h-[60px] flex-shrink-0 items-center border-b border-border px-5">
-        <CaptaLogo markSize={26} showText />
+        {tenantLogo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={tenantLogo}
+            alt={tenantName || 'Logo'}
+            className="h-7 max-w-[140px] object-contain"
+          />
+        ) : (
+          <CaptaLogo markSize={26} showText customText={appName || undefined} />
+        )}
       </div>
 
       {/* ── Tenant selector ── */}
@@ -489,7 +503,7 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
           <Link href="/dashboard/profile" className="flex flex-1 items-center gap-3 min-w-0">
             <div
               className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
-              style={{ background: 'linear-gradient(135deg, #DCE9F4, #8FC4E830)', color: '#1E4F7A' }}
+              style={{ background: 'linear-gradient(135deg, #DCE9F4, #8FC4E830)', color: 'var(--tenant-primary)' }}
             >
               {initials}
             </div>
@@ -574,6 +588,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [tenantLogo,   setTenantLogo]   = useState('');
   const [tenantName,   setTenantName]   = useState('');
   const [accentColor,  setAccentColor]  = useState('');
+  const [appName,      setAppName]      = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
@@ -583,10 +598,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (raw) setUser(JSON.parse(raw) as UserData);
     } catch { /* datos corruptos — continuar */ }
 
-    // Cargar datos del tenant para logo y color personalizado
-    setTenantLogo(localStorage.getItem('tenant_logo')  ?? '');
-    setTenantName(localStorage.getItem('tenant_name')  ?? '');
-    setAccentColor(localStorage.getItem('tenant_color') ?? '');
+    // Cargar datos del tenant para logo, color y nombre de plataforma
+    setTenantLogo(localStorage.getItem('tenant_logo')    ?? '');
+    setTenantName(localStorage.getItem('tenant_name')    ?? '');
+    setAccentColor(localStorage.getItem('tenant_color')  ?? '');
+    setAppName(localStorage.getItem('tenant_appname')    ?? '');
 
     setIsReady(true);
 
@@ -594,21 +610,54 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     connectSocket();
 
     // Refrescar datos del tenant desde la API en segundo plano (timeout 5s — evita spinner infinito)
-    api.get<{ logoUrl?: string | null; primaryColor?: string | null; name?: string }>('/tenants/me', { timeout: 5_000 })
+    api.get<{ logoUrl?: string | null; primaryColor?: string | null; name?: string; appName?: string | null }>('/tenants/me', { timeout: 5_000 })
       .then(r => {
-        const logo  = r.data.logoUrl      ?? '';
-        const color = r.data.primaryColor ?? '';
-        const name  = r.data.name         ?? '';
+        const logo    = r.data.logoUrl      ?? '';
+        const color   = r.data.primaryColor ?? '';
+        const name    = r.data.name         ?? '';
+        const appNm   = r.data.appName      ?? '';
         setTenantLogo(logo);
         setAccentColor(color);
         setTenantName(name);
+        setAppName(appNm);
         // Cachear en localStorage
-        localStorage.setItem('tenant_logo',  logo);
-        localStorage.setItem('tenant_color', color);
-        localStorage.setItem('tenant_name',  name);
+        localStorage.setItem('tenant_logo',    logo);
+        localStorage.setItem('tenant_color',   color);
+        localStorage.setItem('tenant_name',    name);
+        localStorage.setItem('tenant_appname', appNm);
       })
       .catch(() => { /* sin auth todavía o error — usar valores de localStorage */ });
   }, [router]);
+
+  // Sincronizar color primario del tenant como CSS custom property
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      '--tenant-primary',
+      accentColor || '#1E4F7A',
+    );
+  }, [accentColor]);
+
+  // Sincronizar favicon y meta theme-color con el branding del tenant activo
+  useEffect(() => {
+    applyTenantHead({
+      primaryColor: accentColor  || null,
+      logoUrl:      tenantLogo   || null,
+      appName:      appName      || null,
+      name:         tenantName   || null,
+    });
+  }, [accentColor, tenantLogo, appName, tenantName]);
+
+  // Actualizar el título del browser con el nombre de la plataforma
+  useEffect(() => {
+    const platform = appName || 'Capta';
+    const page = pathname
+      .split('/')
+      .filter(Boolean)
+      .slice(1) // quita 'dashboard'
+      .map(s => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(' › ');
+    document.title = page ? `${page} — ${platform}` : platform;
+  }, [appName, pathname]);
 
   // ⌘K / Ctrl+K — abrir command palette
   useEffect(() => {
@@ -625,12 +674,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Re-sincronizar cuando la ruta cambia (puede haber actualizado logo/color en settings)
   useEffect(() => {
     setSidebarOpen(false);
-    const logo  = localStorage.getItem('tenant_logo')  ?? '';
-    const color = localStorage.getItem('tenant_color') ?? '';
-    const name  = localStorage.getItem('tenant_name')  ?? '';
+    const logo   = localStorage.getItem('tenant_logo')    ?? '';
+    const color  = localStorage.getItem('tenant_color')   ?? '';
+    const name   = localStorage.getItem('tenant_name')    ?? '';
+    const appNm  = localStorage.getItem('tenant_appname') ?? '';
     setTenantLogo(logo);
     setAccentColor(color);
     setTenantName(name);
+    setAppName(appNm);
     // También actualizar datos del usuario (puede haber cambiado nombre en perfil)
     try {
       const raw = localStorage.getItem('user');
@@ -643,7 +694,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex h-screen items-center justify-center bg-background">
         <div
           className="h-6 w-6 animate-spin rounded-full border-2 border-transparent"
-          style={{ borderTopColor: '#1E4F7A', borderRightColor: '#8FC4E820' }}
+          style={{ borderTopColor: 'var(--tenant-primary)', borderRightColor: 'color-mix(in srgb, var(--tenant-primary) 12%, transparent)' }}
         />
       </div>
     );
@@ -660,6 +711,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           tenantLogo={tenantLogo}
           tenantName={tenantName}
           accentColor={accentColor}
+          appName={appName}
         />
       </aside>
 
@@ -692,6 +744,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 tenantLogo={tenantLogo}
                 tenantName={tenantName}
                 accentColor={accentColor}
+                appName={appName}
               />
             </motion.aside>
           </>
@@ -713,7 +766,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           >
             <Icon name={sidebarOpen ? 'close' : 'menu'} size={16} />
           </button>
-          <CaptaMark size={24} />
+          {tenantLogo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={tenantLogo}
+              alt={tenantName || 'Logo'}
+              className="h-6 max-w-[100px] object-contain"
+            />
+          ) : (
+            <CaptaMark size={24} />
+          )}
           <ThemeToggle />
         </header>
 

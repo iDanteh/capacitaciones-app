@@ -2,17 +2,26 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 
+export interface TenantBranding {
+  name:         string;
+  logoUrl:      string | null;
+  primaryColor: string | null;
+  appName:      string | null;
+}
+
 export interface SendInviteOptions {
-  to: string;
+  to:          string;
   inviterName: string;
   companyName: string;
-  role: string;
-  token: string;
+  role:        string;
+  token:       string;
+  branding?:   TenantBranding;
 }
 
 export interface SendPasswordChangedOptions {
-  to: string;
+  to:        string;
   firstName: string;
+  branding?: TenantBranding;
 }
 
 // Tiempos de backoff: 5s → 25s → 125s
@@ -125,6 +134,17 @@ export class EmailService {
     inviteUrl: string,
     roleLabel: Record<string, string>,
   ): string {
+    const b            = options.branding;
+    const primaryColor = b?.primaryColor || '#1E4F7A';
+    const platformName = b?.appName || b?.name || 'Capta';
+    const initial      = platformName.charAt(0).toUpperCase();
+
+    const logoHtml = b?.logoUrl
+      ? `<img src="${b.logoUrl}" alt="${platformName}" style="height:36px;max-width:160px;object-fit:contain;display:block;">`
+      : `<div style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;background:${primaryColor};">
+           <span style="color:#FFFFFF;font-weight:700;font-size:16px;">${initial}</span>
+         </div>`;
+
     return `
 <!DOCTYPE html>
 <html>
@@ -134,11 +154,7 @@ export class EmailService {
       <table width="520" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:16px;border:1px solid #E3E3E3;overflow:hidden;">
         <tr>
           <td style="padding:40px 40px 32px;">
-            <div style="margin-bottom:32px;">
-              <div style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#5AC8FA,#0B5A8C);">
-                <span style="color:white;font-weight:700;font-size:16px;">L</span>
-              </div>
-            </div>
+            <div style="margin-bottom:32px;">${logoHtml}</div>
             <h1 style="font-size:22px;font-weight:600;color:#171717;margin:0 0 8px;">Tienes una invitación</h1>
             <p style="font-size:15px;color:#707070;margin:0 0 28px;line-height:1.6;">
               <strong style="color:#171717;">${options.inviterName}</strong> te invitó a unirte a
@@ -146,7 +162,7 @@ export class EmailService {
               <strong style="color:#171717;">${roleLabel[options.role] ?? options.role}</strong>.
             </p>
             <a href="${inviteUrl}"
-               style="display:inline-block;background:linear-gradient(135deg,#5AC8FA,#38BDF8);color:#0B5A8C;font-weight:600;font-size:14px;padding:13px 28px;border-radius:10px;text-decoration:none;">
+               style="display:inline-block;background:${primaryColor};color:#FFFFFF;font-weight:600;font-size:14px;padding:13px 28px;border-radius:10px;text-decoration:none;">
               Aceptar invitación
             </a>
             <p style="font-size:13px;color:#A1A1A1;margin:28px 0 0;line-height:1.5;">
@@ -158,7 +174,7 @@ export class EmailService {
         <tr>
           <td style="padding:20px 40px;background:#F5F5F5;border-top:1px solid #E3E3E3;">
             <p style="font-size:12px;color:#A1A1A1;margin:0;">
-              © ${new Date().getFullYear()} Capacitaciones LMS. Todos los derechos reservados.
+              © ${new Date().getFullYear()} ${platformName}. Todos los derechos reservados.
             </p>
           </td>
         </tr>
@@ -170,6 +186,17 @@ export class EmailService {
   }
 
   private buildPasswordChangedHtml(options: SendPasswordChangedOptions): string {
+    const b            = options.branding;
+    const primaryColor = b?.primaryColor || '#1E4F7A';
+    const platformName = b?.appName || b?.name || 'Capta';
+    const initial      = platformName.charAt(0).toUpperCase();
+
+    const logoHtml = b?.logoUrl
+      ? `<img src="${b.logoUrl}" alt="${platformName}" style="height:36px;max-width:160px;object-fit:contain;display:block;">`
+      : `<div style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;background:${primaryColor};">
+           <span style="color:#FFFFFF;font-weight:700;font-size:16px;">${initial}</span>
+         </div>`;
+
     return `
 <!DOCTYPE html>
 <html>
@@ -179,11 +206,7 @@ export class EmailService {
       <table width="520" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:16px;border:1px solid #E3E3E3;overflow:hidden;">
         <tr>
           <td style="padding:40px 40px 32px;">
-            <div style="margin-bottom:32px;">
-              <div style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#5AC8FA,#0B5A8C);">
-                <span style="color:white;font-weight:700;font-size:16px;">L</span>
-              </div>
-            </div>
+            <div style="margin-bottom:32px;">${logoHtml}</div>
             <h1 style="font-size:22px;font-weight:600;color:#171717;margin:0 0 8px;">Tu contraseña fue cambiada</h1>
             <p style="font-size:15px;color:#707070;margin:0 0 28px;line-height:1.6;">
               Hola <strong style="color:#171717;">${options.firstName}</strong>, tu contraseña fue actualizada exitosamente.
@@ -199,7 +222,7 @@ export class EmailService {
         <tr>
           <td style="padding:20px 40px;background:#F5F5F5;border-top:1px solid #E3E3E3;">
             <p style="font-size:12px;color:#A1A1A1;margin:0;">
-              © ${new Date().getFullYear()} Capacitaciones LMS. Todos los derechos reservados.
+              © ${new Date().getFullYear()} ${platformName}. Todos los derechos reservados.
             </p>
           </td>
         </tr>

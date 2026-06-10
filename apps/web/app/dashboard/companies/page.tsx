@@ -450,7 +450,7 @@ export default function CompaniesPage() {
           {companies.length > 0 && (
             <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {[
-                { label: 'Sub-empresas activas', value: companies.filter(c => c.isActive).length, icon: 'users' as const,        accent: '#1E4F7A' },
+                { label: 'Sub-empresas activas', value: companies.filter(c => c.isActive).length, icon: 'users' as const,        accent: 'var(--tenant-primary)' },
                 { label: 'Total usuarios',        value: companies.reduce((s, c) => s + c.userCount, 0), icon: 'user' as const,   accent: '#7FD1AE' },
                 { label: 'Total empresas',        value: companies.length,                            icon: 'chart-bar' as const,  accent: '#8FC4E8' },
               ].map((stat, i) => (

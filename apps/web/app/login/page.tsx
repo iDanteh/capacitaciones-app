@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,6 +10,8 @@ import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { CaptaLogo } from '@/components/capta-logo';
 import { Icon } from '@/components/capta-icon';
+import { useTenantBranding } from '@/hooks/useTenantBranding';
+import { applyTenantHead, resetTenantHead } from '@/lib/tenant-head';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -128,11 +130,20 @@ function OtpInput({ value, onChange, disabled }: {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+function readDomainSlugCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  const entry = document.cookie.split('; ').find(c => c.startsWith('tenant_domain_slug='));
+  if (!entry) return null;
+  const value = entry.split('=')[1];
+  return value && value !== '__unknown__' ? decodeURIComponent(value) : null;
+}
+
 export default function LoginPage() {
   const router = useRouter();
 
   // Paso 1: credenciales
   const [serverError,  setServerError]  = useState<string | null>(null);
+  const [domainMode,   setDomainMode]   = useState(false);
 
   // Paso 2: MFA
   const [mfaChallenge, setMfaChallenge] = useState<MfaChallenge | null>(null);
@@ -142,9 +153,36 @@ export default function LoginPage() {
   const [mfaLoading,   setMfaLoading]   = useState(false);
   const [mfaError,     setMfaError]     = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   });
+
+  const watchedSlug = watch('tenantSlug', '');
+
+  // Pre-llenar slug si el usuario llega desde un dominio personalizado del tenant
+  useEffect(() => {
+    const slug = readDomainSlugCookie();
+    if (slug) {
+      setValue('tenantSlug', slug);
+      setDomainMode(true);
+    }
+  }, [setValue]);
+  const { branding } = useTenantBranding(watchedSlug);
+
+  // Aplicar favicon y theme-color mientras el usuario tipea su slug; restaurar al desmontar
+  useEffect(() => {
+    applyTenantHead({
+      primaryColor: branding?.primaryColor ?? null,
+      logoUrl:      branding?.logoUrl      ?? null,
+      appName:      branding?.appName      ?? null,
+      name:         branding?.name         ?? null,
+    });
+    return () => { resetTenantHead(); };
+  }, [branding]);
+
+  const asideGradient = branding?.primaryColor
+    ? `linear-gradient(155deg, #0A1419 0%, ${branding.primaryColor} 55%, color-mix(in srgb, ${branding.primaryColor} 75%, white) 100%)`
+    : 'linear-gradient(155deg, #0A1419 0%, #1E4F7A 55%, #2D6FA0 100%)';
 
   // ── Paso 1: login con credenciales ────────────────────────────────────────
 
@@ -214,8 +252,8 @@ export default function LoginPage() {
 
       {/* ── Panel izquierdo (branding) ── */}
       <aside
-        className="relative hidden lg:flex lg:w-[44%] flex-col justify-between overflow-hidden p-12"
-        style={{ background: 'linear-gradient(155deg, #0A1419 0%, #1E4F7A 55%, #2D6FA0 100%)' }}
+        className="relative hidden lg:flex lg:w-[44%] flex-col justify-between overflow-hidden p-12 transition-[background] duration-700"
+        style={{ background: asideGradient }}
       >
         {/* Decorative grid */}
         <div aria-hidden className="pointer-events-none absolute inset-0"
@@ -229,7 +267,16 @@ export default function LoginPage() {
 
         <div className="relative">
           <Link href="/" className="inline-block">
-            <CaptaLogo markSize={36} showText forceDark />
+            {branding?.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={branding.logoUrl}
+                alt={branding.name}
+                className="h-9 max-w-[180px] object-contain brightness-0 invert"
+              />
+            ) : (
+              <CaptaLogo markSize={36} showText forceDark />
+            )}
           </Link>
         </div>
 
@@ -271,7 +318,16 @@ export default function LoginPage() {
 
         <div className="mb-10 lg:hidden">
           <Link href="/">
-            <CaptaLogo markSize={32} showText />
+            {branding?.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={branding.logoUrl}
+                alt={branding.name}
+                className="h-8 max-w-[160px] object-contain"
+              />
+            ) : (
+              <CaptaLogo markSize={32} showText />
+            )}
           </Link>
         </div>
 
@@ -304,14 +360,29 @@ export default function LoginPage() {
                 )}
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
-                  <InputField
-                    label="Identificador de empresa"
-                    hint="El slug de tu empresa (ej: acme-corp)"
-                    placeholder="acme-corp"
-                    autoComplete="organization"
-                    error={errors.tenantSlug?.message}
-                    {...register('tenantSlug')}
-                  />
+                  {domainMode ? (
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium text-foreground">Identificador de empresa</label>
+                      <div className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/50 px-4 py-3">
+                        <Icon name="building" size={14} className="flex-shrink-0 text-muted-foreground/60" />
+                        <span className="flex-1 text-sm font-medium text-foreground">{watchedSlug}</span>
+                        <span className="rounded-md bg-capta-tint px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-capta-deep dark:bg-white/10 dark:text-capta-soft">
+                          Dominio
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground/60">Detectado automáticamente desde tu dominio.</p>
+                      <input type="hidden" {...register('tenantSlug')} />
+                    </div>
+                  ) : (
+                    <InputField
+                      label="Identificador de empresa"
+                      hint="El slug de tu empresa (ej: acme-corp)"
+                      placeholder="acme-corp"
+                      autoComplete="organization"
+                      error={errors.tenantSlug?.message}
+                      {...register('tenantSlug')}
+                    />
+                  )}
                   <InputField
                     label="Correo electrónico"
                     type="email"

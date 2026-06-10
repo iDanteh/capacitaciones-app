@@ -300,7 +300,7 @@ function QuizPanel({
       <div className="flex items-start gap-3 px-5 py-4 bg-card border-b border-border">
         <div
           className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
-          style={{ background: '#1E4F7A12', color: '#1E4F7A', border: '1px solid #1E4F7A1A' }}
+          style={{ background: 'color-mix(in srgb, var(--tenant-primary) 8%, transparent)', color: 'var(--tenant-primary)', border: '1px solid color-mix(in srgb, var(--tenant-primary) 10%, transparent)' }}
         >
           <Shield size={16} />
         </div>
@@ -466,7 +466,7 @@ function QuizPanel({
       >
         <div className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg"
-            style={{ background: '#1E4F7A12', color: '#1E4F7A' }}>
+            style={{ background: 'color-mix(in srgb, var(--tenant-primary) 8%, transparent)', color: 'var(--tenant-primary)' }}>
             <Shield size={13} />
           </div>
           <div>
@@ -517,8 +517,8 @@ function QuizPanel({
               <span
                 className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 transition-colors"
                 style={{
-                  background: selectedAnswers[question.id] ? '#1E4F7A20' : 'hsl(var(--muted))',
-                  color:      selectedAnswers[question.id] ? '#1E4F7A'   : 'hsl(var(--muted-foreground))',
+                  background: selectedAnswers[question.id] ? 'color-mix(in srgb, var(--tenant-primary) 14%, transparent)' : 'hsl(var(--muted))',
+                  color:      selectedAnswers[question.id] ? 'var(--tenant-primary)'                                        : 'hsl(var(--muted-foreground))',
                 }}
               >
                 {qi + 1}
@@ -547,8 +547,8 @@ function QuizPanel({
                     <div
                       className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all"
                       style={{
-                        borderColor: selected ? '#1E4F7A' : undefined,
-                        background:  selected ? '#1E4F7A' : 'transparent',
+                        borderColor: selected ? 'var(--tenant-primary)' : undefined,
+                        background:  selected ? 'var(--tenant-primary)' : 'transparent',
                       }}
                     >
                       {selected && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
@@ -867,6 +867,9 @@ function LessonViewer({
   courseId: string;
 }) {
   const isEmployee = userRole === 'EMPLOYEE';
+  const tenantAccentColor = typeof window !== 'undefined'
+    ? (localStorage.getItem('tenant_color') || '#1E4F7A')
+    : '#1E4F7A';
 
   const [completing,     setCompleting]     = useState(false);
   const [loadingContent, setLoadingContent] = useState(false);
@@ -1012,7 +1015,7 @@ function LessonViewer({
       return (
         <div className="flex flex-col items-center gap-6 py-12">
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl"
-            style={{ background: '#1E4F7A12', color: '#1E4F7A', border: '1px solid #1E4F7A1A' }}>
+            style={{ background: 'color-mix(in srgb, var(--tenant-primary) 8%, transparent)', color: 'var(--tenant-primary)', border: '1px solid color-mix(in srgb, var(--tenant-primary) 10%, transparent)' }}>
             <Icon name="play" size={32} />
           </div>
           <p className="font-semibold text-foreground">{lesson.fileName}</p>
@@ -1137,7 +1140,7 @@ function LessonViewer({
                   playbackId={lesson.muxPlaybackId}
                   streamType="on-demand"
                   metadata={{ video_title: lesson.title }}
-                  accentColor="#1E4F7A"
+                  accentColor={tenantAccentColor}
                   style={{ width: '100%', height: '100%' }}
                   onEnded={handleComplete}
                 />
@@ -1503,7 +1506,7 @@ export default function LearnPage() {
           {!enrollment ? (
             <div className="flex h-full flex-col items-center justify-center p-8 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl mb-4"
-                style={{ background: '#1E4F7A12', color: '#1E4F7A' }}>
+                style={{ background: 'color-mix(in srgb, var(--tenant-primary) 8%, transparent)', color: 'var(--tenant-primary)' }}>
                 <BookOpen size={28} />
               </div>
               <h2 className="text-xl font-bold text-foreground mb-2">{course.title}</h2>

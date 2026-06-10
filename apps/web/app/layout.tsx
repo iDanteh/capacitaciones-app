@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist } from 'next/font/google';
 import { Providers } from './providers';
 import './globals.css';
@@ -8,6 +8,10 @@ const geist = Geist({
   variable: '--font-geist',
   display: 'swap',
 });
+
+export const viewport: Viewport = {
+  themeColor: '#1E4F7A',
+};
 
 export const metadata: Metadata = {
   title: {

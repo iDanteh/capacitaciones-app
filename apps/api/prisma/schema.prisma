@@ -126,6 +126,9 @@ model Tenant {
   logoUrl      String?
   /// Color primario de marca en hex (ej: "#1E4F7A"). Solo disponible en planes con hasWhiteLabel.
   primaryColor String?
+  /// Nombre de la plataforma (reemplaza "Capta" en UI, título del browser y emails).
+  /// Solo configurable en Enterprise con white-label.
+  appName      String?
   isActive     Boolean @default(true)
 
   /// Si no es null, este tenant es una sub-empresa del tenant padre.

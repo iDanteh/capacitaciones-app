@@ -162,7 +162,7 @@ function TenantDrawer({
       <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-5 space-y-6">
         {loading ? (
           <div className="flex justify-center pt-10">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-transparent" style={{ borderTopColor: '#1E4F7A' }} />
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-transparent" style={{ borderTopColor: 'var(--tenant-primary)' }} />
           </div>
         ) : !detail ? (
           <p className="text-center text-sm text-muted-foreground">Error cargando datos.</p>
@@ -453,7 +453,7 @@ export default function SuperAdminPage() {
             <div className="rounded-2xl border border-border bg-card overflow-hidden">
               {loading ? (
                 <div className="flex justify-center py-16">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-transparent" style={{ borderTopColor: '#1E4F7A' }} />
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-transparent" style={{ borderTopColor: 'var(--tenant-primary)' }} />
                 </div>
               ) : paged.length === 0 ? (
                 <div className="py-16 text-center">

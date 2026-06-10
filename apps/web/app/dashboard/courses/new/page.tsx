@@ -255,8 +255,8 @@ export default function NewCoursePage() {
                     <div
                       className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl transition-all"
                       style={{
-                        background: dragOver ? '#8FC4E820' : '#1E4F7A10',
-                        color:      dragOver ? '#8FC4E8'   : '#1E4F7A',
+                        background: dragOver ? 'color-mix(in srgb, #8FC4E8 12%, transparent)' : 'color-mix(in srgb, var(--tenant-primary) 8%, transparent)',
+                        color:      dragOver ? '#8FC4E8'                                      : 'var(--tenant-primary)',
                       }}
                     >
                       <Upload size={22} />
@@ -292,7 +292,7 @@ export default function NewCoursePage() {
                       label: 'Publicado',
                       desc:  'Disponible para inscripción inmediata',
                       icon:  'globe' as const,
-                      color: '#1E4F7A',
+                      color: 'var(--tenant-primary)',
                     },
                   ].map(opt => {
                     const selected = statusValue === opt.value;

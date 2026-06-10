@@ -59,10 +59,10 @@ const config: Config = {
           light: '#A8E6CF',   // mint claro (logo dark mode)
         },
         capta: {
-          deep:  '#1E4F7A',   // navy UI accent
-          soft:  '#8FC4E8',   // azul suave UI
-          tint:  '#DCE9F4',   // tint muy claro
-          glow:  '#A8D4F0',   // glow
+          deep:  'var(--tenant-primary)', // navy UI accent — dinámico por tenant
+          soft:  '#8FC4E8',               // azul suave UI
+          tint:  '#DCE9F4',               // tint muy claro
+          glow:  '#A8D4F0',               // glow
         },
         ink: {
           DEFAULT: '#0B1F2A',  // texto primario

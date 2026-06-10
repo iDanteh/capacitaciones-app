@@ -679,7 +679,7 @@ export default function CoursesPage() {
             className="grid grid-cols-2 gap-3 lg:grid-cols-4"
           >
             {[
-              { label: 'Total cursos',    value: adminStats.total,     icon: 'book-open'    as const, accent: '#1E4F7A' },
+              { label: 'Total cursos',    value: adminStats.total,     icon: 'book-open'    as const, accent: 'var(--tenant-primary)' },
               { label: 'Publicados',      value: adminStats.published, icon: 'check-circle' as const, accent: '#7FD1AE' },
               { label: 'En borrador',     value: adminStats.draft,     icon: 'file'         as const, accent: '#F59E0B' },
               { label: 'Total lecciones', value: adminStats.lessons,   icon: 'video'        as const, accent: '#8FC4E8' },
@@ -858,7 +858,7 @@ export default function CoursesPage() {
           transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.05 }}
           className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
-            { label: 'Disponibles', value: employeeStats.available,  accent: '#1E4F7A', icon: 'book-open'    as const },
+            { label: 'Disponibles', value: employeeStats.available,  accent: 'var(--tenant-primary)', icon: 'book-open'    as const },
             { label: 'En progreso', value: employeeStats.inProgress, accent: '#8FC4E8', icon: 'play'         as const },
             { label: 'Inscritos',   value: employeeStats.enrolled,   accent: '#7FD1AE', icon: 'check-circle' as const },
             { label: 'Completados', value: employeeStats.completed,  accent: '#F59E0B', icon: 'certificate'  as const },

@@ -103,7 +103,7 @@ function Avatar({ firstName, lastName, avatarUrl, size = 'md' }: {
   return (
     <div
       className={`${dim} flex flex-shrink-0 items-center justify-center rounded-full font-bold`}
-      style={{ background: 'linear-gradient(135deg, #DCE9F4, #8FC4E830)', color: '#1E4F7A' }}
+      style={{ background: 'linear-gradient(135deg, #DCE9F4, #8FC4E830)', color: 'var(--tenant-primary)' }}
     >
       {initials}
     </div>
@@ -1133,7 +1133,7 @@ export default function UsersPage() {
       {data && (
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {[
-            { label: 'Total usuarios', value: data.total,     icon: 'users'        as const, accent: '#1E4F7A' },
+            { label: 'Total usuarios', value: data.total,     icon: 'users'        as const, accent: 'var(--tenant-primary)' },
             { label: 'Activos',        value: totalActive,    icon: 'check-circle' as const, accent: '#7FD1AE' },
             { label: 'Invitaciones',   value: invites.length, icon: 'mail'         as const, accent: '#8FC4E8' },
           ].map((stat, i) => (
@@ -1305,7 +1305,7 @@ export default function UsersPage() {
                   style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.5) inset' }}
                 >
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold"
-                    style={{ background: '#DCE9F4', color: '#1E4F7A' }}>
+                    style={{ background: '#DCE9F4', color: 'var(--tenant-primary)' }}>
                     {inv.firstName.charAt(0)}{inv.lastName.charAt(0)}
                   </div>
                   <div className="min-w-0 flex-1">

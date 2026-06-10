@@ -15,10 +15,12 @@ import { useEffect, useState, useId } from 'react';
 interface CaptaLogoProps {
   /** Tamaño del mark en px (el texto escala proporcionalmente) */
   markSize?: number;
-  /** Muestra el texto "Capta" junto al mark */
+  /** Muestra el texto junto al mark */
   showText?: boolean;
   /** Fuerza un tema sin esperar al montaje (útil en SSR-safe wrappers) */
   forceDark?: boolean;
+  /** Reemplaza "Capta" con el nombre de plataforma del tenant (white-label) */
+  customText?: string;
 }
 
 // Rutas del mark (idéntico en light y dark, solo cambian los colores)
@@ -37,7 +39,7 @@ const THEMES = {
   },
 };
 
-export function CaptaLogo({ markSize = 28, showText = true, forceDark }: CaptaLogoProps) {
+export function CaptaLogo({ markSize = 28, showText = true, forceDark, customText }: CaptaLogoProps) {
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   // useId() generates stable IDs consistent between SSR and client hydration
@@ -87,7 +89,7 @@ export function CaptaLogo({ markSize = 28, showText = true, forceDark }: CaptaLo
             letterSpacing: '-0.025em',
           }}
         >
-          Capta
+          {customText || 'Capta'}
         </span>
       )}
     </div>

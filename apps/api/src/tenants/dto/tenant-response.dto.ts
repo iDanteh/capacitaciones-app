@@ -28,6 +28,9 @@ export class TenantResponseDto {
   @ApiProperty({ description: 'Color primario de marca en hex', required: false, nullable: true })
   primaryColor: string | null;
 
+  @ApiProperty({ description: 'Nombre de la plataforma (reemplaza "Capta" en UI)', required: false, nullable: true })
+  appName: string | null;
+
   @ApiProperty({ description: 'Si el tenant está activo' })
   isActive: boolean;
 
@@ -42,6 +45,7 @@ export class TenantResponseDto {
     dto.domain        = tenant.domain ?? null;
     dto.logoUrl       = tenant.logoUrl ?? null;
     dto.primaryColor  = (tenant as any).primaryColor ?? null;
+    dto.appName       = (tenant as any).appName ?? null;
     dto.isActive      = tenant.isActive;
     dto.createdAt = tenant.createdAt;
     return dto;

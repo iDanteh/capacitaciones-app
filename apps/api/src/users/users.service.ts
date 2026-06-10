@@ -99,8 +99,20 @@ export class UsersService {
       }),
     ]);
 
+    // Cargar branding del tenant (select mínimo — no bloquea el flujo)
+    const tenantBranding = await this.prisma.tenant.findUnique({
+      where:  { id: tenantId },
+      select: { name: true, logoUrl: true, primaryColor: true, appName: true } as any,
+    }) as unknown as { name: string; logoUrl: string | null; primaryColor: string | null; appName: string | null } | null;
+
     // Notificar al usuario — fire-and-forget
-    this.email.sendPasswordChanged({ to: user.email, firstName: user.firstName });
+    this.email.sendPasswordChanged({
+      to:        user.email,
+      firstName: user.firstName,
+      branding:  tenantBranding
+        ? { name: tenantBranding.name, logoUrl: tenantBranding.logoUrl, primaryColor: tenantBranding.primaryColor, appName: tenantBranding.appName }
+        : undefined,
+    });
 
     this.logger.log(`Contraseña cambiada para usuario ${userId}`);
     this.audit.log({
@@ -242,7 +254,7 @@ export class UsersService {
     inviterId: string,
     dto:       InviteUserDto,
     inviter:   { firstName: string; lastName: string },
-    tenant:    { name: string },
+    tenant:    { name: string; logoUrl: string | null; primaryColor: string | null; appName?: string | null },
   ): Promise<void> {
     const normalizedEmail = dto.email.toLowerCase().trim();
 
@@ -302,6 +314,12 @@ export class UsersService {
       companyName: tenant.name,
       role:        dto.role,
       token:       rawToken,
+      branding: {
+        name:         tenant.name,
+        logoUrl:      tenant.logoUrl,
+        primaryColor: tenant.primaryColor,
+        appName:      (tenant as any).appName ?? null,
+      },
     });
 
     this.logger.log(`Invitación enviada a ${normalizedEmail} por ${inviterId}`);

@@ -15,6 +15,7 @@ interface TenantData {
   domain: string | null;
   logoUrl: string | null;
   primaryColor: string | null;
+  appName: string | null;
   isActive: boolean;
 }
 
@@ -101,10 +102,10 @@ function SaveButton({
         active:scale-[0.97]
         disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:scale-100"
       style={{
-        background: 'linear-gradient(140deg, #1E4F7A 0%, #2D6FA0 100%)',
+        background: 'linear-gradient(140deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 80%, white) 100%)',
         boxShadow: disabled
           ? 'none'
-          : '0 2px 10px rgba(30,79,122,0.28), 0 1px 0 rgba(255,255,255,0.15) inset',
+          : '0 2px 10px color-mix(in srgb, var(--tenant-primary) 28%, transparent), 0 1px 0 rgba(255,255,255,0.15) inset',
       }}
     >
       {saving ? (
@@ -199,7 +200,7 @@ function LogoUpload({
           <div
             className="h-full min-h-[64px] w-[64px] rounded-[16px] overflow-hidden flex items-center justify-center border border-border"
             style={{
-              background: currentUrl ? 'transparent' : 'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
+              background: currentUrl ? 'transparent' : 'linear-gradient(135deg, var(--tenant-primary), color-mix(in srgb, var(--tenant-primary) 80%, white))',
             }}
           >
             {currentUrl ? (
@@ -485,12 +486,14 @@ export default function SettingsPage() {
   const [logoUrl, setLogoUrl] = useState('');
   const [primaryColor, setPrimaryColor] = useState('');
   const [domain, setDomain] = useState('');
+  const [appName, setAppName] = useState('');
 
   const isDirty = tenant
     ? name !== tenant.name ||
       logoUrl !== (tenant.logoUrl ?? '') ||
       primaryColor !== (tenant.primaryColor ?? '') ||
-      domain !== (tenant.domain ?? '')
+      domain !== (tenant.domain ?? '') ||
+      appName !== (tenant.appName ?? '')
     : false;
 
   useEffect(() => {
@@ -507,6 +510,7 @@ export default function SettingsPage() {
         setLogoUrl(d.logoUrl ?? '');
         setPrimaryColor(d.primaryColor ?? '');
         setDomain(d.domain ?? '');
+        setAppName(d.appName ?? '');
         setPlan(s.data.plan);
       })
       .catch(() => toastError('No se pudo cargar la configuración'))
@@ -523,11 +527,15 @@ export default function SettingsPage() {
         logoUrl: logoUrl || undefined,
         primaryColor: primaryColor || undefined,
         domain: domain || undefined,
+        appName: appName || undefined,
       });
       setTenant(data);
-      localStorage.setItem('tenant_logo', data.logoUrl ?? '');
-      localStorage.setItem('tenant_color', data.primaryColor ?? '');
-      localStorage.setItem('tenant_name', data.name);
+      localStorage.setItem('tenant_logo',    data.logoUrl    ?? '');
+      localStorage.setItem('tenant_color',   data.primaryColor ?? '');
+      localStorage.setItem('tenant_name',    data.name);
+      localStorage.setItem('tenant_appname', data.appName ?? '');
+      // Actualizar el título del browser inmediatamente
+      if (data.appName) document.title = data.appName;
       toastSuccess('Configuración guardada');
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Error al guardar';
@@ -577,7 +585,8 @@ export default function SettingsPage() {
     );
   }
 
-  const isEnterprise = plan?.type === 'ENTERPRISE';
+  const isEnterprise  = plan?.type === 'ENTERPRISE';
+  const hasWhiteLabel = plan?.hasWhiteLabel ?? false;
 
   return (
     <div className="p-6 lg:p-8">
@@ -655,7 +664,7 @@ export default function SettingsPage() {
             icon={<Icon name="building" size={14} className="text-capta-deep dark:text-capta-soft" />}
             title="Datos de la empresa"
           >
-            {/* 3 columnas en una sola fila: nombre · slug · dominio */}
+            {/* Fila 1: nombre · slug · dominio */}
             <div className="grid grid-cols-3 gap-4">
 
               {/* Nombre */}
@@ -717,6 +726,35 @@ export default function SettingsPage() {
               </div>
 
             </div>
+
+            {/* Fila 2: nombre de plataforma (Enterprise + white-label) */}
+            <div className="mt-4 pt-4 border-t border-border/60">
+              <FieldLabel>
+                Nombre de plataforma
+                {!hasWhiteLabel && <EnterpriseBadge />}
+              </FieldLabel>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={appName}
+                  onChange={(e) => setAppName(e.target.value)}
+                  maxLength={60}
+                  placeholder="Acme Academy"
+                  disabled={!hasWhiteLabel}
+                  className={`${INPUT_CLS} disabled:cursor-not-allowed disabled:opacity-45`}
+                />
+              </div>
+              {hasWhiteLabel ? (
+                <p className="mt-1.5 text-[10.5px] text-muted-foreground/60 leading-relaxed">
+                  Reemplaza "Capta" en la barra lateral, el título del browser y los emails.
+                </p>
+              ) : (
+                <p className="mt-1.5 text-[10.5px] text-muted-foreground/60 leading-relaxed">
+                  Disponible en planes con white-label. Personaliza el nombre de la plataforma.
+                </p>
+              )}
+            </div>
+
           </BentoCard>
         </motion.div>
 

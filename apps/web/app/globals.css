@@ -62,6 +62,13 @@
     --accent-deep:    #1E4F7A;         /* navy UI                             */
     --accent-soft:    #8FC4E8;         /* azul claro UI                       */
     --accent-tint:    #DCE9F4;         /* tint muy suave                      */
+
+    /* ── White-label: color primario del tenant ─────────────────────────────
+     * Valor por defecto = Capta Navy. Se sobreescribe dinámicamente desde
+     * dashboard/layout.tsx cuando el tenant tiene primaryColor configurado.
+     * Consumido por la utilidad Tailwind `capta-deep` y estilos inline con
+     * var(--tenant-primary).                                                  */
+    --tenant-primary: #1E4F7A;
   }
 
   .dark {

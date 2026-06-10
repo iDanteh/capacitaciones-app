@@ -326,7 +326,7 @@ function PackRow({
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-muted/30 px-4 py-3 transition-colors hover:bg-muted/50">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: '#1E4F7A10', color: '#1E4F7A' }}>
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: 'color-mix(in srgb, var(--tenant-primary) 8%, transparent)', color: 'var(--tenant-primary)' }}>
           <Icon name="hard-drive" size={16} />
         </div>
         <div>

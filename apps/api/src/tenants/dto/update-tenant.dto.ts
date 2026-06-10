@@ -33,4 +33,10 @@ export class UpdateTenantDto {
     message: 'domain debe ser un dominio válido (ej: app.tuempresa.com) o vacío',
   })
   domain?: string;
+
+  @ApiPropertyOptional({ description: 'Nombre de la plataforma (reemplaza "Capta" en la UI). Solo Enterprise + white-label. Vacío para quitar.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  appName?: string;
 }

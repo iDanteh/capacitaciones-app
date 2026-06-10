@@ -16,6 +16,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Tenants')
 @ApiBearerAuth()
@@ -23,6 +24,25 @@ import { JwtPayload } from '../auth/strategies/jwt.strategy';
 @UseGuards(JwtAuthGuard)
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
+
+  @Get('public/domain/:hostname')
+  @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  @ApiOperation({ summary: 'Branding público por dominio personalizado (sin autenticación, para middleware de Next.js)' })
+  @ApiOkResponse({ description: '{ slug, name, logoUrl, primaryColor, appName } o null si el dominio no existe' })
+  @ApiNotFoundResponse({ description: 'Dominio no asociado a ningún tenant activo' })
+  getPublicBrandingByDomain(@Param('hostname') hostname: string) {
+    return this.tenantsService.getPublicBrandingByDomain(hostname);
+  }
+
+  @Get('public/:slug')
+  @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @ApiOperation({ summary: 'Branding público del tenant (sin autenticación, para pre-cargar UI de login)' })
+  @ApiOkResponse({ description: '{ name, logoUrl, primaryColor } o null si el slug no existe' })
+  getPublicBranding(@Param('slug') slug: string) {
+    return this.tenantsService.getPublicBranding(slug);
+  }
 
   @Get('me')
   @ApiOperation({ summary: 'Información del tenant autenticado' })

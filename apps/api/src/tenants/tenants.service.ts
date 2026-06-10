@@ -66,6 +66,38 @@ export class TenantsService {
   }
 
   /**
+   * Resuelve el branding público de un tenant a partir de su dominio personalizado.
+   * Usado por el middleware de Next.js para inyectar el slug sin que el usuario lo escriba.
+   * Retorna null si el dominio no está asociado a ningún tenant activo.
+   */
+  async getPublicBrandingByDomain(
+    hostname: string,
+  ): Promise<{ slug: string; name: string; logoUrl: string | null; primaryColor: string | null; appName: string | null } | null> {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: {
+        domain:    { equals: hostname.toLowerCase(), mode: 'insensitive' },
+        isActive:  true,
+        deletedAt: null,
+      },
+      select: { slug: true, name: true, logoUrl: true, primaryColor: true, appName: true } as any,
+    }) as unknown as { slug: string; name: string; logoUrl: string | null; primaryColor: string | null; appName: string | null } | null;
+    return tenant ?? null;
+  }
+
+  /**
+   * Devuelve el branding público de un tenant por slug, sin autenticación.
+   * Solo expone los tres campos necesarios para pre-cargar la UI de login.
+   * Retorna null si el tenant no existe o está inactivo.
+   */
+  async getPublicBranding(slug: string): Promise<{ name: string; logoUrl: string | null; primaryColor: string | null; appName: string | null } | null> {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { slug, isActive: true, deletedAt: null },
+      select: { name: true, logoUrl: true, primaryColor: true, appName: true } as any,
+    }) as unknown as { name: string; logoUrl: string | null; primaryColor: string | null; appName: string | null } | null;
+    return tenant ?? null;
+  }
+
+  /**
    * Devuelve el DTO público del tenant del usuario autenticado.
    * Lanza NotFoundException si el tenant no existe (no debería ocurrir
    * en condiciones normales si el JWT es válido).
@@ -86,14 +118,18 @@ export class TenantsService {
     const tenant = await this.findById(tenantId);
     if (!tenant) throw new NotFoundException('Tenant no encontrado.');
 
-    // Si se intenta actualizar el dominio, verificar que el plan sea Enterprise
-    if (dto.domain !== undefined) {
+    // Campos que requieren plan Enterprise: domain y appName
+    const needsEnterprise = dto.domain !== undefined || dto.appName !== undefined;
+    if (needsEnterprise) {
       const subscription = await this.prisma.subscription.findUnique({
         where: { tenantId },
         include: { plan: true },
       });
-      if (!subscription || subscription.plan.type !== 'ENTERPRISE') {
+      if (dto.domain !== undefined && (!subscription || subscription.plan.type !== 'ENTERPRISE')) {
         throw new ForbiddenException('El dominio personalizado requiere el plan Enterprise.');
+      }
+      if (dto.appName !== undefined && (!subscription || !subscription.plan.hasWhiteLabel)) {
+        throw new ForbiddenException('El nombre de plataforma personalizado requiere un plan con white-label.');
       }
     }
 
@@ -104,6 +140,7 @@ export class TenantsService {
         ...(dto.logoUrl      !== undefined ? { logoUrl:      dto.logoUrl || null }      : {}),
         ...(dto.primaryColor !== undefined ? { primaryColor: dto.primaryColor || null } : {}),
         ...(dto.domain       !== undefined ? { domain:       dto.domain || null }       : {}),
+        ...(dto.appName      !== undefined ? { appName:      dto.appName.trim() || null } : {}),
       },
     });
 
@@ -228,6 +265,12 @@ export class TenantsService {
         companyName: `${dto.name} (sub-empresa de ${parentTenant.name})`,
         role:        'OWNER',
         token:       rawToken,
+        branding: {
+          name:         parentTenant.name,
+          logoUrl:      (parentTenant as any).logoUrl      ?? null,
+          primaryColor: (parentTenant as any).primaryColor ?? null,
+          appName:      (parentTenant as any).appName      ?? null,
+        },
       });
     }
 
