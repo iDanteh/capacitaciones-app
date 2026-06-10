@@ -143,9 +143,9 @@ function RegisterForm() {
       localStorage.setItem('user', JSON.stringify(res.data.user));
       router.push('/dashboard');
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setServerError(message ?? 'Ocurrió un error al crear tu cuenta. Intenta de nuevo.');
+      const raw = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
+      const message = Array.isArray(raw) ? raw[0] : raw;
+      setServerError(message?.trim() || 'Ocurrió un error al crear tu cuenta. Intenta de nuevo.');
     }
   };
 
@@ -297,7 +297,9 @@ export default function RegisterPage() {
 
         {/* Logo */}
         <div className="relative">
-          <CaptaLogo markSize={36} showText forceDark />
+          <Link href="/" className="inline-block">
+            <CaptaLogo markSize={36} showText forceDark />
+          </Link>
         </div>
 
         {/* Value props */}
@@ -338,7 +340,9 @@ export default function RegisterPage() {
       <main className="flex flex-1 flex-col items-center justify-center bg-background px-6 py-10">
         {/* Mobile logo */}
         <div className="mb-8 lg:hidden">
-          <CaptaLogo markSize={32} showText />
+          <Link href="/">
+            <CaptaLogo markSize={32} showText />
+          </Link>
         </div>
 
         <Suspense fallback={<div className="text-sm text-muted-foreground">Cargando…</div>}>

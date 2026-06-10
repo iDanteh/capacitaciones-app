@@ -50,19 +50,21 @@ function BentoCard({
   description,
   children,
   className = '',
+  bodyClassName = '',
 }: {
   icon: React.ReactNode;
   title: string;
   description?: string;
   children: React.ReactNode;
   className?: string;
+  bodyClassName?: string;
 }) {
   return (
     <div
-      className={`rounded-[20px] border border-border bg-card overflow-hidden ${className}`}
+      className={`flex flex-col rounded-[20px] border border-border bg-card overflow-hidden h-full ${className}`}
       style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 20px rgba(11,31,42,0.05)' }}
     >
-      <div className="flex items-center gap-2.5 px-[18px] py-[14px] border-b border-border">
+      <div className="flex items-center gap-2.5 px-[18px] py-[14px] border-b border-border flex-shrink-0">
         <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[8px] bg-capta-tint/70 dark:bg-capta-deep/20">
           {icon}
         </div>
@@ -73,7 +75,7 @@ function BentoCard({
           )}
         </div>
       </div>
-      <div className="p-[18px]">{children}</div>
+      <div className={`p-[18px] flex-1 ${bodyClassName}`}>{children}</div>
     </div>
   );
 }
@@ -189,31 +191,32 @@ function LogoUpload({
     : '?';
 
   return (
-    <div className="flex items-start gap-3">
-      {/* Preview avatar */}
-      <div className="relative flex-shrink-0">
-        <div
-          className="h-[64px] w-[64px] rounded-[16px] overflow-hidden flex items-center justify-center border border-border"
-          style={{
-            background: currentUrl ? 'transparent' : 'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
-          }}
-        >
-          {currentUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={currentUrl} alt="Logo" className="h-full w-full object-contain" />
-          ) : (
-            <span className="text-lg font-bold text-white tracking-tight">{initials}</span>
+    <div className="flex flex-col gap-3 h-full">
+      {/* Preview avatar + drop zone en fila */}
+      <div className="flex items-stretch gap-3 flex-1">
+        {/* Preview */}
+        <div className="relative flex-shrink-0">
+          <div
+            className="h-full min-h-[64px] w-[64px] rounded-[16px] overflow-hidden flex items-center justify-center border border-border"
+            style={{
+              background: currentUrl ? 'transparent' : 'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
+            }}
+          >
+            {currentUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={currentUrl} alt="Logo" className="h-full w-full object-contain" />
+            ) : (
+              <span className="text-lg font-bold text-white tracking-tight">{initials}</span>
+            )}
+          </div>
+          {uploading && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-[16px] bg-black/40">
+              <Icon name="refresh" size={16} className="text-white animate-spin" />
+            </div>
           )}
         </div>
-        {uploading && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-[16px] bg-black/40">
-            <Icon name="refresh" size={16} className="text-white animate-spin" />
-          </div>
-        )}
-      </div>
 
-      {/* Drop zone */}
-      <div className="flex-1 flex flex-col">
+        {/* Drop zone — ocupa todo el alto disponible */}
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
@@ -224,7 +227,7 @@ function LogoUpload({
             if (file) handleFile(file);
           }}
           onClick={() => inputRef.current?.click()}
-          className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[12px] border-[1.5px] border-dashed px-4 py-4 transition-all ${
+          className={`flex flex-1 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[12px] border-[1.5px] border-dashed px-4 py-4 transition-all ${
             dragOver
               ? 'border-capta-deep bg-capta-tint/30 dark:border-capta-soft dark:bg-capta-deep/10'
               : 'border-border hover:border-capta-deep/30 hover:bg-muted/40'
@@ -245,49 +248,50 @@ function LogoUpload({
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
           />
         </div>
-
-        <AnimatePresence mode="wait">
-          {currentUrl && !confirmRemove && (
-            <motion.button
-              key="remove-btn"
-              type="button"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setConfirmRemove(true)}
-              className="mt-1.5 self-start text-[11px] text-muted-foreground hover:text-destructive transition-colors"
-            >
-              Eliminar logo
-            </motion.button>
-          )}
-          {confirmRemove && (
-            <motion.div
-              key="remove-confirm"
-              initial={{ opacity: 0, y: -3 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -3 }}
-              className="mt-1.5 flex items-center gap-1.5 text-[11px]"
-            >
-              <span className="text-muted-foreground">¿Eliminar el logo?</span>
-              <button
-                type="button"
-                onClick={() => { onUploaded(''); setConfirmRemove(false); }}
-                className="font-semibold text-destructive hover:underline"
-              >
-                Sí
-              </button>
-              <span className="text-muted-foreground/30">·</span>
-              <button
-                type="button"
-                onClick={() => setConfirmRemove(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Cancelar
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
+
+      {/* Remove link debajo */}
+      <AnimatePresence mode="wait">
+        {currentUrl && !confirmRemove && (
+          <motion.button
+            key="remove-btn"
+            type="button"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setConfirmRemove(true)}
+            className="self-start text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+          >
+            Eliminar logo
+          </motion.button>
+        )}
+        {confirmRemove && (
+          <motion.div
+            key="remove-confirm"
+            initial={{ opacity: 0, y: -3 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -3 }}
+            className="flex items-center gap-1.5 text-[11px]"
+          >
+            <span className="text-muted-foreground">¿Eliminar el logo?</span>
+            <button
+              type="button"
+              onClick={() => { onUploaded(''); setConfirmRemove(false); }}
+              className="font-semibold text-destructive hover:underline"
+            >
+              Sí
+            </button>
+            <span className="text-muted-foreground/30">·</span>
+            <button
+              type="button"
+              onClick={() => setConfirmRemove(false)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Cancelar
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -605,6 +609,7 @@ export default function SettingsPage() {
 
         {/* Logo — col 1 */}
         <motion.div
+          className="h-full"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.04 }}
@@ -613,6 +618,7 @@ export default function SettingsPage() {
             icon={<Icon name="grid" size={14} className="text-capta-deep dark:text-capta-soft" />}
             title="Logo"
             description="Sidebar y certificados"
+            bodyClassName="flex flex-col"
           >
             <LogoUpload
               currentUrl={logoUrl || null}

@@ -202,8 +202,22 @@ const ONBOARDING_STEPS: { label: string; desc: string; href: string; icon: impor
   { label: 'Revisa las analíticas', desc: 'Mide el progreso y tasa de completado',        href: '/dashboard/analytics',     icon: 'chart-bar',   accent: '#F59E0B' },
 ];
 
-function OnboardingCard({ publishedCourses, usersCount }: { publishedCourses: number; usersCount: number }) {
-  const doneCount = [publishedCourses > 0, usersCount > 1, false, false].filter(Boolean).length;
+function OnboardingCard({
+  publishedCourses, usersCount, tenantCustomized, totalEnrolled, onDismiss,
+}: {
+  publishedCourses:  number;
+  usersCount:        number;
+  tenantCustomized:  boolean;
+  totalEnrolled:     number;
+  onDismiss:         () => void;
+}) {
+  const stepDone = [
+    publishedCourses > 0,
+    usersCount > 1,
+    tenantCustomized,
+    totalEnrolled > 0,
+  ];
+  const doneCount = stepDone.filter(Boolean).length;
 
   return (
     <motion.div
@@ -219,27 +233,37 @@ function OnboardingCard({ publishedCourses, usersCount }: { publishedCourses: nu
             Configura tu plataforma en minutos · {doneCount}/{ONBOARDING_STEPS.length} completados
           </p>
         </div>
-        {/* Progress pill */}
-        <div className="flex items-center gap-2.5 flex-shrink-0">
-          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{
-                width:      `${(doneCount / ONBOARDING_STEPS.length) * 100}%`,
-                background: 'linear-gradient(90deg, #1E4F7A, #7FD1AE)',
-              }}
-            />
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Progress pill */}
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width:      `${(doneCount / ONBOARDING_STEPS.length) * 100}%`,
+                  background: 'linear-gradient(90deg, #1E4F7A, #7FD1AE)',
+                }}
+              />
+            </div>
+            <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+              {Math.round((doneCount / ONBOARDING_STEPS.length) * 100)}%
+            </span>
           </div>
-          <span className="text-xs font-semibold tabular-nums text-muted-foreground">
-            {Math.round((doneCount / ONBOARDING_STEPS.length) * 100)}%
-          </span>
+          {/* Dismiss */}
+          <button
+            onClick={onDismiss}
+            className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground/40 transition-colors hover:bg-muted hover:text-muted-foreground"
+            title="Ocultar"
+          >
+            <Icon name="close" size={12} />
+          </button>
         </div>
       </div>
 
       {/* Steps grid */}
       <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
         {ONBOARDING_STEPS.map((step, i) => {
-          const done = i === 0 ? publishedCourses > 0 : i === 1 ? usersCount > 1 : false;
+          const done = stepDone[i];
           return (
             <Link
               key={step.href}
@@ -249,7 +273,7 @@ function OnboardingCard({ publishedCourses, usersCount }: { publishedCourses: nu
               {/* Step number + icon */}
               <div className="flex items-center gap-3">
                 <div
-                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-110"
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-110"
                   style={{
                     background: done ? '#7FD1AE20' : `${step.accent}15`,
                     color:      done ? '#16a34a' : step.accent,
@@ -259,7 +283,7 @@ function OnboardingCard({ publishedCourses, usersCount }: { publishedCourses: nu
                   <Icon name={done ? 'check-circle' : step.icon} size={16} />
                 </div>
                 <span
-                  className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold"
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-colors duration-300"
                   style={{
                     background: done ? '#7FD1AE15' : 'var(--muted)',
                     color:      done ? '#16a34a' : 'var(--muted-foreground)',
@@ -271,18 +295,20 @@ function OnboardingCard({ publishedCourses, usersCount }: { publishedCourses: nu
 
               {/* Text */}
               <div>
-                <p className={`text-sm font-semibold leading-snug ${done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                <p className={`text-sm font-semibold leading-snug transition-colors duration-300 ${done ? 'line-through text-muted-foreground/60' : 'text-foreground'}`}>
                   {step.label}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground/70 leading-relaxed">{step.desc}</p>
               </div>
 
-              {/* Arrow */}
-              {!done && (
+              {/* Arrow / done indicator */}
+              {done ? (
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-emerald-500/70">✓</span>
+              ) : (
                 <Icon
                   name="arrow-right"
                   size={13}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/30 transition-transform duration-150 group-hover:translate-x-0.5"
                 />
               )}
             </Link>
@@ -718,13 +744,15 @@ export default function DashboardPage() {
   const [totalEnrolled,    setEnrolled]    = useState(0);
   const [totalCerts,       setTotalCerts]  = useState<number | null>(null);
   const [enrollments,      setEnrollments] = useState<Enrollment[]>([]);
-  const [planData,         setPlanData]    = useState<PlanSummary | null>(null);
-  const [planLoading,      setPlanLoading] = useState(false);
-  const [weekly,           setWeekly]      = useState<WeeklyData | null>(null);
-  const [activity,         setActivity]    = useState<ActivityEvent[] | null>(null);
-  const [activityLoading,  setActivityLoading] = useState(false);
-  const [certificates,     setCertificates]    = useState<Certificate[]>([]);
-  const [certLoading,      setCertLoading]     = useState(false);
+  const [planData,           setPlanData]        = useState<PlanSummary | null>(null);
+  const [planLoading,        setPlanLoading]      = useState(false);
+  const [weekly,             setWeekly]           = useState<WeeklyData | null>(null);
+  const [activity,           setActivity]         = useState<ActivityEvent[] | null>(null);
+  const [activityLoading,    setActivityLoading]  = useState(false);
+  const [certificates,       setCertificates]     = useState<Certificate[]>([]);
+  const [certLoading,        setCertLoading]      = useState(false);
+  const [tenantCustomized,   setTenantCustomized] = useState(false);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
 
   useEffect(() => {
     try {
@@ -733,6 +761,13 @@ export default function DashboardPage() {
 
       const u = JSON.parse(raw) as UserData;
       setUser(u);
+
+      // Onboarding: leer estado desde localStorage
+      setOnboardingDismissed(!!localStorage.getItem('onboarding_dismissed'));
+      const savedLogo  = localStorage.getItem('tenant_logo') || '';
+      const savedColor = localStorage.getItem('tenant_color') || '';
+      setTenantCustomized(!!savedLogo || !!savedColor);
+
       const isAdmin = ['OWNER', 'ADMIN', 'MANAGER'].includes(u.role);
 
       if (isAdmin) {
@@ -788,6 +823,12 @@ export default function DashboardPage() {
 
   const isAdmin    = user ? ['OWNER', 'ADMIN', 'MANAGER'].includes(user.role) : false;
   const isOwner    = user?.role === 'OWNER';
+
+  const allOnboardingDone = publishedCourses > 0 && usersCount > 1 && tenantCustomized && totalEnrolled > 0;
+  const handleDismissOnboarding = () => {
+    localStorage.setItem('onboarding_dismissed', '1');
+    setOnboardingDismissed(true);
+  };
   const inProgress = enrollments.filter(e => e.status === 'ACTIVE' && e.progress > 0 && e.progress < 100).length;
   const completed  = enrollments.filter(e => e.status === 'COMPLETED').length;
   const notStarted = enrollments.filter(e => e.progress === 0).length;
@@ -886,9 +927,15 @@ export default function DashboardPage() {
           </>
         )}
 
-        {/* ── Admin: Onboarding (estado cero — sin cursos publicados) ── */}
-        {isAdmin && !loading && publishedCourses === 0 && (
-          <OnboardingCard publishedCourses={publishedCourses} usersCount={usersCount} />
+        {/* ── Admin: Onboarding (visible hasta completar todos los pasos o descartarlo) ── */}
+        {isAdmin && !loading && !allOnboardingDone && !onboardingDismissed && (
+          <OnboardingCard
+            publishedCourses={publishedCourses}
+            usersCount={usersCount}
+            tenantCustomized={tenantCustomized}
+            totalEnrolled={totalEnrolled}
+            onDismiss={handleDismissOnboarding}
+          />
         )}
 
         {/* ── Admin: Acciones + Plan card (OWNER) ── */}

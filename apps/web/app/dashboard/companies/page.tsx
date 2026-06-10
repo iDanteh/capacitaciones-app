@@ -269,13 +269,14 @@ function CreateSubcompanyModal({ onClose, onSuccess }: { onClose: () => void; on
 
 export default function CompaniesPage() {
   const { success: toastSuccess, error: toastError } = useToast();
-  const [companies,    setCompanies]    = useState<Subcompany[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [createModal,  setCreateModal]  = useState(false);
-  const [deleteId,     setDeleteId]     = useState<string | null>(null);
-  const [deleting,     setDeleting]     = useState(false);
-  const [planError,    setPlanError]    = useState<string | null>(null);
-  const [switchingId,  setSwitchingId]  = useState<string | null>(null);
+  const [companies,      setCompanies]      = useState<Subcompany[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [createModal,    setCreateModal]    = useState(false);
+  const [deleteId,       setDeleteId]       = useState<string | null>(null);
+  const [deleting,       setDeleting]       = useState(false);
+  const [planError,      setPlanError]      = useState<string | null>(null);
+  const [switchingId,    setSwitchingId]    = useState<string | null>(null);
+  const [isInSubcompany] = useState(() => !!localStorage.getItem('parent_session'));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -294,7 +295,7 @@ export default function CompaniesPage() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (!isInSubcompany) void load(); }, [load, isInSubcompany]);
 
   const handleCreateSuccess = (company: Subcompany) => {
     setCompanies(prev => [company, ...prev]);
@@ -378,7 +379,7 @@ export default function CompaniesPage() {
           </p>
         </div>
 
-        {!planError && !loading && (
+        {!planError && !loading && !isInSubcompany && (
           <button
             onClick={() => setCreateModal(true)}
             className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
@@ -390,8 +391,26 @@ export default function CompaniesPage() {
         )}
       </motion.div>
 
+      {/* ── Aviso: en sub-empresa ── */}
+      {isInSubcompany && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center"
+          style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
+        >
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
+            <Icon name="building" size={24} className="text-muted-foreground" />
+          </div>
+          <h2 className="text-base font-semibold text-foreground">Función no disponible</h2>
+          <p className="mt-2 max-w-xs text-sm text-muted-foreground leading-relaxed">
+            Las sub-empresas no pueden crear empresas adicionales. Esta función solo está disponible desde la empresa principal.
+          </p>
+        </motion.div>
+      )}
+
       {/* ── Error de plan ── */}
-      {planError && (
+      {!isInSubcompany && planError && (
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -418,14 +437,14 @@ export default function CompaniesPage() {
       )}
 
       {/* ── Loading ── */}
-      {loading && !planError && (
+      {loading && !planError && !isInSubcompany && (
         <div className="flex items-center justify-center py-20">
           <Icon name="refresh" size={24} className="animate-spin text-muted-foreground" />
         </div>
       )}
 
       {/* ── Contenido principal ── */}
-      {!loading && !planError && (
+      {!loading && !planError && !isInSubcompany && (
         <>
           {/* Stat rápida */}
           {companies.length > 0 && (

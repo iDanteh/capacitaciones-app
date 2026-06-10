@@ -144,6 +144,15 @@ export class TenantsService {
     inviterId:      string,
     dto:            CreateSubcompanyDto,
   ): Promise<SubcompanyResponse> {
+    // Verificar que el padre no es ya una sub-empresa (sin anidación multinivel)
+    const parentTenant = await this.prisma.tenant.findUnique({
+      where:  { id: parentTenantId },
+      select: { parentTenantId: true },
+    });
+    if (parentTenant?.parentTenantId) {
+      throw new ForbiddenException('Las sub-empresas no pueden crear sub-empresas.');
+    }
+
     // Verificar que el plan permite sub-empresas
     const subscription = await this.prisma.subscription.findUnique({
       where:   { tenantId: parentTenantId },
@@ -250,5 +259,39 @@ export class TenantsService {
     });
 
     this.logger.log(`Sub-empresa ${childId} eliminada por tenant ${parentTenantId}`);
+  }
+
+  /**
+   * Retorna la "familia" de tenants visible para el dropdown del sidebar.
+   * - Si el tenant actual es padre → devuelve sus sub-empresas hijas.
+   * - Si el tenant actual es sub-empresa → devuelve sus hermanas (hijas del padre) + info del padre.
+   * Esto garantiza que el dropdown siempre muestre datos frescos sin depender del caché local.
+   */
+  async getFamilyTenants(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where:  { id: tenantId },
+      select: { parentTenantId: true },
+    });
+    if (!tenant) throw new NotFoundException('Tenant no encontrado.');
+
+    const isSubcompany = !!tenant.parentTenantId;
+    const rootId       = tenant.parentTenantId ?? tenantId;
+
+    const [siblings, parentTenant] = await Promise.all([
+      this.prisma.tenant.findMany({
+        where:   { parentTenantId: rootId, deletedAt: null, isActive: true },
+        select:  { id: true, name: true, slug: true, isActive: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      isSubcompany
+        ? this.prisma.tenant.findUnique({ where: { id: rootId }, select: { id: true, name: true } })
+        : null,
+    ]);
+
+    return {
+      isSubcompany,
+      parent:       parentTenant ?? null,
+      subcompanies: siblings,
+    };
   }
 }

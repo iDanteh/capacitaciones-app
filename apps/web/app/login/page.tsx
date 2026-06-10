@@ -228,7 +228,9 @@ export default function LoginPage() {
           style={{ background: '#8FC4E8' }} />
 
         <div className="relative">
-          <CaptaLogo markSize={36} showText forceDark />
+          <Link href="/" className="inline-block">
+            <CaptaLogo markSize={36} showText forceDark />
+          </Link>
         </div>
 
         <div className="relative space-y-5">
@@ -268,7 +270,9 @@ export default function LoginPage() {
       <main className="flex flex-1 flex-col items-center justify-center bg-background px-6 py-12">
 
         <div className="mb-10 lg:hidden">
-          <CaptaLogo markSize={32} showText />
+          <Link href="/">
+            <CaptaLogo markSize={32} showText />
+          </Link>
         </div>
 
         <div className="w-full max-w-md">

@@ -170,7 +170,7 @@ function MiniBar({ value, color }: { value: number; color?: string }) {
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${value}%`, background: fill }} />
+        <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: fill }} />
       </div>
       <span className="text-xs font-semibold text-foreground w-8 text-right">{value}%</span>
     </div>

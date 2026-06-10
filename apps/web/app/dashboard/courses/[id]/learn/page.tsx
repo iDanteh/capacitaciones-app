@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/capta-icon';
 import { api } from '@/lib/api';
 import { MarkdownRenderer } from '@/components/markdown/markdown-renderer';
+import MuxPlayer from '@mux/mux-player-react';
 
 // Icon aliases
 const ArrowLeft    = (p: { size?: number; className?: string }) => <Icon name="arrow-left"    size={p.size} className={p.className} />;
@@ -1132,11 +1133,13 @@ function LessonViewer({
           <div className="space-y-4">
             {lesson.muxPlaybackId && lesson.muxStatus === 'ready' ? (
               <div className="aspect-video w-full rounded-2xl overflow-hidden bg-black shadow-lg">
-                <iframe
-                  src={`https://player.mux.com/${lesson.muxPlaybackId}`}
-                  className="w-full h-full"
-                  allow="autoplay; fullscreen; picture-in-picture"
-                  allowFullScreen
+                <MuxPlayer
+                  playbackId={lesson.muxPlaybackId}
+                  streamType="on-demand"
+                  metadata={{ video_title: lesson.title }}
+                  accentColor="#1E4F7A"
+                  style={{ width: '100%', height: '100%' }}
+                  onEnded={handleComplete}
                 />
               </div>
             ) : (

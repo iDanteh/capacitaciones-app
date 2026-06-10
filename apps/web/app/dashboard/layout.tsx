@@ -30,6 +30,12 @@ interface SubcompanyItem {
   isActive: boolean;
 }
 
+interface FamilyTenantsResponse {
+  isSubcompany: boolean;
+  parent:       { id: string; name: string } | null;
+  subcompanies: SubcompanyItem[];
+}
+
 interface AuthSwitchResponse {
   accessToken:  string;
   refreshToken: string;
@@ -134,45 +140,36 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
   const [parentName,      setParentName]      = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Detect if currently inside a sub-company context + load cached sub-companies
+  // Detecta si la sesión actual está dentro de una sub-empresa (para el botón "volver")
   useEffect(() => {
     const parentSess = localStorage.getItem('parent_session');
     setIsInSubcompany(!!parentSess);
     if (parentSess) {
       try {
         const sess = JSON.parse(parentSess) as Record<string, string | null>;
-        const parentUserRaw = sess.user;
-        if (sess.tenantName) {
-          setParentName(sess.tenantName);
-        } else if (parentUserRaw) {
-          const parentUser = JSON.parse(parentUserRaw) as { tenantSlug?: string };
-          setParentName(
-            parentUser.tenantSlug
-              ? parentUser.tenantSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-              : 'Empresa principal',
-          );
-        }
+        if (sess.tenantName) setParentName(sess.tenantName);
       } catch { /* corrupted */ }
-      // Load cached sub-companies for display
-      const cached = localStorage.getItem('tenant_subcompanies');
-      if (cached) {
-        try { setSubcompanies(JSON.parse(cached) as SubcompanyItem[]); } catch { /* */ }
-      }
     }
   }, [pathname]);
 
-  // Fetch sub-companies (only for OWNER at parent level)
+  // Siempre carga la familia de tenants fresca desde la API (sin importar si es padre o sub-empresa)
   useEffect(() => {
-    if (user?.role !== 'OWNER' || isInSubcompany) return;
-    api.get<SubcompanyItem[]>('/tenants/children')
+    if (user?.role !== 'OWNER') return;
+    api.get<FamilyTenantsResponse>('/tenants/family')
       .then(r => {
-        const active = r.data.filter(c => c.isActive);
+        const active = r.data.subcompanies.filter(c => c.isActive);
         setSubcompanies(active);
-        // Cache so the list is available when viewing from inside a sub-company
+        if (r.data.parent?.name) setParentName(r.data.parent.name);
         localStorage.setItem('tenant_subcompanies', JSON.stringify(active));
       })
-      .catch(() => {});
-  }, [user, isInSubcompany]);
+      .catch(() => {
+        // Fallback al caché local en caso de error de red
+        try {
+          const cached = localStorage.getItem('tenant_subcompanies');
+          if (cached) setSubcompanies(JSON.parse(cached) as SubcompanyItem[]);
+        } catch { /* */ }
+      });
+  }, [user?.role]);
 
   // Close dropdown on outside click
   useEffect(() => {

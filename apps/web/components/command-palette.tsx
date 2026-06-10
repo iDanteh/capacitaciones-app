@@ -273,14 +273,14 @@ export function CommandPalette({
             aria-hidden
           />
 
-          {/* Panel */}
+          {/* Panel — wrapper handles positioning, motion.div handles animation only */}
+          <div className="fixed left-1/2 top-[12%] z-50 w-full max-w-xl -translate-x-1/2 px-4 sm:px-0">
           <motion.div
             key="panel"
             initial={{ opacity: 0, scale: 0.97, y: -12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: -12 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="fixed left-1/2 top-[12%] z-50 w-full max-w-xl -translate-x-1/2 lg:left-[calc(50%+110px)]"
           >
             <div
               className="overflow-hidden rounded-2xl border border-border bg-card"
@@ -466,6 +466,7 @@ export function CommandPalette({
 
             </div>
           </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

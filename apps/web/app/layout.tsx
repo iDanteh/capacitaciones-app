@@ -18,9 +18,14 @@ export const metadata: Metadata = {
     'Capacita a tu equipo de forma eficiente, mide el progreso y potencia el talento de tu empresa.',
   keywords: ['capacitación', 'e-learning', 'LMS', 'formación empresarial', 'Capta'],
   icons: {
-    icon:        [{ url: '/icon.svg', type: 'image/svg+xml' }],
-    shortcut:    '/icon.svg',
-    apple:       '/icon.svg',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/icon.svg',
+    apple:    '/icon.svg',
+    other: [
+      { rel: 'mask-icon', url: '/icon.svg', color: '#0B2840' },
+    ],
   },
 };
 

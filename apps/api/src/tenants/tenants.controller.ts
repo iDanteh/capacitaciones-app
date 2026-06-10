@@ -46,6 +46,14 @@ export class TenantsController {
 
   // ── Sub-empresas ────────────────────────────────────────────────────────────
 
+  @Get('family')
+  @UseGuards(RolesGuard)
+  @Roles('OWNER')
+  @ApiOperation({ summary: 'Retorna empresa padre + sub-empresas relacionadas (hermanas o hijas según contexto)' })
+  getFamilyTenants(@CurrentUser() user: JwtPayload) {
+    return this.tenantsService.getFamilyTenants(user.tenantId);
+  }
+
   @Get('children')
   @UseGuards(RolesGuard)
   @Roles('OWNER')
