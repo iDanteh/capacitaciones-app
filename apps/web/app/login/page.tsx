@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { api } from '@/lib/api';
+import { api, setAccessToken } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { CaptaLogo } from '@/components/capta-logo';
 import { Icon } from '@/components/capta-icon';
@@ -30,8 +30,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 interface AuthResponse {
-  accessToken:  string;
-  refreshToken: string;
+  accessToken: string;
   user: {
     tenantSlug: string;
     [key: string]: unknown;
@@ -187,10 +186,9 @@ export default function LoginPage() {
   // ── Paso 1: login con credenciales ────────────────────────────────────────
 
   const persistSession = (data: AuthResponse) => {
-    localStorage.setItem('access_token',  data.accessToken);
-    localStorage.setItem('refresh_token', data.refreshToken);
-    localStorage.setItem('tenant_slug',   data.user.tenantSlug);
-    localStorage.setItem('user', JSON.stringify(data.user));
+    setAccessToken(data.accessToken);
+    localStorage.setItem('tenant_slug', data.user.tenantSlug);
+    localStorage.setItem('user',        JSON.stringify(data.user));
     router.push('/dashboard');
   };
 

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/capta-icon';
-import { api } from '@/lib/api';
+import { api, setAccessToken } from '@/lib/api';
 import { useToast } from '@/components/toast';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -26,8 +26,7 @@ interface CreateForm {
 }
 
 interface AuthSwitchResponse {
-  accessToken:  string;
-  refreshToken: string;
+  accessToken: string;
   user: {
     id:         string;
     email:      string;
@@ -307,41 +306,29 @@ export default function CompaniesPage() {
     if (switchingId) return;
     setSwitchingId(company.id);
 
-    let tokenToRestore: string | null = null;
     const existingParentSess = localStorage.getItem('parent_session');
 
     try {
-      if (existingParentSess) {
-        // Already in a sub-company — use parent's token for the API call
-        const parentSess = JSON.parse(existingParentSess) as Record<string, string | null>;
-        tokenToRestore = localStorage.getItem('access_token');
-        if (parentSess.accessToken) localStorage.setItem('access_token', parentSess.accessToken);
-        // parent_session stays unchanged
-      } else {
-        // At parent level — save current as parent session
+      if (!existingParentSess) {
         localStorage.setItem('parent_session', JSON.stringify({
-          accessToken:  localStorage.getItem('access_token'),
-          refreshToken: localStorage.getItem('refresh_token'),
-          user:         localStorage.getItem('user'),
-          tenantLogo:   localStorage.getItem('tenant_logo'),
-          tenantName:   localStorage.getItem('tenant_name'),
-          tenantColor:  localStorage.getItem('tenant_color'),
+          user:        localStorage.getItem('user'),
+          tenantLogo:  localStorage.getItem('tenant_logo'),
+          tenantName:  localStorage.getItem('tenant_name'),
+          tenantColor: localStorage.getItem('tenant_color'),
         }));
       }
 
       const res = await api.post<AuthSwitchResponse>('/auth/switch-tenant', { childTenantId: company.id });
-      const { accessToken, refreshToken, user: newUser } = res.data;
+      const { accessToken, user: newUser } = res.data;
 
-      localStorage.setItem('access_token',  accessToken);
-      localStorage.setItem('refresh_token', refreshToken);
-      localStorage.setItem('user',          JSON.stringify(newUser));
+      setAccessToken(accessToken);
+      localStorage.setItem('user', JSON.stringify(newUser));
       localStorage.removeItem('tenant_logo');
       localStorage.removeItem('tenant_name');
       localStorage.removeItem('tenant_color');
 
       window.location.replace('/dashboard');
     } catch {
-      if (tokenToRestore) localStorage.setItem('access_token', tokenToRestore);
       if (!existingParentSess) localStorage.removeItem('parent_session');
       toastError(`No se pudo acceder a "${company.name}"`);
       setSwitchingId(null);

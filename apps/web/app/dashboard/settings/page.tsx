@@ -534,8 +534,6 @@ export default function SettingsPage() {
       localStorage.setItem('tenant_color',   data.primaryColor ?? '');
       localStorage.setItem('tenant_name',    data.name);
       localStorage.setItem('tenant_appname', data.appName ?? '');
-      // Actualizar el título del browser inmediatamente
-      if (data.appName) document.title = data.appName;
       toastSuccess('Configuración guardada');
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Error al guardar';

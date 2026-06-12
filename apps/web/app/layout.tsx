@@ -14,10 +14,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: {
-    default: 'Capta',
-    template: '%s — Capta',
-  },
+  title: 'Capta',
   description:
     'Capacita a tu equipo de forma eficiente, mide el progreso y potencia el talento de tu empresa.',
   keywords: ['capacitación', 'e-learning', 'LMS', 'formación empresarial', 'Capta'],

@@ -3,10 +3,13 @@ import {
   Post,
   Delete,
   Body,
+  Req,
+  Res,
   UseGuards,
   HttpCode,
   HttpStatus,
   Get,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,11 +18,11 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { MfaService } from './mfa.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { MfaVerifyDto } from './dto/mfa-verify.dto';
 import { MfaConfirmDto } from './dto/mfa-confirm.dto';
 import { MfaDisableDto } from './dto/mfa-disable.dto';
@@ -31,20 +34,32 @@ import { JwtPayload } from './strategies/jwt.strategy';
 import { JwtRefreshPayload } from './strategies/jwt-refresh.strategy';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit.types';
+import { Public } from './decorators/public.decorator';
+
+const RT_COOKIE        = '__rt';
+const PARENT_RT_COOKIE = '__parent_rt';
+const COOKIE_MAX_AGE   = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
 
 /**
  * Controller de autenticación.
  *
- * Rutas públicas (sin guard):
- *   POST /auth/register   — Crear cuenta nueva (empresa + OWNER)
- *   POST /auth/login      — Iniciar sesión
- *   POST /auth/refresh    — Rotar tokens (requiere refresh token válido en body)
+ * El refresh token viaja en cookies httpOnly (`__rt`), no en el body.
+ * El access token se devuelve en el body y el cliente lo guarda en memoria.
  *
- * Rutas protegidas:
- *   POST /auth/logout     — Revocar refresh token activo
- *   GET  /auth/me         — Datos del usuario autenticado
+ * Rutas públicas:
+ *   POST /auth/register        — Crear cuenta nueva
+ *   POST /auth/login           — Iniciar sesión
+ *   POST /auth/refresh         — Rotar tokens (cookie __rt)
+ *   POST /auth/restore-parent  — Restaurar sesión padre tras switch-tenant
+ *   POST /auth/mfa/verify      — Completar login con 2FA
  *
- * El versionado lo maneja el prefijo global 'api/v1' definido en main.ts.
+ * Rutas protegidas (requieren access token):
+ *   POST   /auth/logout        — Revocar refresh token + limpiar cookie
+ *   GET    /auth/me            — Datos del usuario autenticado
+ *   POST   /auth/switch-tenant — Cambiar contexto a sub-empresa
+ *   POST   /auth/mfa/setup     — Iniciar configuración de 2FA
+ *   POST   /auth/mfa/confirm   — Confirmar 2FA
+ *   DELETE /auth/mfa           — Desactivar 2FA
  */
 @ApiTags('Auth')
 @Controller({ path: 'auth', version: '1' })
@@ -55,47 +70,116 @@ export class AuthController {
     private readonly audit:       AuditService,
   ) {}
 
+  // ── Cookie helpers ─────────────────────────────────────────────────────────
+
+  private cookieOptions(path = '/api/v1/auth') {
+    return {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === 'production',
+      sameSite: 'strict' as const,
+      maxAge:   COOKIE_MAX_AGE,
+      path,
+    };
+  }
+
+  private setRtCookie(res: Response, token: string): void {
+    res.cookie(RT_COOKIE, token, this.cookieOptions());
+  }
+
+  private clearRtCookie(res: Response): void {
+    res.clearCookie(RT_COOKIE, { path: '/api/v1/auth' });
+  }
+
+  private setParentRtCookie(res: Response, token: string): void {
+    res.cookie(PARENT_RT_COOKIE, token, this.cookieOptions());
+  }
+
+  private clearParentRtCookie(res: Response): void {
+    res.clearCookie(PARENT_RT_COOKIE, { path: '/api/v1/auth' });
+  }
+
+  private getRtFromCookie(req: Request): string | undefined {
+    return (req.cookies as Record<string, string>)?.[RT_COOKIE];
+  }
+
+  private getParentRtFromCookie(req: Request): string | undefined {
+    return (req.cookies as Record<string, string>)?.[PARENT_RT_COOKIE];
+  }
+
+  // ── Register ───────────────────────────────────────────────────────────────
+
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Registrar nueva empresa y usuario OWNER' })
-  @ApiResponse({ status: 201, description: 'Empresa creada. Retorna tokens + usuario.' })
+  @ApiResponse({ status: 201, description: 'Empresa creada. Retorna accessToken + usuario.' })
   @ApiResponse({ status: 409, description: 'El nombre de empresa ya está en uso.' })
-  @ApiResponse({ status: 422, description: 'Datos de registro inválidos.' })
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.register(dto);
+    this.setRtCookie(res, result.refreshToken);
+    const { refreshToken: _, ...safe } = result;
+    return safe;
   }
+
+  // ── Login ──────────────────────────────────────────────────────────────────
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Iniciar sesión' })
-  @ApiResponse({ status: 200, description: 'Login exitoso. Retorna tokens + usuario.' })
+  @ApiResponse({ status: 200, description: 'Login exitoso. Retorna accessToken + usuario (o challenge MFA).' })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas.' })
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(dto);
+    if ('mfaPending' in result) return result; // MFA challenge — sin tokens todavía
+    this.setRtCookie(res, result.refreshToken);
+    const { refreshToken: _, ...safe } = result;
+    return safe;
   }
+
+  // ── Refresh ────────────────────────────────────────────────────────────────
 
   @Post('refresh')
   @UseGuards(JwtRefreshGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Renovar access token usando refresh token' })
-  @ApiResponse({ status: 200, description: 'Nuevo par de tokens emitido.' })
+  @ApiOperation({ summary: 'Renovar access token (refresh token en cookie __rt)' })
+  @ApiResponse({ status: 200, description: 'Nuevo accessToken emitido.' })
   @ApiResponse({ status: 401, description: 'Refresh token inválido o expirado.' })
-  refresh(
+  async refresh(
     @CurrentUser() payload: JwtRefreshPayload,
-    @Body() _dto: RefreshTokenDto, // validado por el guard; @Body aquí activa class-validator
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.refresh(payload);
+    const tokens = await this.authService.refresh(payload);
+    this.setRtCookie(res, tokens.refreshToken);
+    return { accessToken: tokens.accessToken };
   }
+
+  // ── Logout ─────────────────────────────────────────────────────────────────
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Cerrar sesión (revoca el refresh token)' })
+  @ApiOperation({ summary: 'Cerrar sesión (revoca refresh token y limpia cookie)' })
   @ApiResponse({ status: 204, description: 'Sesión cerrada.' })
-  logout(@CurrentUser() user: JwtPayload, @Body() dto: RefreshTokenDto) {
-    return this.authService.logout(dto.refreshToken, user.sub, user.tenantId);
+  async logout(
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = this.getRtFromCookie(req);
+    this.clearRtCookie(res);
+    this.clearParentRtCookie(res);
+    if (refreshToken) {
+      await this.authService.logout(refreshToken, user.sub, user.tenantId);
+    }
   }
+
+  // ── Me ─────────────────────────────────────────────────────────────────────
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
@@ -112,32 +196,77 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Cambiar contexto a una sub-empresa (solo OWNER)' })
-  @ApiResponse({ status: 200, description: 'Contexto cambiado. Retorna nuevos tokens + usuario de la sub-empresa.' })
-  @ApiResponse({ status: 403, description: 'No tienes acceso a esta empresa o no es una sub-empresa tuya.' })
-  switchTenant(
+  @ApiOperation({ summary: 'Cambiar contexto a sub-empresa (solo OWNER)' })
+  @ApiResponse({ status: 200, description: 'Contexto cambiado. Retorna accessToken + usuario.' })
+  @ApiResponse({ status: 403, description: 'No tienes acceso a esta empresa.' })
+  async switchTenant(
     @CurrentUser() user: JwtPayload,
     @Body() dto: SwitchTenantDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.switchTenant(user.sub, user.tenantId, dto.childTenantId);
+    const parentRefreshToken = this.getRtFromCookie(req);
+
+    const result = await this.authService.switchTenant(user.sub, user.tenantId, dto.childTenantId);
+
+    // Guardar el RT del padre en cookie separada antes de sobrescribir __rt
+    if (parentRefreshToken) {
+      this.setParentRtCookie(res, parentRefreshToken);
+    }
+
+    this.setRtCookie(res, result.refreshToken);
+    const { refreshToken: _, ...safe } = result;
+    return safe;
+  }
+
+  // ── Restore parent ─────────────────────────────────────────────────────────
+
+  @Post('restore-parent')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Restaurar sesión padre tras switch-tenant (cookie __parent_rt)' })
+  @ApiResponse({ status: 200, description: 'Sesión padre restaurada. Retorna accessToken.' })
+  @ApiResponse({ status: 401, description: 'No hay sesión padre activa o expiró.' })
+  async restoreParent(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const parentRefreshToken = this.getParentRtFromCookie(req);
+    if (!parentRefreshToken) {
+      throw new UnauthorizedException('No hay sesión padre activa.');
+    }
+
+    const tokens = await this.authService.restoreParent(parentRefreshToken);
+
+    this.setRtCookie(res, tokens.refreshToken);
+    this.clearParentRtCookie(res);
+
+    return { accessToken: tokens.accessToken };
   }
 
   // ── 2FA / MFA ──────────────────────────────────────────────────────────────
 
   @Post('mfa/verify')
+  @Public()
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 15 * 60_000, limit: 5 } }) // 5 intentos / 15 min
+  @Throttle({ default: { ttl: 15 * 60_000, limit: 5 } })
   @ApiOperation({ summary: 'Completar login con código TOTP o backup code' })
-  @ApiResponse({ status: 200, description: 'Login completado. Retorna tokens + usuario.' })
+  @ApiResponse({ status: 200, description: 'Login completado. Retorna accessToken + usuario.' })
   @ApiResponse({ status: 401, description: 'Código o token MFA inválido.' })
-  mfaVerify(@Body() dto: MfaVerifyDto) {
-    return this.authService.verifyMfa(dto.mfaToken, dto.code);
+  async mfaVerify(
+    @Body() dto: MfaVerifyDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.verifyMfa(dto.mfaToken, dto.code);
+    this.setRtCookie(res, result.refreshToken);
+    const { refreshToken: _, ...safe } = result;
+    return safe;
   }
 
   @Post('mfa/setup')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @Throttle({ default: { ttl: 60 * 60_000, limit: 3 } }) // 3 intentos / hora
+  @Throttle({ default: { ttl: 60 * 60_000, limit: 3 } })
   @ApiOperation({ summary: 'Iniciar configuración de 2FA — retorna QR y secret' })
   @ApiResponse({ status: 201, description: 'QR generado. Escanea y luego confirma con /mfa/confirm.' })
   mfaSetup(@CurrentUser() user: JwtPayload) {
@@ -150,7 +279,7 @@ export class AuthController {
   @ApiBearerAuth()
   @Throttle({ default: { ttl: 15 * 60_000, limit: 5 } })
   @ApiOperation({ summary: 'Confirmar 2FA con primer código TOTP — activa el 2FA y retorna backup codes' })
-  @ApiResponse({ status: 201, description: '2FA activado. Guarda los backup codes en un lugar seguro.' })
+  @ApiResponse({ status: 201, description: '2FA activado.' })
   mfaConfirm(@CurrentUser() user: JwtPayload, @Body() dto: MfaConfirmDto) {
     this.audit.log({ action: AuditAction.MFA_CONFIRMED, userId: user.sub, tenantId: user.tenantId });
     return this.mfaService.confirm(user.sub, dto.code);

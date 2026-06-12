@@ -3,6 +3,7 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -15,6 +16,7 @@ async function bootstrap() {
   // ── Seguridad ──────────────────────────────────────────────────────────────
   app.use(helmet());
   app.use(compression());
+  app.use(cookieParser());
 
   app.enableCors({
     origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',

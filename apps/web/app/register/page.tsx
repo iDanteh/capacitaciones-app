@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { api } from '@/lib/api';
+import { api, setAccessToken } from '@/lib/api';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { CaptaLogo } from '@/components/capta-logo';
@@ -134,11 +134,9 @@ function RegisterForm() {
     try {
       const res = await api.post<{
         accessToken: string;
-        refreshToken: string;
         user: { tenantSlug: string };
       }>('/auth/register', payload);
-      localStorage.setItem('access_token', res.data.accessToken);
-      localStorage.setItem('refresh_token', res.data.refreshToken);
+      setAccessToken(res.data.accessToken);
       localStorage.setItem('tenant_slug', res.data.user.tenantSlug);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       router.push('/dashboard');

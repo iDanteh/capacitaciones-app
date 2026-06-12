@@ -11,6 +11,7 @@
  */
 
 import { io, Socket } from 'socket.io-client';
+import { getAccessToken } from './api';
 
 const API_HOST =
   typeof window !== 'undefined'
@@ -46,7 +47,7 @@ export function getSocket(): Socket {
 export function connectSocket(): void {
   if (typeof window === 'undefined') return;
 
-  const token = localStorage.getItem('access_token');
+  const token = getAccessToken();
   if (!token) return;
 
   const sock = getSocket();

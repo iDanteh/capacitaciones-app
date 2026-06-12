@@ -9,7 +9,7 @@ import { CaptaLogo, CaptaMark } from '@/components/capta-logo';
 import { Icon, type IconName } from '@/components/capta-icon';
 import { NotificationBell } from '@/components/notification-bell';
 import { CommandPalette } from '@/components/command-palette';
-import { api } from '@/lib/api';
+import { api, setAccessToken, clearAccessToken, getAccessToken, hydrateFromCookie } from '@/lib/api';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 import { applyTenantHead } from '@/lib/tenant-head';
 
@@ -38,8 +38,7 @@ interface FamilyTenantsResponse {
 }
 
 interface AuthSwitchResponse {
-  accessToken:  string;
-  refreshToken: string;
+  accessToken: string;
   user: {
     id:         string;
     email:      string;
@@ -190,37 +189,24 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
     setSwitching(true);
     setTenantOpen(false);
 
-    let tokenToRestore: string | null = null;
-
     try {
-      if (isInSubcompany) {
-        // We're already in a sub-company — use parent's token for the switch call
-        // so the API resolves the correct parent → child relationship.
-        const parentSess = JSON.parse(localStorage.getItem('parent_session') ?? '{}') as Record<string, string | null>;
-        tokenToRestore = localStorage.getItem('access_token');
-        if (parentSess.accessToken) {
-          localStorage.setItem('access_token', parentSess.accessToken);
-        }
-        // parent_session stays unchanged (still pointing to the real parent)
-      } else {
-        // At parent level — save current session as parent before switching
+      if (!isInSubcompany) {
+        // Guardar metadata del padre antes de hacer el switch
+        // El RT del padre se guarda como __parent_rt cookie en el servidor
         localStorage.setItem('parent_session', JSON.stringify({
-          accessToken:    localStorage.getItem('access_token'),
-          refreshToken:   localStorage.getItem('refresh_token'),
-          user:           localStorage.getItem('user'),
-          tenantLogo:     localStorage.getItem('tenant_logo'),
-          tenantName:     localStorage.getItem('tenant_name'),
-          tenantColor:    localStorage.getItem('tenant_color'),
-          tenantAppname:  localStorage.getItem('tenant_appname'),
+          user:          localStorage.getItem('user'),
+          tenantLogo:    localStorage.getItem('tenant_logo'),
+          tenantName:    localStorage.getItem('tenant_name'),
+          tenantColor:   localStorage.getItem('tenant_color'),
+          tenantAppname: localStorage.getItem('tenant_appname'),
         }));
       }
 
       const res = await api.post<AuthSwitchResponse>('/auth/switch-tenant', { childTenantId: childId });
-      const { accessToken, refreshToken, user: newUser } = res.data;
+      const { accessToken, user: newUser } = res.data;
 
-      localStorage.setItem('access_token',  accessToken);
-      localStorage.setItem('refresh_token', refreshToken);
-      localStorage.setItem('user',          JSON.stringify(newUser));
+      setAccessToken(accessToken);
+      localStorage.setItem('user', JSON.stringify(newUser));
       localStorage.removeItem('tenant_logo');
       localStorage.removeItem('tenant_name');
       localStorage.removeItem('tenant_color');
@@ -228,33 +214,43 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
 
       window.location.replace('/dashboard');
     } catch {
-      // Rollback
-      if (tokenToRestore) localStorage.setItem('access_token', tokenToRestore);
-      if (!isInSubcompany)  localStorage.removeItem('parent_session');
+      if (!isInSubcompany) localStorage.removeItem('parent_session');
       setSwitching(false);
     }
   };
 
-  const handleRestoreParent = () => {
+  const handleRestoreParent = async () => {
     try {
+      // El servidor valida __parent_rt cookie, rota los tokens del padre
+      // y devuelve un nuevo accessToken
+      const res = await api.post<{ accessToken: string }>('/auth/restore-parent', {});
+      setAccessToken(res.data.accessToken);
+
       const raw = localStorage.getItem('parent_session');
-      if (!raw) return;
-      const sess = JSON.parse(raw) as Record<string, string | null>;
-      if (sess.accessToken)  localStorage.setItem('access_token',  sess.accessToken);
-      if (sess.refreshToken) localStorage.setItem('refresh_token', sess.refreshToken);
-      if (sess.user)         localStorage.setItem('user',          sess.user);
-      localStorage.setItem('tenant_logo',    sess.tenantLogo     ?? '');
-      localStorage.setItem('tenant_name',    sess.tenantName     ?? '');
-      localStorage.setItem('tenant_color',   sess.tenantColor    ?? '');
-      localStorage.setItem('tenant_appname', sess.tenantAppname  ?? '');
-      localStorage.removeItem('parent_session');
-    } catch { /* corrupted */ }
+      if (raw) {
+        const sess = JSON.parse(raw) as Record<string, string | null>;
+        if (sess.user)         localStorage.setItem('user',          sess.user);
+        localStorage.setItem('tenant_logo',    sess.tenantLogo    ?? '');
+        localStorage.setItem('tenant_name',    sess.tenantName    ?? '');
+        localStorage.setItem('tenant_color',   sess.tenantColor   ?? '');
+        localStorage.setItem('tenant_appname', sess.tenantAppname ?? '');
+        localStorage.removeItem('parent_session');
+      }
+    } catch {
+      // Si el __parent_rt expiró, forzar re-login
+      clearAccessToken();
+      localStorage.clear();
+      window.location.href = '/login';
+      return;
+    }
     window.location.replace('/dashboard');
   };
 
   // ── Derived values ────────────────────────────────────────────────────────
-  const handleLogout = () => {
+  const handleLogout = async () => {
     disconnectSocket();
+    try { await api.post('/auth/logout', {}); } catch { /* ignorar — limpiar igual */ }
+    clearAccessToken();
     localStorage.clear();
     router.push('/login');
   };
@@ -591,42 +587,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [appName,      setAppName]      = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (!token) { router.replace('/login'); return; }
-    try {
-      const raw = localStorage.getItem('user');
-      if (raw) setUser(JSON.parse(raw) as UserData);
-    } catch { /* datos corruptos — continuar */ }
+    const init = async () => {
+      // Si no hay access token en memoria (recarga de página), hidratar desde la cookie __rt
+      if (!getAccessToken()) {
+        const ok = await hydrateFromCookie();
+        if (!ok) { router.replace('/login'); return; }
+      }
 
-    // Cargar datos del tenant para logo, color y nombre de plataforma
-    setTenantLogo(localStorage.getItem('tenant_logo')    ?? '');
-    setTenantName(localStorage.getItem('tenant_name')    ?? '');
-    setAccentColor(localStorage.getItem('tenant_color')  ?? '');
-    setAppName(localStorage.getItem('tenant_appname')    ?? '');
+      try {
+        const raw = localStorage.getItem('user');
+        if (raw) setUser(JSON.parse(raw) as UserData);
+      } catch { /* datos corruptos — continuar */ }
 
-    setIsReady(true);
+      setTenantLogo(localStorage.getItem('tenant_logo')    ?? '');
+      setTenantName(localStorage.getItem('tenant_name')    ?? '');
+      setAccentColor(localStorage.getItem('tenant_color')  ?? '');
+      setAppName(localStorage.getItem('tenant_appname')    ?? '');
 
-    // Conectar WebSocket (funciona en mobile y desktop desde el layout)
-    connectSocket();
+      setIsReady(true);
 
-    // Refrescar datos del tenant desde la API en segundo plano (timeout 5s — evita spinner infinito)
-    api.get<{ logoUrl?: string | null; primaryColor?: string | null; name?: string; appName?: string | null }>('/tenants/me', { timeout: 5_000 })
-      .then(r => {
-        const logo    = r.data.logoUrl      ?? '';
-        const color   = r.data.primaryColor ?? '';
-        const name    = r.data.name         ?? '';
-        const appNm   = r.data.appName      ?? '';
-        setTenantLogo(logo);
-        setAccentColor(color);
-        setTenantName(name);
-        setAppName(appNm);
-        // Cachear en localStorage
-        localStorage.setItem('tenant_logo',    logo);
-        localStorage.setItem('tenant_color',   color);
-        localStorage.setItem('tenant_name',    name);
-        localStorage.setItem('tenant_appname', appNm);
-      })
-      .catch(() => { /* sin auth todavía o error — usar valores de localStorage */ });
+      // Conectar WebSocket después de verificar auth
+      connectSocket();
+
+      // Refrescar datos del tenant en segundo plano
+      api.get<{ logoUrl?: string | null; primaryColor?: string | null; name?: string; appName?: string | null }>('/tenants/me', { timeout: 5_000 })
+        .then(r => {
+          const logo  = r.data.logoUrl      ?? '';
+          const color = r.data.primaryColor ?? '';
+          const name  = r.data.name         ?? '';
+          const appNm = r.data.appName      ?? '';
+          setTenantLogo(logo);
+          setAccentColor(color);
+          setTenantName(name);
+          setAppName(appNm);
+          localStorage.setItem('tenant_logo',    logo);
+          localStorage.setItem('tenant_color',   color);
+          localStorage.setItem('tenant_name',    name);
+          localStorage.setItem('tenant_appname', appNm);
+        })
+        .catch(() => { /* error — usar valores de localStorage */ });
+    };
+    void init();
   }, [router]);
 
   // Sincronizar color primario del tenant como CSS custom property
@@ -647,16 +648,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     });
   }, [accentColor, tenantLogo, appName, tenantName]);
 
-  // Actualizar el título del browser con el nombre de la plataforma
+  // Actualizar el título del browser con el nombre de la plataforma (sin sección)
   useEffect(() => {
-    const platform = appName || 'Capta';
-    const page = pathname
-      .split('/')
-      .filter(Boolean)
-      .slice(1) // quita 'dashboard'
-      .map(s => s.charAt(0).toUpperCase() + s.slice(1))
-      .join(' › ');
-    document.title = page ? `${page} — ${platform}` : platform;
+    document.title = appName || 'Capta';
   }, [appName, pathname]);
 
   // ⌘K / Ctrl+K — abrir command palette

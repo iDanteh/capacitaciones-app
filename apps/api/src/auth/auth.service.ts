@@ -418,6 +418,46 @@ export class AuthService {
     return tokens;
   }
 
+  // ── Restore parent ─────────────────────────────────────────────────────────
+
+  /**
+   * Restaura la sesión del tenant padre tras un switch-tenant.
+   * Valida el refresh token del padre (guardado como __parent_rt cookie),
+   * lo revoca y emite un nuevo par de tokens para el padre.
+   */
+  async restoreParent(parentRefreshToken: string): Promise<AuthTokens> {
+    const tokenHash = this.hashToken(parentRefreshToken);
+
+    const storedToken = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      include: { user: { include: { tenant: true } } },
+    });
+
+    if (!storedToken || storedToken.revokedAt || storedToken.expiresAt < new Date()) {
+      if (storedToken?.userId) {
+        await this.revokeAllUserTokens(storedToken.userId);
+        this.logger.warn(`Posible replay en restore-parent para userId: ${storedToken.userId}`);
+      }
+      throw new UnauthorizedException('Sesión padre expirada. Por favor inicia sesión nuevamente.');
+    }
+
+    const { user } = storedToken;
+    if (!user.isActive || user.deletedAt) {
+      throw new ForbiddenException('Cuenta desactivada');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.refreshToken.update({
+        where: { id: storedToken.id },
+        data:  { revokedAt: new Date() },
+      });
+      return this.issueTokenPair(
+        user.id, user.email, user.tenantId, user.role, user.tenant.slug,
+        tx as unknown as PrismaService,
+      );
+    });
+  }
+
   // ── Logout ─────────────────────────────────────────────────────────────────
 
   async logout(refreshToken: string, userId?: string, tenantId?: string): Promise<void> {
