@@ -53,7 +53,7 @@ export function QuestionForm({
         onChange={e => setText(e.target.value)}
         rows={2}
         placeholder="Texto de la pregunta…"
-        className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft"
+        className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:border-capta-soft"
       />
 
       {/* Opciones */}
@@ -89,7 +89,7 @@ export function QuestionForm({
                 setOptions(prev => prev.map((o, idx) => idx === i ? { ...o, text: e.target.value } : o))
               }
               placeholder={`Opción ${i + 1}`}
-              className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-capta-soft/40"
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm focus:outline-none"
             />
             {options.length > 2 && !hasAttempts && (
               <button
@@ -124,7 +124,7 @@ export function QuestionForm({
         onChange={e => setExplanation(e.target.value)}
         rows={2}
         placeholder="Explicación opcional — se muestra al revisar resultados"
-        className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-capta-soft/40"
+        className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground focus:outline-none"
       />
 
       <div className="flex justify-end gap-2 pt-1">
@@ -138,7 +138,7 @@ export function QuestionForm({
           onClick={handleSave}
           disabled={saving}
           className="flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.97]"
-          style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+          style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
         >
           {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
           Guardar

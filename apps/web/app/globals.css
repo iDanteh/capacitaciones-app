@@ -175,6 +175,28 @@
   }
 }
 
+/* ─── Dark mode — profundidad y textura ─────────────────────────────────────── */
+
+.dark body {
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 80% 50% at 70% -10%, rgba(30, 79, 122, 0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at -5%  90%, rgba(31, 92,  77, 0.07) 0%, transparent 55%);
+  background-size: 200px 200px, auto, auto;
+  background-repeat: repeat, no-repeat, no-repeat;
+}
+
+/* ─── Focus ring — respeta el color del tenant ──────────────────────────────── */
+
+@layer base {
+  *:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px hsl(var(--background)),
+      0 0 0 4px var(--tenant-primary);
+  }
+}
+
 /* ─── Keyframes ─────────────────────────────────────────────────────────────── */
 
 @keyframes fade-up {
@@ -211,4 +233,18 @@
   .delay-200 { animation-delay: 200ms; }
   .delay-250 { animation-delay: 250ms; }
   .delay-300 { animation-delay: 300ms; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-fade-in,
+  .animate-shimmer,
+  .animate-pulse-soft {
+    animation: none;
+  }
+}
+
+/* Recharts axis ticks — respect theme foreground in dark mode */
+.recharts-cartesian-axis-tick-value {
+  fill: hsl(var(--muted-foreground)) !important;
 }

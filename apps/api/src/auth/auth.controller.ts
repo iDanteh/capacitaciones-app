@@ -27,6 +27,8 @@ import { MfaVerifyDto } from './dto/mfa-verify.dto';
 import { MfaConfirmDto } from './dto/mfa-confirm.dto';
 import { MfaDisableDto } from './dto/mfa-disable.dto';
 import { SwitchTenantDto } from './dto/switch-tenant.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -38,6 +40,7 @@ import { Public } from './decorators/public.decorator';
 
 const RT_COOKIE        = '__rt';
 const PARENT_RT_COOKIE = '__parent_rt';
+const SESSION_HINT     = '__auth';            // Cookie sin valor sensible en path '/' — solo para el middleware
 const COOKIE_MAX_AGE   = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
 
 /**
@@ -90,6 +93,20 @@ export class AuthController {
     res.clearCookie(RT_COOKIE, { path: '/api/v1/auth' });
   }
 
+  private setSessionHintCookie(res: Response): void {
+    res.cookie(SESSION_HINT, '1', {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === 'production',
+      sameSite: 'strict' as const,
+      maxAge:   COOKIE_MAX_AGE,
+      path:     '/',
+    });
+  }
+
+  private clearSessionHintCookie(res: Response): void {
+    res.clearCookie(SESSION_HINT, { path: '/' });
+  }
+
   private setParentRtCookie(res: Response, token: string): void {
     res.cookie(PARENT_RT_COOKIE, token, this.cookieOptions());
   }
@@ -109,6 +126,7 @@ export class AuthController {
   // ── Register ───────────────────────────────────────────────────────────────
 
   @Post('register')
+  @Public()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Registrar nueva empresa y usuario OWNER' })
   @ApiResponse({ status: 201, description: 'Empresa creada. Retorna accessToken + usuario.' })
@@ -119,6 +137,7 @@ export class AuthController {
   ) {
     const result = await this.authService.register(dto);
     this.setRtCookie(res, result.refreshToken);
+    this.setSessionHintCookie(res);
     const { refreshToken: _, ...safe } = result;
     return safe;
   }
@@ -126,6 +145,7 @@ export class AuthController {
   // ── Login ──────────────────────────────────────────────────────────────────
 
   @Post('login')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Iniciar sesión' })
   @ApiResponse({ status: 200, description: 'Login exitoso. Retorna accessToken + usuario (o challenge MFA).' })
@@ -137,6 +157,7 @@ export class AuthController {
     const result = await this.authService.login(dto);
     if ('mfaPending' in result) return result; // MFA challenge — sin tokens todavía
     this.setRtCookie(res, result.refreshToken);
+    this.setSessionHintCookie(res);
     const { refreshToken: _, ...safe } = result;
     return safe;
   }
@@ -144,6 +165,7 @@ export class AuthController {
   // ── Refresh ────────────────────────────────────────────────────────────────
 
   @Post('refresh')
+  @Public()
   @UseGuards(JwtRefreshGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Renovar access token (refresh token en cookie __rt)' })
@@ -155,6 +177,7 @@ export class AuthController {
   ) {
     const tokens = await this.authService.refresh(payload);
     this.setRtCookie(res, tokens.refreshToken);
+    this.setSessionHintCookie(res);
     return { accessToken: tokens.accessToken };
   }
 
@@ -174,6 +197,7 @@ export class AuthController {
     const refreshToken = this.getRtFromCookie(req);
     this.clearRtCookie(res);
     this.clearParentRtCookie(res);
+    this.clearSessionHintCookie(res);
     if (refreshToken) {
       await this.authService.logout(refreshToken, user.sub, user.tenantId);
     }
@@ -215,6 +239,7 @@ export class AuthController {
     }
 
     this.setRtCookie(res, result.refreshToken);
+    this.setSessionHintCookie(res);
     const { refreshToken: _, ...safe } = result;
     return safe;
   }
@@ -240,6 +265,7 @@ export class AuthController {
 
     this.setRtCookie(res, tokens.refreshToken);
     this.clearParentRtCookie(res);
+    this.setSessionHintCookie(res);
 
     return { accessToken: tokens.accessToken };
   }
@@ -259,6 +285,7 @@ export class AuthController {
   ) {
     const result = await this.authService.verifyMfa(dto.mfaToken, dto.code);
     this.setRtCookie(res, result.refreshToken);
+    this.setSessionHintCookie(res);
     const { refreshToken: _, ...safe } = result;
     return safe;
   }
@@ -295,5 +322,28 @@ export class AuthController {
   mfaDisable(@CurrentUser() user: JwtPayload, @Body() dto: MfaDisableDto) {
     this.audit.log({ action: AuditAction.MFA_DISABLED, userId: user.sub, tenantId: user.tenantId });
     return this.mfaService.disable(user.sub, dto.code);
+  }
+
+  // ── Password Reset ─────────────────────────────────────────────────────────
+
+  @Post('forgot-password')
+  @Public()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle({ default: { ttl: 15 * 60_000, limit: 5 } })
+  @ApiOperation({ summary: 'Solicitar enlace de recuperación de contraseña' })
+  @ApiResponse({ status: 204, description: 'Si el email existe, se envía un enlace. Siempre retorna 204.' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void> {
+    await this.authService.forgotPassword(dto.tenantSlug, dto.email);
+  }
+
+  @Post('reset-password')
+  @Public()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle({ default: { ttl: 15 * 60_000, limit: 10 } })
+  @ApiOperation({ summary: 'Restablecer contraseña con token del email' })
+  @ApiResponse({ status: 204, description: 'Contraseña actualizada.' })
+  @ApiResponse({ status: 400, description: 'Token inválido o expirado.' })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+    await this.authService.resetPassword(dto.token, dto.newPassword);
   }
 }

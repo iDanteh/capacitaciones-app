@@ -20,6 +20,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../tenants/decorators/current-tenant.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 
 import { SubscriptionsService } from './subscriptions.service';
 import { PlanResponseDto } from './dto/plan-response.dto';
@@ -39,6 +40,7 @@ export class SubscriptionsController {
   // ── Planes (público) ────────────────────────────────────────────────────────
 
   @Get('plans')
+  @Public()
   @ApiOperation({ summary: 'Lista todos los planes disponibles' })
   async getPlans(): Promise<PlanResponseDto[]> {
     const plans = await this.subs.findAllPlans();
@@ -133,6 +135,7 @@ export class SubscriptionsController {
   // Además, necesita el cuerpo RAW (Buffer) antes de cualquier parsing JSON.
 
   @Post('webhook')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Endpoint de webhooks de Stripe (uso interno)' })
   async handleWebhook(

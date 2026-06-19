@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -14,6 +15,7 @@ import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit.types';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { EmailService } from '../email/email.service';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { JwtRefreshPayload } from './strategies/jwt-refresh.strategy';
 import * as bcrypt from 'bcryptjs';
@@ -78,6 +80,7 @@ export class AuthService {
     private readonly config:  ConfigService,
     private readonly mfa:     MfaService,
     private readonly audit:   AuditService,
+    private readonly email:   EmailService,
   ) {}
 
   // ── Register ───────────────────────────────────────────────────────────────
@@ -494,14 +497,16 @@ export class AuthService {
 
     const payload: JwtPayload = { sub: userId, email, tenantId, role };
 
+    const jti = crypto.randomBytes(16).toString('hex');
+
     const [accessToken, refreshTokenRaw] = await Promise.all([
       this.jwt.signAsync(payload, {
         secret: this.config.getOrThrow<string>('jwt.secret'),
         expiresIn: this.config.get<string>('jwt.expiresIn', '15m'),
       }),
-      // Refresh token: JWT firmado con secreto distinto
+      // Refresh token: JWT firmado con secreto distinto + jti para garantizar unicidad del hash
       this.jwt.signAsync(
-        { sub: userId, tenantId },
+        { sub: userId, tenantId, jti },
         {
           secret: this.config.getOrThrow<string>('jwt.refreshSecret'),
           expiresIn: this.config.get<string>('jwt.refreshExpiresIn', '7d'),
@@ -517,6 +522,98 @@ export class AuthService {
     });
 
     return { accessToken, refreshToken: refreshTokenRaw };
+  }
+
+  // ── Password Reset ─────────────────────────────────────────────────────────
+
+  /**
+   * Solicita un enlace de recuperación de contraseña.
+   *
+   * Siempre responde con éxito aunque el tenant/email no existan —
+   * esto evita enumerar qué cuentas existen en el sistema.
+   */
+  async forgotPassword(tenantSlug: string, email: string): Promise<void> {
+    const tenant = await this.prisma.tenant.findUnique({ where: { slug: tenantSlug } });
+    if (!tenant || !tenant.isActive || tenant.deletedAt) return;
+
+    const user = await this.prisma.user.findUnique({
+      where: { tenantId_email: { tenantId: tenant.id, email: email.toLowerCase().trim() } },
+    });
+    if (!user || !user.isActive || user.deletedAt) return;
+
+    // Invalidar tokens anteriores del mismo usuario (máximo 1 activo a la vez)
+    await this.prisma.passwordResetRequest.deleteMany({ where: { userId: user.id } });
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+    await this.prisma.passwordResetRequest.create({
+      data: { userId: user.id, tokenHash, expiresAt },
+    });
+
+    const branding = (tenant.primaryColor || tenant.logoUrl || tenant.appName)
+      ? { name: tenant.name, logoUrl: tenant.logoUrl, primaryColor: tenant.primaryColor, appName: tenant.appName }
+      : undefined;
+
+    this.email.sendPasswordReset({ to: user.email, firstName: user.firstName, token: rawToken, branding });
+  }
+
+  /**
+   * Restablece la contraseña usando el token del email.
+   *
+   * Al completarse: revoca todas las sesiones activas del usuario,
+   * forzando un nuevo login con la contraseña actualizada.
+   */
+  async resetPassword(rawToken: string, newPassword: string): Promise<void> {
+    const tokenHash = this.hashToken(rawToken);
+
+    const request = await this.prisma.passwordResetRequest.findUnique({
+      where: { tokenHash },
+      include: { user: { include: { tenant: true } } },
+    });
+
+    if (!request || request.usedAt || request.expiresAt < new Date()) {
+      throw new BadRequestException('El enlace de recuperación es inválido o ha expirado.');
+    }
+
+    if (!request.user.isActive || request.user.deletedAt) {
+      throw new ForbiddenException('Cuenta desactivada.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.passwordResetRequest.update({
+        where: { id: request.id },
+        data: { usedAt: new Date() },
+      });
+      await tx.user.update({
+        where: { id: request.user.id },
+        data: { passwordHash },
+      });
+      // Revocar todas las sesiones activas por seguridad
+      await tx.refreshToken.updateMany({
+        where: { userId: request.user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    });
+
+    this.logger.log(`Password reset completado para userId: ${request.user.id}`);
+    this.audit.log({
+      action:   AuditAction.USER_PASSWORD_CHANGED,
+      userId:   request.user.id,
+      tenantId: request.user.tenantId,
+      entity:   'User',
+      entityId: request.user.id,
+      meta:     { via: 'password_reset' },
+    });
+
+    const branding = (request.user.tenant.primaryColor || request.user.tenant.logoUrl || request.user.tenant.appName)
+      ? { name: request.user.tenant.name, logoUrl: request.user.tenant.logoUrl, primaryColor: request.user.tenant.primaryColor, appName: request.user.tenant.appName }
+      : undefined;
+
+    this.email.sendPasswordChanged({ to: request.user.email, firstName: request.user.firstName, branding });
   }
 
   /** SHA-256 del token. Determinista: el mismo token siempre produce el mismo hash. */

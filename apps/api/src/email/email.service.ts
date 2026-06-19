@@ -24,6 +24,13 @@ export interface SendPasswordChangedOptions {
   branding?: TenantBranding;
 }
 
+export interface SendPasswordResetOptions {
+  to:        string;
+  firstName: string;
+  token:     string;
+  branding?: TenantBranding;
+}
+
 // Tiempos de backoff: 5s → 25s → 125s
 const RETRY_DELAYS_MS = [5_000, 25_000, 125_000];
 
@@ -71,6 +78,20 @@ export class EmailService {
         html:    this.buildInviteHtml(options, inviteUrl, roleLabel),
       }),
       { to: options.to, template: 'invite' },
+    );
+  }
+
+  /** Envía el enlace de recuperación de contraseña. */
+  sendPasswordReset(options: SendPasswordResetOptions): void {
+    const resetUrl = `${this.frontendUrl}/reset-password/${options.token}`;
+    this.dispatch(
+      () => this.resend.emails.send({
+        from:    this.from,
+        to:      options.to,
+        subject: 'Recupera tu contraseña',
+        html:    this.buildPasswordResetHtml(options, resetUrl),
+      }),
+      { to: options.to, template: 'passwordReset' },
     );
   }
 
@@ -168,6 +189,56 @@ export class EmailService {
             <p style="font-size:13px;color:#A1A1A1;margin:28px 0 0;line-height:1.5;">
               Este enlace expira en 7 días.<br>
               Si no esperabas esta invitación, puedes ignorar este correo.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px 40px;background:#F5F5F5;border-top:1px solid #E3E3E3;">
+            <p style="font-size:12px;color:#A1A1A1;margin:0;">
+              © ${new Date().getFullYear()} ${platformName}. Todos los derechos reservados.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+  }
+
+  private buildPasswordResetHtml(options: SendPasswordResetOptions, resetUrl: string): string {
+    const b            = options.branding;
+    const primaryColor = b?.primaryColor || '#1E4F7A';
+    const platformName = b?.appName || b?.name || 'Capta';
+    const initial      = platformName.charAt(0).toUpperCase();
+
+    const logoHtml = b?.logoUrl
+      ? `<img src="${b.logoUrl}" alt="${platformName}" style="height:36px;max-width:160px;object-fit:contain;display:block;">`
+      : `<div style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;background:${primaryColor};">
+           <span style="color:#FFFFFF;font-weight:700;font-size:16px;">${initial}</span>
+         </div>`;
+
+    return `
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#F5F5F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:40px 16px;">
+      <table width="520" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:16px;border:1px solid #E3E3E3;overflow:hidden;">
+        <tr>
+          <td style="padding:40px 40px 32px;">
+            <div style="margin-bottom:32px;">${logoHtml}</div>
+            <h1 style="font-size:22px;font-weight:600;color:#171717;margin:0 0 8px;">Recupera tu contraseña</h1>
+            <p style="font-size:15px;color:#707070;margin:0 0 28px;line-height:1.6;">
+              Hola <strong style="color:#171717;">${options.firstName}</strong>, recibimos una solicitud para restablecer la contraseña de tu cuenta.
+            </p>
+            <a href="${resetUrl}"
+               style="display:inline-block;background:${primaryColor};color:#FFFFFF;font-weight:600;font-size:14px;padding:13px 28px;border-radius:10px;text-decoration:none;">
+              Restablecer contraseña
+            </a>
+            <p style="font-size:13px;color:#A1A1A1;margin:28px 0 0;line-height:1.5;">
+              Este enlace expira en <strong>1 hora</strong>.<br>
+              Si no solicitaste recuperar tu contraseña, puedes ignorar este correo — tu cuenta está segura.
             </p>
           </td>
         </tr>

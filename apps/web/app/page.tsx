@@ -34,7 +34,7 @@ function Navbar() {
             </Link>
             <Link href="/register"
               className="rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all hover:scale-[1.03] active:scale-[0.97]"
-              style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 8px rgba(30,79,122,0.3)' }}>
+              style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 8px color-mix(in srgb, var(--tenant-primary) 30%, transparent)' }}>
               Comenzar gratis
             </Link>
           </div>
@@ -54,9 +54,10 @@ function Hero() {
         <div className="absolute inset-0"
           style={{
             background:
-              'radial-gradient(ellipse 75% 50% at 50% -8%, rgba(143,196,232,0.12) 0%, transparent 60%),' +
-              'radial-gradient(ellipse 45% 35% at 80% 15%, rgba(127,209,174,0.08) 0%, transparent 55%),' +
-              'radial-gradient(ellipse 30% 25% at 15% 25%, rgba(30,79,122,0.06) 0%, transparent 50%)',
+              'radial-gradient(ellipse 80% 55% at 50% -10%, rgba(143,196,232,0.16) 0%, transparent 60%),' +
+              'radial-gradient(ellipse 50% 40% at 85% 10%, rgba(127,209,174,0.10) 0%, transparent 55%),' +
+              'radial-gradient(ellipse 35% 30% at 10% 30%, rgba(30,79,122,0.08) 0%, transparent 50%),' +
+              'radial-gradient(ellipse 40% 35% at 50% 100%, rgba(30,79,122,0.04) 0%, transparent 60%)',
           }}
         />
         {/* Dot grid */}
@@ -70,7 +71,7 @@ function Hero() {
 
       <div className="mx-auto max-w-5xl text-center">
         {/* Badge */}
-        <div className="mb-7 inline-flex items-center gap-2 rounded-full border px-4 py-1.5"
+        <div className="mb-7 inline-flex animate-fade-up items-center gap-2 rounded-full border px-4 py-1.5"
           style={{ borderColor: 'rgba(143,196,232,0.3)', background: 'rgba(143,196,232,0.06)' }}>
           <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full" style={{ background: '#7FD1AE' }} />
           <span className="text-xs font-semibold tracking-wide text-muted-foreground">
@@ -79,7 +80,7 @@ function Hero() {
         </div>
 
         {/* Headline */}
-        <h1 className="mx-auto max-w-4xl text-5xl font-semibold leading-[1.08] tracking-tight text-foreground sm:text-6xl lg:text-[68px]">
+        <h1 className="mx-auto max-w-4xl animate-fade-up delay-100 font-display text-5xl font-normal leading-[1.1] tracking-tight text-foreground sm:text-6xl lg:text-[68px]">
           Capacita a tu equipo.{' '}
           <span
             className="bg-clip-text text-transparent"
@@ -89,16 +90,16 @@ function Hero() {
           </span>
         </h1>
 
-        <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+        <p className="mx-auto mt-6 max-w-2xl animate-fade-up delay-200 text-lg leading-relaxed text-muted-foreground">
           Crea cursos, asigna capacitaciones y mide el progreso de cada colaborador
           desde una sola plataforma — sin importar el tamaño de tu organización.
         </p>
 
         {/* CTAs */}
-        <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <div className="mt-9 flex animate-fade-up delay-300 flex-col items-center justify-center gap-3 sm:flex-row">
           <Link href="/register"
             className="group relative w-full overflow-hidden rounded-2xl px-8 py-4 text-base font-semibold text-white transition-all hover:scale-[1.03] hover:shadow-lg active:scale-[0.97] sm:w-auto"
-            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 6px 28px rgba(30,79,122,0.28)' }}>
+            style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 6px 28px color-mix(in srgb, var(--tenant-primary) 28%, transparent)' }}>
             <span className="relative z-10">Comenzar gratis</span>
             <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
           </Link>
@@ -243,7 +244,7 @@ function Stats() {
       <div className="mx-auto max-w-5xl grid grid-cols-2 gap-8 sm:grid-cols-4">
         {STATS.map(({ value, label, color }) => (
           <div key={label} className="text-center">
-            <div className="text-4xl font-semibold tracking-tight sm:text-5xl bg-clip-text text-transparent"
+            <div className="font-display text-4xl font-normal tracking-tight sm:text-5xl bg-clip-text text-transparent"
               style={{ backgroundImage: `linear-gradient(135deg, ${color}, ${color}BB)` }}>
               {value}
             </div>
@@ -298,7 +299,7 @@ function Features() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-14 text-center">
           <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground/40">Características</p>
-          <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          <h2 className="font-display text-3xl font-normal tracking-tight text-foreground sm:text-4xl">
             Todo lo que necesita tu empresa
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
@@ -383,7 +384,7 @@ function Pricing() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-14 text-center">
           <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground/40">Precios</p>
-          <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          <h2 className="font-display text-3xl font-normal tracking-tight text-foreground sm:text-4xl">
             Planes para cada etapa
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
@@ -424,7 +425,7 @@ function Pricing() {
                   {plan.name}
                 </p>
                 <div className="mt-3 flex items-baseline gap-1">
-                  <span className={`text-4xl font-semibold tracking-tight ${plan.highlighted ? 'text-white' : 'text-foreground'}`}>
+                  <span className={`font-display text-4xl font-normal tracking-tight ${plan.highlighted ? 'text-white' : 'text-foreground'}`}>
                     {plan.price}
                   </span>
                   <span className={`text-sm font-medium ${plan.highlighted ? 'text-white/40' : 'text-muted-foreground'}`}>
@@ -459,7 +460,7 @@ function Pricing() {
                   className="block w-full rounded-xl py-3.5 text-center text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
                   style={plan.highlighted
                     ? { background: 'linear-gradient(135deg, #7FD1AE, #A8E6CF)', color: '#0B1F2A', boxShadow: '0 4px 20px rgba(127,209,174,0.3)' }
-                    : { background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', color: '#fff', boxShadow: '0 2px 12px rgba(30,79,122,0.2)' }}>
+                    : { background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', color: '#fff', boxShadow: '0 2px 12px color-mix(in srgb, var(--tenant-primary) 20%, transparent)' }}>
                   {plan.cta}
                 </Link>
               </div>

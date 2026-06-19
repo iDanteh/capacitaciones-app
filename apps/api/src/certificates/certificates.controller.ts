@@ -13,6 +13,7 @@ import { CertificatesService } from './certificates.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Certificados')
 @Controller('certificates')
@@ -22,12 +23,14 @@ export class CertificatesController {
   // ── Rutas públicas (sin autenticación) ────────────────────────────────────
 
   @Get('verify/:uuid')
+  @Public()
   @ApiOperation({ summary: 'Verificar autenticidad de un certificado (público)' })
   verify(@Param('uuid') uuid: string) {
     return this.service.verifyByUuid(uuid);
   }
 
   @Get('verify/:uuid/download')
+  @Public()
   @ApiOperation({ summary: 'Descargar PDF de un certificado por UUID público' })
   async downloadByUuid(@Param('uuid') uuid: string, @Res() res: Response) {
     const buffer = await this.service.downloadPdfByUuid(uuid);

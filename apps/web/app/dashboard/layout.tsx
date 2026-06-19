@@ -90,7 +90,6 @@ function NavItem({ item, active, onClick, accentColor }: {
   item: AnyNavItem; active: boolean; onClick?: () => void; accentColor?: string;
 }) {
   const accent = accentColor ?? '#1E4F7A';
-  const softAccent = accentColor ? `${accentColor}18` : undefined;
 
   return (
     <Link
@@ -98,15 +97,21 @@ function NavItem({ item, active, onClick, accentColor }: {
       onClick={onClick}
       className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
         active
-          ? 'text-foreground bg-[rgba(220,233,244,0.65)] dark:bg-white/[0.08]'
+          ? 'text-foreground'
           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       }`}
-      style={active && accentColor ? { background: `${accentColor}28` } : undefined}
+      style={active ? {
+        background:  `${accent}20`,
+        boxShadow:   'inset 0 1px 0 rgba(255,255,255,0.05)',
+      } : undefined}
     >
       {active && (
         <span
-          className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full"
-          style={{ background: `linear-gradient(180deg, ${accent}, ${accent}88)` }}
+          className="absolute left-0 top-1/2 h-[18px] w-[2px] -translate-y-1/2 rounded-r-full"
+          style={{
+            background: `linear-gradient(180deg, ${accent}, ${accent}88)`,
+            boxShadow:  `0 0 8px ${accent}80`,
+          }}
         />
       )}
       <Icon
@@ -389,7 +394,7 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
                         >
                           <div
                             className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md text-[9px] font-bold text-white"
-                            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                            style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
                           >
                             {c.name.charAt(0).toUpperCase()}
                           </div>
@@ -497,11 +502,22 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
       <div className="flex-shrink-0 border-t border-border p-3">
         <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-muted/50 transition-colors">
           <Link href="/dashboard/profile" className="flex flex-1 items-center gap-3 min-w-0">
-            <div
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
-              style={{ background: 'linear-gradient(135deg, #DCE9F4, #8FC4E830)', color: 'var(--tenant-primary)' }}
-            >
-              {initials}
+            <div className="relative flex-shrink-0">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold"
+                style={{
+                  background: 'linear-gradient(135deg, var(--tenant-primary)22, var(--tenant-primary)08)',
+                  color: 'var(--tenant-primary)',
+                  boxShadow: '0 0 0 1.5px var(--background), 0 0 0 3px var(--tenant-primary), 0 0 8px var(--tenant-primary)40',
+                }}
+              >
+                {initials}
+              </div>
+              <span
+                className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card"
+                style={{ background: '#10B981' }}
+                aria-label="En línea"
+              />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold leading-tight text-foreground">
@@ -538,11 +554,13 @@ function DesktopHeader({ user, onSearchOpen }: { user: UserData | null; onSearch
       <button
         type="button"
         onClick={onSearchOpen}
-        className="flex flex-1 max-w-sm items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 py-2 text-sm text-muted-foreground/60 hover:border-capta-deep/20 transition-colors cursor-text select-none"
+        className="group flex flex-1 max-w-sm items-center gap-2.5 rounded-xl border border-border bg-background/80 dark:bg-card/50 px-3.5 py-2 text-sm text-muted-foreground/50 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[inset_0_1px_3px_rgba(0,0,0,0.2)] hover:border-capta-soft/30 hover:shadow-[inset_0_1px_2px_rgba(0,0,0,0.04),0_0_0_3px_rgba(143,196,232,0.06)] transition-all duration-200 cursor-text select-none"
       >
-        <Icon name="search" size={13} className="flex-shrink-0" />
+        <Icon name="search" size={13} className="flex-shrink-0 transition-colors group-hover:text-muted-foreground/70" />
         <span className="flex-1 text-left text-[13px]">Buscar cursos, personas, certificados...</span>
-        <kbd className="hidden sm:flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/50 font-mono">⌘K</kbd>
+        <kbd className="hidden sm:flex items-center gap-0.5 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/40 font-mono shadow-[0_1px_0_rgba(0,0,0,0.08)]">
+          <span>⌘</span><span>K</span>
+        </kbd>
       </button>
 
       {/* Right actions */}
@@ -555,14 +573,17 @@ function DesktopHeader({ user, onSearchOpen }: { user: UserData | null; onSearch
         {isAdmin && (
           <Link
             href="/dashboard/courses/new"
-            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.97]"
+            className="group relative flex items-center gap-2 overflow-hidden rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.97]"
             style={{
-              background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
-              boxShadow: '0 2px 10px rgba(30,79,122,0.25)',
+              background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)',
+              boxShadow: '0 2px 10px color-mix(in srgb, var(--tenant-primary) 35%, transparent)',
             }}
           >
-            <Icon name="plus" size={14} />
-            Nuevo curso
+            <span className="relative z-10 flex items-center gap-2">
+              <Icon name="plus" size={14} />
+              Nuevo curso
+            </span>
+            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
           </Link>
         )}
 

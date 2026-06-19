@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/capta-icon';
+import { useCountUp } from '@/hooks/useCountUp';
 import { api } from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -85,10 +86,29 @@ interface TenantMe {
 
 // ─── Animation variants ───────────────────────────────────────────────────────
 
-const container = { animate: { transition: { staggerChildren: 0.07 } } };
-const item = {
-  initial: { opacity: 0, y: 14 },
-  animate: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 28 } },
+const container = {
+  animate: { transition: { delayChildren: 0.12, staggerChildren: 0.06 } },
+};
+
+// Stat cards — spring físico
+const statItem = {
+  initial: { opacity: 0, y: 12, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1,
+    transition: { type: 'spring' as const, stiffness: 400, damping: 30 } },
+};
+
+// Contenido secundario (onboarding, acciones) — ease suave
+const contentItem = {
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0,
+    transition: { duration: 0.45, ease: [0.25, 0.1, 0.25, 1] as [number,number,number,number] } },
+};
+
+// Elementos ambientales (activity, cursos activos) — fade sin desplazamiento
+const ambientItem = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1,
+    transition: { duration: 0.5, ease: 'easeOut' as const } },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -154,44 +174,73 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
   );
 }
 
+// ─── Animated number value ────────────────────────────────────────────────────
+
+function AnimatedValue({ value, loading }: { value: string | number; loading?: boolean }) {
+  const isNumber = typeof value === 'number' && !loading;
+  const count    = useCountUp(isNumber ? (value as number) : 0);
+  if (loading)             return <span className="opacity-30">—</span>;
+  if (typeof value === 'string') return <>{value}</>;
+  return <>{count.toLocaleString('es-MX')}</>;
+}
+
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
 function StatCard({
   label, value, iconName, accent, loading, sparkData,
+  variant  = 'default',
+  className = '',
 }: {
-  label:      string;
-  value:      string | number;
-  iconName:   import('@/components/capta-icon').IconName;
-  accent:     string;
-  loading?:   boolean;
-  sparkData?: number[];
+  label:       string;
+  value:       string | number;
+  iconName:    import('@/components/capta-icon').IconName;
+  accent:      string;
+  loading?:    boolean;
+  sparkData?:  number[];
+  variant?:    'hero' | 'default';
+  className?:  string;
 }) {
+  const isHero = variant === 'hero';
+
   return (
     <motion.div
-      variants={item}
-      className="col-span-12 sm:col-span-6 lg:col-span-3 group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition-all duration-200 hover:-translate-y-0.5"
-      style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
+      variants={statItem}
+      className={`group relative overflow-hidden rounded-2xl border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 ${isHero ? 'p-6' : 'p-4'} ${className}`}
+      style={{
+        boxShadow: isHero
+          ? '0 1px 0 rgba(255,255,255,0.6) inset, 0 12px 32px rgba(11,31,42,0.07)'
+          : '0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 12px rgba(11,31,42,0.04)',
+      }}
     >
-      <div
-        className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-20"
-        style={{ background: accent }}
-      />
+      {/* Ambient glow — hero only */}
+      {isHero && (
+        <div
+          className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full opacity-[0.07] blur-3xl transition-opacity duration-500 group-hover:opacity-[0.12]"
+          style={{ background: accent }}
+        />
+      )}
 
+      {/* Icon */}
       <div
-        className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl"
+        className={`inline-flex items-center justify-center rounded-xl ${isHero ? 'h-9 w-9 mb-4' : 'h-7 w-7 mb-3'}`}
         style={{ background: `${accent}18`, color: accent, border: `1px solid ${accent}22` }}
       >
-        <Icon name={iconName} size={16} />
+        <Icon name={iconName} size={isHero ? 16 : 14} />
       </div>
 
-      <div className={`text-2xl font-semibold tracking-tight text-foreground ${loading ? 'opacity-30' : ''}`}>
-        {loading ? '—' : value}
+      {/* Value */}
+      <div className={`font-display font-normal tracking-tight leading-none text-foreground ${isHero ? 'text-5xl' : 'text-[2rem]'}`}>
+        <AnimatedValue value={value} loading={loading} />
       </div>
-      <div className="mt-0.5 text-xs font-medium text-muted-foreground">{label}</div>
 
-      {/* Sparkline real — solo cuando hay datos y no está cargando */}
-      {sparkData && !loading && (
-        <div className="mt-3 -mx-1">
+      {/* Label */}
+      <div className={`font-medium text-muted-foreground mt-1.5 ${isHero ? 'text-xs' : 'text-[10px] truncate'}`}>
+        {label}
+      </div>
+
+      {/* Sparkline — hero only */}
+      {isHero && sparkData && !loading && (
+        <div className="mt-4 -mx-1">
           <Sparkline data={sparkData} color={accent} />
         </div>
       )}
@@ -227,7 +276,7 @@ function OnboardingCard({
 
   return (
     <motion.div
-      variants={item}
+      variants={contentItem}
       className="col-span-12 overflow-hidden rounded-2xl border border-border bg-card"
       style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
     >
@@ -511,7 +560,7 @@ function ContinueLearningCard({ enrollment }: { enrollment: Enrollment | null })
         <Link
           href="/dashboard/courses"
           className="mt-1 flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white transition-all hover:scale-[1.03]"
-          style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
+          style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 10px color-mix(in srgb, var(--tenant-primary) 25%, transparent)' }}
         >
           <Icon name="search" size={13} /> Explorar cursos
         </Link>
@@ -575,7 +624,7 @@ function ContinueLearningCard({ enrollment }: { enrollment: Enrollment | null })
       <Link
         href={`/dashboard/courses/${enrollment.courseId}/learn`}
         className="mt-auto flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.97]"
-        style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.22)' }}
+        style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 10px color-mix(in srgb, var(--tenant-primary) 22%, transparent)' }}
       >
         <Icon name="play" size={15} />
         {pct === 0 ? 'Comenzar curso' : 'Continuar curso'}
@@ -653,7 +702,7 @@ function MyCertificatesPanel({ certs, loading }: { certs: Certificate[]; loading
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-bold text-white transition-all hover:scale-[1.04]"
-                style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
               >
                 <Icon name="download" size={10} /> Descargar PDF
               </a>
@@ -858,13 +907,18 @@ export default function DashboardPage() {
     <div className="p-6 lg:p-8">
 
       {/* ── Page header ── */}
-      <div className="mb-8">
+      <motion.div
+        className="mb-8"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+      >
         <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground/40">
           {dateES()}
         </p>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            <h1 className="font-display text-4xl font-normal tracking-tight text-foreground">
               {greeting()},{' '}
               <span className="text-capta-deep dark:text-capta-soft">
                 {user?.firstName ?? '…'}
@@ -889,7 +943,7 @@ export default function DashboardPage() {
             </Link>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* ── Bento grid ── */}
       <motion.div
@@ -902,7 +956,10 @@ export default function DashboardPage() {
         {/* ── Stat cards ── */}
         {isAdmin ? (
           <>
+            {/* Hero — métrica principal */}
             <StatCard
+              variant="hero"
+              className="col-span-12 lg:col-span-6"
               label="Usuarios registrados"
               value={usersCount}
               iconName="users"
@@ -910,37 +967,39 @@ export default function DashboardPage() {
               loading={loading}
               sparkData={weekly?.users}
             />
+            {/* Secundarias — 3 cols compactas */}
             <StatCard
-              label="Cursos publicados"
+              className="col-span-4 lg:col-span-2"
+              label="Cursos pub."
               value={publishedCourses}
               iconName="book-open"
               accent="#7FD1AE"
               loading={loading}
-              sparkData={weekly?.courses}
             />
             <StatCard
-              label="Total inscripciones"
+              className="col-span-4 lg:col-span-2"
+              label="Inscripciones"
               value={totalEnrolled}
               iconName="chart-line"
               accent="#8FC4E8"
               loading={loading}
-              sparkData={weekly?.enrollments}
             />
             <StatCard
-              label="Certificados emitidos"
+              className="col-span-4 lg:col-span-2"
+              label="Certificados"
               value={totalCerts ?? '—'}
               iconName="certificate"
               accent="#F59E0B"
               loading={loading && totalCerts === null}
-              sparkData={weekly?.certificates}
             />
           </>
         ) : (
           <>
-            <StatCard label="Cursos inscritos" value={enrollments.length}                              iconName="book-open"   accent="var(--tenant-primary)" loading={loading} />
-            <StatCard label="En progreso"      value={inProgress}                                  iconName="play"        accent="#7FD1AE" loading={loading} />
-            <StatCard label="Completados"      value={completed}                                   iconName="check"       accent="#8FC4E8" loading={loading} />
-            <StatCard label="Certificados"     value={certLoading ? '—' : certificates.length}    iconName="certificate" accent="#F59E0B" loading={loading && certLoading} />
+            {/* Employee — 2×2 en mobile, 4 en fila en desktop */}
+            <StatCard className="col-span-6 lg:col-span-3" label="Inscritos"     value={enrollments.length}                           iconName="book-open"   accent="var(--tenant-primary)" loading={loading} />
+            <StatCard className="col-span-6 lg:col-span-3" label="En progreso"   value={inProgress}                                   iconName="play"        accent="#7FD1AE"               loading={loading} />
+            <StatCard className="col-span-6 lg:col-span-3" label="Completados"   value={completed}                                    iconName="check"       accent="#8FC4E8"               loading={loading} />
+            <StatCard className="col-span-6 lg:col-span-3" label="Certificados"  value={certLoading ? '—' : certificates.length}      iconName="certificate" accent="#F59E0B"               loading={loading && certLoading} />
           </>
         )}
 
@@ -960,7 +1019,7 @@ export default function DashboardPage() {
           <>
             {/* Acciones rápidas */}
             <motion.div
-              variants={item}
+              variants={contentItem}
               className={`col-span-12 ${isOwner ? 'lg:col-span-8' : ''} rounded-2xl border border-border bg-card p-5`}
               style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
             >
@@ -975,14 +1034,14 @@ export default function DashboardPage() {
 
             {/* Plan card — solo OWNER */}
             {isOwner && (
-              <motion.div variants={item} className="col-span-12 lg:col-span-4">
+              <motion.div variants={contentItem} className="col-span-12 lg:col-span-4">
                 <PlanCard data={planData} loading={planLoading} />
               </motion.div>
             )}
 
             {/* Actividad reciente */}
             <motion.div
-              variants={item}
+              variants={ambientItem}
               className="col-span-12 overflow-hidden rounded-2xl border border-border bg-card"
               style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
             >
@@ -1075,7 +1134,7 @@ export default function DashboardPage() {
           <>
             {/* Continuar aprendiendo */}
             <motion.div
-              variants={item}
+              variants={contentItem}
               className="col-span-12 lg:col-span-7 rounded-2xl border border-border bg-card p-5"
               style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
             >
@@ -1091,7 +1150,7 @@ export default function DashboardPage() {
 
             {/* Mis certificados */}
             <motion.div
-              variants={item}
+              variants={contentItem}
               className="col-span-12 lg:col-span-5 rounded-2xl border border-border bg-card p-5"
               style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
             >
@@ -1111,7 +1170,7 @@ export default function DashboardPage() {
               const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
               return activeEnrollments.length > 0 ? (
                 <motion.div
-                  variants={item}
+                  variants={ambientItem}
                   className="col-span-12 rounded-2xl border border-border bg-card p-5"
                   style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px rgba(11,31,42,0.05)' }}
                 >

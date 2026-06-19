@@ -402,7 +402,7 @@ export default function SuperAdminPage() {
                   value={search}
                   onChange={e => { setSearch(e.target.value); setPage(1); }}
                   placeholder="Buscar por nombre o slug..."
-                  className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-4 text-sm outline-none focus:border-capta-deep/40 focus:ring-2 focus:ring-capta-deep/10 placeholder:text-muted-foreground/40"
+                  className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-4 text-sm outline-none focus:border-capta-deep/40 placeholder:text-muted-foreground/40"
                 />
               </div>
 

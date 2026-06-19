@@ -321,7 +321,7 @@ export default function CourseEditorPage() {
               onChange={e => setModuleTitle(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleAddModule(); if (e.key === 'Escape') setAddingModule(false); }}
               placeholder="Ej: Módulo 1 — Fundamentos básicos"
-              className="w-full rounded-xl border border-border bg-background px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft"
+              className="w-full rounded-xl border border-border bg-background px-3.5 py-3 text-sm focus:outline-none focus:border-capta-soft"
             />
             <div className="flex items-center justify-between">
               <button
@@ -334,7 +334,7 @@ export default function CourseEditorPage() {
                 onClick={handleAddModule}
                 disabled={!moduleTitle.trim()}
                 className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 hover:opacity-90 active:scale-[0.97] transition-all"
-                style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
               >
                 <Check size={14} /> Crear módulo
               </button>
@@ -354,7 +354,7 @@ export default function CourseEditorPage() {
           <button
             onClick={() => setAddingModule(true)}
             className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-all"
-            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+            style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
           >
             <Plus size={14} /> Agregar primer módulo
           </button>
@@ -577,9 +577,9 @@ export default function CourseEditorPage() {
                 {editingInfo ? (
                   <div className="space-y-2.5">
                     <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
-                      className="w-full rounded-xl border border-capta-soft/40 bg-background px-3 py-2 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40" />
+                      className="w-full rounded-xl border border-capta-soft/40 bg-background px-3 py-2 text-sm font-bold text-foreground focus:outline-none" />
                     <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} rows={2}
-                      className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40"
+                      className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none"
                       placeholder="Descripción del curso…" />
                     <div className="flex gap-2">
                       <button onClick={() => setEditingInfo(false)}
@@ -588,7 +588,7 @@ export default function CourseEditorPage() {
                       </button>
                       <button onClick={saveInfo} disabled={saving}
                         className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-all"
-                        style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}>
+                        style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}>
                         {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />} Guardar
                       </button>
                     </div>
@@ -734,7 +734,7 @@ export default function CourseEditorPage() {
                   <button
                     onClick={() => setAddingModule(true)}
                     className="mt-1 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-all"
-                    style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 12px rgba(30,79,122,0.25)' }}
+                    style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 12px color-mix(in srgb, var(--tenant-primary) 25%, transparent)' }}
                   >
                     <Plus size={15} /> Agregar primer módulo
                   </button>
@@ -791,23 +791,23 @@ export default function CourseEditorPage() {
                   {editingInfo ? (
                     <div className="space-y-3">
                       <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
-                        className="w-full rounded-xl border border-capta-soft/40 bg-background px-3 py-2.5 text-lg font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40" />
+                        className="w-full rounded-xl border border-capta-soft/40 bg-background px-3 py-2.5 text-lg font-bold text-foreground focus:outline-none" />
                       <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} rows={3}
-                        className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40"
+                        className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none"
                         placeholder="Descripción del curso…" />
                       <div className="flex gap-2">
                         <button onClick={() => setEditingInfo(false)}
                           className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border transition-colors">Cancelar</button>
                         <button onClick={saveInfo} disabled={saving}
                           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-all"
-                          style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}>
+                          style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}>
                           {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Guardar
                         </button>
                       </div>
                     </div>
                   ) : (
                     <>
-                      <h1 className="text-xl font-bold tracking-tight text-foreground">{course.title}</h1>
+                      <h1 className="font-display text-xl font-normal tracking-tight text-foreground">{course.title}</h1>
                       {course.description && <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{course.description}</p>}
                     </>
                   )}

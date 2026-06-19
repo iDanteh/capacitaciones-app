@@ -154,7 +154,7 @@ export default function NewCoursePage() {
                 <BookOpen size={18} className="text-capta-deep dark:text-capta-soft" />
               </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-foreground">Nuevo curso</h1>
+                <h1 className="font-display text-xl font-normal tracking-tight text-foreground">Nuevo curso</h1>
                 <p className="text-sm text-muted-foreground">Completa los datos básicos para comenzar</p>
               </div>
             </div>
@@ -184,7 +184,7 @@ export default function NewCoursePage() {
                 <input
                   {...register('title')}
                   placeholder="Ej: Introducción a Excel para equipos de ventas"
-                  className={`w-full rounded-xl border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft transition-all ${
+                  className={`w-full rounded-xl border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-capta-soft transition-all ${
                     errors.title
                       ? 'border-destructive/60 bg-destructive/5'
                       : 'border-border hover:border-capta-deep/20 dark:hover:border-capta-soft/20'
@@ -207,7 +207,7 @@ export default function NewCoursePage() {
                   {...register('description')}
                   rows={3}
                   placeholder="¿Qué aprenderán los empleados? ¿Cuál es el objetivo del curso?"
-                  className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft transition-all hover:border-capta-deep/20 dark:hover:border-capta-soft/20"
+                  className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-capta-soft transition-all hover:border-capta-deep/20 dark:hover:border-capta-soft/20"
                 />
               </div>
 
@@ -349,8 +349,8 @@ export default function NewCoursePage() {
                   disabled={isLoading}
                   className="flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 hover:scale-[1.02] active:scale-[0.97] transition-all"
                   style={{
-                    background:  'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
-                    boxShadow:   '0 2px 10px rgba(30,79,122,0.25)',
+                    background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)',
+                    boxShadow:  '0 2px 10px color-mix(in srgb, var(--tenant-primary) 25%, transparent)',
                   }}
                 >
                   {isLoading ? (

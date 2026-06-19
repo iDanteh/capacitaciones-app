@@ -1,11 +1,18 @@
 import type { Metadata, Viewport } from 'next';
-import { Geist } from 'next/font/google';
+import { Geist, DM_Serif_Display } from 'next/font/google';
 import { Providers } from './providers';
 import './globals.css';
 
 const geist = Geist({
   subsets: ['latin'],
   variable: '--font-geist',
+  display: 'swap',
+});
+
+const dmSerif = DM_Serif_Display({
+  weight: ['400'],
+  subsets: ['latin'],
+  variable: '--font-dm-serif',
   display: 'swap',
 });
 
@@ -32,7 +39,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" suppressHydrationWarning className={geist.variable}>
+    <html lang="es" suppressHydrationWarning className={`${geist.variable} ${dmSerif.variable}`}>
       <body className={`${geist.className} antialiased`}>
         <Providers>{children}</Providers>
       </body>

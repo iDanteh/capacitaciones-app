@@ -87,7 +87,7 @@ function CreateSubcompanyModal({ onClose, onSuccess }: { onClose: () => void; on
     }
   };
 
-  const inputCls = 'w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15';
+  const inputCls = 'w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -252,7 +252,7 @@ function CreateSubcompanyModal({ onClose, onSuccess }: { onClose: () => void; on
             <button
               type="submit" disabled={loading}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] disabled:opacity-60"
-              style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
+              style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 10px color-mix(in srgb, var(--tenant-primary) 25%, transparent)' }}
             >
               {loading ? <Icon name="refresh" size={15} className="animate-spin" /> : <Icon name="plus" size={15} />}
               {loading ? 'Creando…' : 'Crear empresa'}
@@ -370,7 +370,7 @@ export default function CompaniesPage() {
           <button
             onClick={() => setCreateModal(true)}
             className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
-            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
+            style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 10px color-mix(in srgb, var(--tenant-primary) 25%, transparent)' }}
           >
             <Icon name="plus" size={16} />
             Nueva sub-empresa
@@ -415,7 +415,7 @@ export default function CompaniesPage() {
           <a
             href="/dashboard/subscription"
             className="mt-6 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white"
-            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+            style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
           >
             <Icon name="credit-card" size={14} />
             Ver planes disponibles
@@ -470,7 +470,7 @@ export default function CompaniesPage() {
               <button
                 onClick={() => setCreateModal(true)}
                 className="mt-5 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white"
-                style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
               >
                 <Icon name="plus" size={14} />
                 Crear primera sub-empresa
@@ -496,7 +496,7 @@ export default function CompaniesPage() {
                   {/* Avatar empresa */}
                   <div
                     className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
-                    style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                    style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
                   >
                     {company.name.charAt(0).toUpperCase()}
                   </div>

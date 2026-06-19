@@ -145,7 +145,7 @@ function PricingCard({
           ? 'border-capta-deep/20 dark:border-capta-soft/20 shadow-md'
           : 'border-border'
       }`}
-      style={isCurrent ? { boxShadow: '0 0 0 2px rgba(30,79,122,0.15), 0 8px 24px rgba(30,79,122,0.1)' } : {}}
+      style={isCurrent ? { boxShadow: '0 0 0 2px color-mix(in srgb, var(--tenant-primary) 15%, transparent), 0 8px 24px color-mix(in srgb, var(--tenant-primary) 10%, transparent)' } : {}}
     >
       {/* Acento de color superior */}
       <div
@@ -157,7 +157,10 @@ function PricingCard({
         <div className="absolute right-4 top-4">
           <span
             className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"
-            style={{ background: `linear-gradient(135deg, ${style.accent}, ${style.accent}cc)` }}
+            style={plan.type === 'BUSINESS'
+              ? { background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 80%, transparent) 100%)' }
+              : { background: `linear-gradient(135deg, ${style.accent}, ${style.accent}cc)` }
+            }
           >
             {style.badge}
           </span>
@@ -189,10 +192,10 @@ function PricingCard({
         {/* Precio */}
         <div className="mb-5">
           {price === 0 ? (
-            <p className="text-3xl font-black tracking-tight text-foreground">Gratis</p>
+            <p className="font-display text-3xl font-normal tracking-tight text-foreground">Gratis</p>
           ) : (
             <div className="flex items-end gap-1">
-              <p className="text-3xl font-black tracking-tight text-foreground">{fmtPrice(price)}</p>
+              <p className="font-display text-3xl font-normal tracking-tight text-foreground">{fmtPrice(price)}</p>
               <span className="mb-1 text-sm text-muted-foreground">/mes</span>
             </div>
           )}
@@ -255,10 +258,16 @@ function PricingCard({
               onClick={() => onUpgrade(plan.type)}
               disabled={checkoutLoading}
               className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:opacity-90 active:scale-[0.97] disabled:opacity-60"
-              style={{
-                background:  `linear-gradient(135deg, ${style.accent}, ${style.accent}cc)`,
-                boxShadow:   `0 2px 12px ${style.accent}30`,
-              }}
+              style={plan.type === 'BUSINESS'
+                ? {
+                    background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)',
+                    boxShadow:  '0 2px 12px color-mix(in srgb, var(--tenant-primary) 30%, transparent)',
+                  }
+                : {
+                    background: `linear-gradient(135deg, ${style.accent}, ${style.accent}cc)`,
+                    boxShadow:  `0 2px 12px ${style.accent}30`,
+                  }
+              }
             >
               {checkoutLoading
                 ? <Icon name="refresh" size={14} className="animate-spin" />
@@ -303,9 +312,10 @@ function StorageBar({ usedBytes, totalGb }: { usedBytes: number; totalGb: number
             />
           </div>
           {pct >= 80 && (
-            <p className={`text-xs font-medium ${pct >= 90 ? 'text-red-500' : 'text-amber-600 dark:text-amber-400'}`}>
+            <p className={`flex items-start gap-1.5 text-xs font-medium ${pct >= 90 ? 'text-red-500' : 'text-amber-600 dark:text-amber-400'}`}>
+              <Icon name="alert-triangle" size={12} className="mt-px flex-shrink-0" />
               {pct >= 90
-                ? `⚠ Almacenamiento casi lleno (${pct.toFixed(0)}%). Agrega un pack para evitar interrupciones.`
+                ? `Almacenamiento casi lleno (${pct.toFixed(0)}%). Agrega un pack para evitar interrupciones.`
                 : `Estás usando el ${pct.toFixed(0)}% de tu almacenamiento.`}
             </p>
           )}
@@ -447,8 +457,47 @@ export default function SubscriptionPage() {
 
   if (loading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <Icon name="refresh" size={24} className="animate-spin text-muted-foreground" />
+      <div className="p-6 lg:p-8 space-y-6 animate-pulse">
+        {/* Header skeleton */}
+        <div className="space-y-2">
+          <div className="h-5 w-32 rounded-lg bg-muted" />
+          <div className="h-3.5 w-56 rounded-md bg-muted/60" />
+        </div>
+        {/* Status card skeleton */}
+        <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <div className="h-4 w-24 rounded-md bg-muted" />
+              <div className="h-7 w-40 rounded-lg bg-muted" />
+            </div>
+            <div className="h-7 w-20 rounded-full bg-muted" />
+          </div>
+          <div className="h-px bg-border" />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="h-3 w-16 rounded bg-muted/60" />
+                <div className="h-4 w-24 rounded bg-muted" />
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Plans skeleton */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="rounded-2xl border border-border bg-card overflow-hidden">
+              <div className="h-1 w-full bg-muted" />
+              <div className="p-5 space-y-4">
+                <div className="h-9 w-9 rounded-xl bg-muted" />
+                <div className="h-7 w-20 rounded-lg bg-muted" />
+                <div className="space-y-2">
+                  {[...Array(3)].map((_, j) => <div key={j} className="h-3 w-full rounded bg-muted/60" />)}
+                </div>
+                <div className="h-10 w-full rounded-xl bg-muted" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -470,7 +519,7 @@ export default function SubscriptionPage() {
     );
   }
 
-  const { plan, status, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, totalStorageGb, activeStoragePacks, usedStorageBytes } = subscription;
+  const { plan, status, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, totalStorageGb, activeStoragePacks = [], usedStorageBytes = 0 } = subscription;
   const activePackQty: Record<string, number> = {};
   activeStoragePacks.forEach(p => { activePackQty[p.id] = p.quantity; });
   const showStoragePacks = plan.type !== 'FREE';
@@ -644,7 +693,13 @@ export default function SubscriptionPage() {
           </div>
 
           {availablePacks.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No hay packs disponibles.</p>
+            <div className="flex flex-col items-center gap-2 py-8 text-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                <Icon name="hard-drive" size={18} className="text-muted-foreground/50" />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground">No hay packs disponibles</p>
+              <p className="text-xs text-muted-foreground/50">Los packs de almacenamiento estarán disponibles próximamente.</p>
+            </div>
           ) : (
             <div className="space-y-2">
               {availablePacks.map(pack => (

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon, type IconName } from '@/components/capta-icon';
+import { StatusBadge } from '@/components/status-badge';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/toast';
 
@@ -54,14 +55,6 @@ const listContainer = { animate: { transition: { staggerChildren: 0.04 } } };
 const listItem = {
   initial: { opacity: 0, y: 10 },
   animate: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 28 } },
-};
-
-// ─── Config ───────────────────────────────────────────────────────────────────
-
-const STATUS_CONFIG = {
-  DRAFT:     { label: 'Borrador',  className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
-  PUBLISHED: { label: 'Publicado', className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' },
-  ARCHIVED:  { label: 'Archivado', className: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
 };
 
 // ─── ProgressRing ─────────────────────────────────────────────────────────────
@@ -147,7 +140,6 @@ function AdminCourseCard({ course, onDelete }: {
   course: Course;
   onDelete: (id: string) => Promise<void>;
 }) {
-  const status = STATUS_CONFIG[course.status];
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting]           = useState(false);
 
@@ -179,9 +171,9 @@ function AdminCourseCard({ course, onDelete }: {
         {/* Scrim */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         {/* Status badge */}
-        <span className={`absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${status.className}`}>
-          {status.label}
-        </span>
+        <div className="absolute top-3 left-3">
+          <StatusBadge status={course.status} />
+        </div>
         {/* Lesson chip */}
         <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 backdrop-blur-sm">
           <Icon name="file" size={9} className="text-white/70" />
@@ -228,7 +220,7 @@ function AdminCourseCard({ course, onDelete }: {
                   )}
                   <Link href={`/dashboard/courses/${course.id}`}
                     className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:scale-[1.02]"
-                    style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}>
+                    style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}>
                     <Icon name="edit" size={11} /> Editar
                   </Link>
                 </div>
@@ -262,7 +254,6 @@ function AdminCourseListRow({ course, onDelete }: {
   course: Course;
   onDelete: (id: string) => Promise<void>;
 }) {
-  const status = STATUS_CONFIG[course.status];
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting]           = useState(false);
 
@@ -298,9 +289,9 @@ function AdminCourseListRow({ course, onDelete }: {
       </div>
 
       {/* Status */}
-      <span className={`hidden sm:inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold flex-shrink-0 ${status.className}`}>
-        {status.label}
-      </span>
+      <div className="hidden sm:flex flex-shrink-0">
+        <StatusBadge status={course.status} />
+      </div>
 
       {/* Lessons */}
       <div className="hidden md:flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0 w-[68px]">
@@ -401,7 +392,7 @@ function EmployeeCourseCard({ course, onEnroll }: {
           )}
           {isInProgress && (
             <span className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold text-white shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}>
+              style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}>
               <Icon name="play" size={9} /> En progreso
             </span>
           )}
@@ -454,8 +445,8 @@ function EmployeeCourseCard({ course, onEnroll }: {
               style={{
                 background: isCompleted
                   ? 'linear-gradient(135deg, #16a34a, #22c55e)'
-                  : 'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
-                boxShadow: '0 2px 8px rgba(30,79,122,0.22)',
+                  : 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)',
+                boxShadow: '0 2px 8px color-mix(in srgb, var(--tenant-primary) 22%, transparent)',
               }}
             >
               <Icon name="play" size={12} />
@@ -622,7 +613,7 @@ export default function CoursesPage() {
         placeholder="Buscar cursos..."
         value={searchInput}
         onChange={e => setSearchInput(e.target.value)}
-        className="w-full rounded-xl border border-border bg-background pl-9 pr-9 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft/60 transition-all"
+        className="w-full rounded-xl border border-border bg-background pl-9 pr-9 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-capta-soft/60 transition-all"
       />
       <AnimatePresence>
         {searchInput && (
@@ -664,7 +655,7 @@ export default function CoursesPage() {
             <Link
               href="/dashboard/courses/new"
               className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.97] flex-shrink-0 self-start"
-              style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
+              style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 10px color-mix(in srgb, var(--tenant-primary) 25%, transparent)' }}
             >
               <Icon name="plus" size={15} /> Nuevo curso
             </Link>
@@ -712,7 +703,7 @@ export default function CoursesPage() {
               <select
                 value={sortBy}
                 onChange={e => setSortBy(e.target.value as SortBy)}
-                className="appearance-none h-10 rounded-xl border border-border bg-background pl-3 pr-8 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft/60 transition-all cursor-pointer"
+                className="appearance-none h-10 rounded-xl border border-border bg-background pl-3 pr-8 text-xs font-medium text-foreground focus:outline-none focus:border-capta-soft/60 transition-all cursor-pointer"
               >
                 {SORT_OPTIONS.map(o => (
                   <option key={o.key} value={o.key}>{o.label}</option>
@@ -751,7 +742,7 @@ export default function CoursesPage() {
                     ? 'text-white shadow-sm'
                     : 'border border-border bg-background text-muted-foreground hover:text-foreground hover:border-capta-deep/30'
                 }`}
-                style={adminFilter === tab.key ? { background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' } : {}}
+                style={adminFilter === tab.key ? { background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' } : {}}
               >
                 {tab.label}
                 <span className={`rounded-full px-1.5 text-[10px] font-bold min-w-[18px] text-center leading-[18px] ${
@@ -796,7 +787,7 @@ export default function CoursesPage() {
                 canCreate && !search && adminFilter === 'ALL' ? (
                   <Link href="/dashboard/courses/new"
                     className="mt-1 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02]"
-                    style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}>
+                    style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 10px color-mix(in srgb, var(--tenant-primary) 25%, transparent)' }}>
                     <Icon name="plus" size={15} /> Crear primer curso
                   </Link>
                 ) : (search || adminFilter !== 'ALL' || sortBy !== 'newest') ? (
@@ -890,7 +881,7 @@ export default function CoursesPage() {
                   ? 'text-white shadow-sm'
                   : 'border border-border bg-background text-muted-foreground hover:text-foreground hover:border-capta-deep/30'
               }`}
-              style={employeeFilter === tab.key ? { background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' } : {}}>
+              style={employeeFilter === tab.key ? { background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' } : {}}>
               {tab.label}
               <span className={`rounded-full px-1.5 text-[10px] font-bold min-w-[18px] text-center leading-[18px] ${
                 employeeFilter === tab.key ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'

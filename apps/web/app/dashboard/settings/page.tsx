@@ -357,9 +357,8 @@ function ColorPicker({
           maxLength={7}
           className="flex-1 rounded-[8px] border border-border bg-muted/60 px-2.5 py-1.5 text-[12px] font-mono text-foreground
             placeholder:text-muted-foreground/40
-            focus:outline-none focus:ring-2 focus:ring-capta-deep/20 focus:border-capta-deep/30
-            dark:focus:ring-capta-soft/20 dark:focus:border-capta-soft/30
-            transition-shadow"
+            focus:outline-none focus:border-capta-deep/30 dark:focus:border-capta-soft/30
+            transition-all"
         />
         {isValidHex(custom) && custom !== value && (
           <button
@@ -468,9 +467,8 @@ function FieldLabel({
 const INPUT_CLS = `
   w-full rounded-[12px] border border-border bg-muted/40 px-3 py-2.5 text-[13px] text-foreground
   placeholder:text-muted-foreground/40
-  focus:outline-none focus:ring-2 focus:ring-capta-deep/10 focus:border-capta-deep/30
-  dark:focus:ring-capta-soft/20 dark:focus:border-capta-soft/30
-  transition-shadow
+  focus:outline-none focus:border-capta-deep/30 dark:focus:border-capta-soft/30
+  transition-all
 `.trim();
 
 // ─── Página ───────────────────────────────────────────────────────────────────

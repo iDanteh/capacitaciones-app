@@ -176,11 +176,12 @@ model User {
   /// Soft delete — requerido por GDPR/compliance. El email se anonimiza aparte.
   deletedAt DateTime?
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id])
-  refreshTokens RefreshToken[]
-  sentInvites   UserInvite[]  @relation("SentInvites")
-  courses       Course[]      @relation("CourseAuthor")
-  enrollments   Enrollment[]
+  tenant               Tenant                  @relation(fields: [tenantId], references: [id])
+  refreshTokens        RefreshToken[]
+  passwordResetRequests PasswordResetRequest[]
+  sentInvites          UserInvite[]            @relation("SentInvites")
+  courses              Course[]                @relation("CourseAuthor")
+  enrollments          Enrollment[]
 
   /// El email es único DENTRO de un tenant, no globalmente.
   @@unique([tenantId, email])
@@ -208,6 +209,24 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+/// Token de un solo uso para recuperación de contraseña. Expira en 1 hora.
+model PasswordResetRequest {
+  id        String    @id @default(cuid())
+  userId    String
+  /// Hash SHA-256 del token. El token raw solo viaja por email — nunca se persiste.
+  tokenHash String    @unique
+  expiresAt DateTime
+  /// Null = no utilizado todavía. Populated = ya fue utilizado (no reutilizable).
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_requests")
 }
 
 /// Suscripción activa de un tenant a un plan.
@@ -261,6 +280,18 @@ model UserInvite {
   @@unique([tenantId, email])
   @@index([tenantId])
   @@map("user_invites")
+}
+
+/// Registro de eventos de Stripe ya procesados para garantizar idempotencia en webhooks.
+/// Stripe puede enviar el mismo evento más de una vez en reintentos.
+model ProcessedStripeEvent {
+  id             String   @id @default(cuid())
+  stripeEventId  String   @unique
+  eventType      String
+  processedAt    DateTime @default(now())
+
+  @@index([processedAt])
+  @@map("processed_stripe_events")
 }
 
 // ─── STORAGE ADD-ONS ──────────────────────────────────────────────────────────

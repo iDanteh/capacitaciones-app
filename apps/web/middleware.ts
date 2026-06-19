@@ -30,6 +30,11 @@ const COOKIE_NAME    = 'tenant_domain_slug';
 const KNOWN_MAX_AGE  = 60 * 60;   // 1 hora  — dominio conocido
 const UNKNOWN_MAX_AGE = 60 * 5;   // 5 min   — dominio no registrado
 
+// Cookie hint de sesión — seteada por el backend junto con __rt en login/register/refresh.
+// path '/' para que sea visible en todas las rutas del middleware (a diferencia de
+// __rt que tiene path '/api/v1/auth' y no lo envía el browser en requests al frontend).
+const SESSION_HINT = '__auth';
+
 function isMainHost(hostname: string): boolean {
   return (
     MAIN_HOSTS.has(hostname) ||
@@ -40,8 +45,19 @@ function isMainHost(hostname: string): boolean {
 }
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
+  const { pathname } = request.nextUrl;
   const host     = request.headers.get('host') ?? '';
   const hostname = host.split(':')[0].toLowerCase();
+
+  // ── Protección de rutas del dashboard ─────────────────────────────────────
+  // Si el refresh token no existe, el usuario no tiene sesión — redirigir al login.
+  // El token de acceso vive en memoria del cliente, así que el __rt es el único
+  // indicador persistente de sesión accesible en el middleware.
+  if (pathname.startsWith('/dashboard') && !request.cookies.has(SESSION_HINT)) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
 
   // 1. Dominio principal → pasar sin hacer nada
   if (isMainHost(hostname)) return NextResponse.next();

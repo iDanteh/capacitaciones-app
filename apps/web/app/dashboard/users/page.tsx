@@ -435,7 +435,7 @@ function BulkImportModal({ onClose, onSuccess }: { onClose: () => void; onSucces
               </button>
               <button disabled={validRows.length === 0} onClick={handleSubmit}
                 className="flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold text-white transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}>
+                style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 10px color-mix(in srgb, var(--tenant-primary) 25%, transparent)' }}>
                 <Icon name="mail" size={14} />
                 Enviar {validRows.length} invitación{validRows.length !== 1 ? 'es' : ''}
               </button>
@@ -490,7 +490,7 @@ function BulkImportModal({ onClose, onSuccess }: { onClose: () => void; onSucces
             </div>
             <div className="flex justify-end border-t border-border px-6 py-4">
               <button onClick={onClose} className="rounded-xl px-5 py-2 text-sm font-semibold text-white"
-                style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}>
+                style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}>
                 Cerrar
               </button>
             </div>
@@ -563,27 +563,27 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             <label className="block text-sm font-medium text-foreground">Email</label>
             <input type="email" required placeholder="usuario@empresa.com" value={form.email}
               onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-              className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15" />
+              className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-foreground">Nombre</label>
               <input required placeholder="Juan" value={form.firstName}
                 onChange={e => setForm(p => ({ ...p, firstName: e.target.value }))}
-                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15" />
+                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50" />
             </div>
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-foreground">Apellido</label>
               <input required placeholder="Pérez" value={form.lastName}
                 onChange={e => setForm(p => ({ ...p, lastName: e.target.value }))}
-                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15" />
+                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all focus:border-capta-soft/50" />
             </div>
           </div>
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-foreground">Rol</label>
             <div className="relative">
               <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value as UserRole }))}
-                className="w-full appearance-none rounded-xl border border-border bg-background px-4 py-2.5 pr-10 text-sm text-foreground outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15 cursor-pointer">
+                className="w-full appearance-none rounded-xl border border-border bg-background px-4 py-2.5 pr-10 text-sm text-foreground outline-none transition-all focus:border-capta-soft/50 cursor-pointer">
                 {INVITABLE_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
               <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50">
@@ -598,7 +598,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             </button>
             <button type="submit" disabled={loading}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
-              style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}>
+              style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 10px color-mix(in srgb, var(--tenant-primary) 25%, transparent)' }}>
               {loading ? <Icon name="refresh" size={15} className="animate-spin" /> : <Icon name="mail" size={15} />}
               {loading ? 'Enviando…' : 'Enviar invitación'}
             </button>
@@ -1123,7 +1123,7 @@ export default function UsersPage() {
           </button>
           <button onClick={() => setInviteModal(true)}
             className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
-            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}>
+            style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 10px color-mix(in srgb, var(--tenant-primary) 25%, transparent)' }}>
             <Icon name="user-plus" size={16} /> Invitar usuario
           </button>
         </div>
@@ -1182,7 +1182,7 @@ export default function UsersPage() {
                 placeholder="Buscar por nombre o email…"
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
-                className="w-full rounded-xl border border-border bg-background pl-9 pr-9 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft/60 transition-all"
+                className="w-full rounded-xl border border-border bg-background pl-9 pr-9 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-capta-soft/60 transition-all"
               />
               <AnimatePresence>
                 {searchInput && (
@@ -1201,7 +1201,7 @@ export default function UsersPage() {
               <select
                 value={roleFilter}
                 onChange={e => setRoleFilter(e.target.value as UserRole | 'ALL')}
-                className="w-full appearance-none rounded-xl border border-border bg-background px-3 py-2.5 pr-8 text-sm text-foreground outline-none transition-all focus:border-capta-soft/50 focus:ring-2 focus:ring-capta-soft/15 cursor-pointer"
+                className="w-full appearance-none rounded-xl border border-border bg-background px-3 py-2.5 pr-8 text-sm text-foreground outline-none transition-all focus:border-capta-soft/50 cursor-pointer"
               >
                 <option value="ALL">Todos los roles</option>
                 {(['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE'] as UserRole[]).map(r => (
@@ -1216,10 +1216,19 @@ export default function UsersPage() {
 
           {/* User list */}
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Icon name="refresh" size={24} className="animate-spin text-muted-foreground" />
+            <div className="space-y-2 animate-pulse">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+                  <div className="h-9 w-9 rounded-full bg-muted flex-shrink-0" />
+                  <div className="flex-1 space-y-1.5 min-w-0">
+                    <div className="h-3.5 w-36 rounded bg-muted" />
+                    <div className="h-3 w-48 rounded bg-muted/60" />
+                  </div>
+                  <div className="h-5 w-16 rounded-full bg-muted flex-shrink-0" />
+                </div>
+              ))}
             </div>
-          ) : !data || filteredUsers.length === 0 ? (
+          ) :!data || filteredUsers.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center gap-3">
               <Icon name="users" size={32} className="text-muted-foreground/40" />
               <div>

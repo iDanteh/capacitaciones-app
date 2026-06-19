@@ -6,6 +6,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TenantsModule } from './tenants/tenants.module';
 import { UsersModule } from './users/users.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
@@ -77,6 +78,9 @@ import { validate } from './config/env.validation';
     SuperAdminModule,        // ✓ Panel SUPER_ADMIN — gestión centralizada de tenants
   ],
   providers: [
+    // JwtAuthGuard global — todas las rutas requieren token por defecto.
+    // Las rutas públicas usan @Public() para optar por salida.
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
     // ThrottlerGuard aplicado globalmente — todas las rutas heredan el límite base.
     // Rutas sensibles usan @Throttle() para límites más restrictivos.
     { provide: APP_GUARD, useClass: ThrottlerGuard },

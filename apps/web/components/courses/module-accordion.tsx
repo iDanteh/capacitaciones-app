@@ -116,9 +116,9 @@ export function ModuleAccordion({
         <div
           className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[7px] text-[11px] font-bold tabular-nums"
           style={{
-            background: 'linear-gradient(135deg, #1E4F7A18, #2D6FA018)',
-            color:      '#1E4F7A',
-            border:     '1px solid #1E4F7A22',
+            background: 'color-mix(in srgb, var(--tenant-primary) 10%, transparent)',
+            color:      'var(--tenant-primary)',
+            border:     '1px solid color-mix(in srgb, var(--tenant-primary) 15%, transparent)',
           }}
         >
           {moduleNumStr}
@@ -136,7 +136,7 @@ export function ModuleAccordion({
                   if (e.key === 'Enter') handleSaveTitle();
                   if (e.key === 'Escape') { setEditingTitle(false); setTitleInput(module.title); }
                 }}
-                className="flex-1 rounded-lg border border-capta-soft/40 bg-background px-2.5 py-1.5 text-[14px] font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40"
+                className="flex-1 rounded-lg border border-capta-soft/40 bg-background px-2.5 py-1.5 text-[14px] font-semibold text-foreground focus:outline-none"
               />
               <button
                 onClick={handleSaveTitle}
@@ -313,7 +313,7 @@ export function ModuleAccordion({
                         lessonType === 'TEXT'  ? 'Ej: Fundamentos teóricos' :
                         'Ej: Material de referencia PDF'
                       }
-                      className="w-full rounded-xl border border-border bg-background px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft"
+                      className="w-full rounded-xl border border-border bg-background px-3.5 py-3 text-sm focus:outline-none focus:border-capta-soft"
                     />
 
                     <div className="flex items-center justify-between">
@@ -327,7 +327,7 @@ export function ModuleAccordion({
                         onClick={handleAddLesson}
                         disabled={!lessonTitle.trim() || saving}
                         className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.97]"
-                        style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                        style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
                       >
                         {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
                         Crear lección

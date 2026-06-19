@@ -2,6 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { HealthCheck, HealthCheckService, MemoryHealthIndicator } from '@nestjs/terminus';
 import { DatabaseHealthIndicator } from '../database/database.health';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Health')
 @Controller({ path: 'health', version: '1' })
@@ -13,6 +14,7 @@ export class HealthController {
   ) {}
 
   @Get()
+  @Public()
   @HealthCheck()
   @ApiOperation({ summary: 'Verifica el estado de la API y sus dependencias' })
   check() {

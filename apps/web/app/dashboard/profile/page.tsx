@@ -84,7 +84,7 @@ function AvatarUpload({ avatarUrl, initials, onUploaded }: {
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         className="relative h-[88px] w-[88px] rounded-full overflow-hidden transition-transform duration-200 hover:scale-[1.04] active:scale-[0.97]"
-        style={{ boxShadow: '0 0 0 3px rgba(255,255,255,0.9), 0 4px 20px rgba(30,79,122,0.22), 0 0 0 4px rgba(30,79,122,0.10)' }}
+        style={{ boxShadow: '0 0 0 3px rgba(255,255,255,0.9), 0 4px 20px color-mix(in srgb, var(--tenant-primary) 22%, transparent), 0 0 0 4px color-mix(in srgb, var(--tenant-primary) 10%, transparent)' }}
       >
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -459,7 +459,7 @@ export default function ProfilePage() {
                       onChange={e => setFirstName(e.target.value)}
                       maxLength={100}
                       placeholder="Tu nombre"
-                      className="w-full rounded-xl border border-border/70 bg-background/60 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-capta-deep/15 dark:focus:ring-capta-soft/15 transition-shadow"
+                      className="w-full rounded-xl border border-border/70 bg-background/60 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none transition-shadow"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -472,7 +472,7 @@ export default function ProfilePage() {
                       onChange={e => setLastName(e.target.value)}
                       maxLength={100}
                       placeholder="Tu apellido"
-                      className="w-full rounded-xl border border-border/70 bg-background/60 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-capta-deep/15 dark:focus:ring-capta-soft/15 transition-shadow"
+                      className="w-full rounded-xl border border-border/70 bg-background/60 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none transition-shadow"
                     />
                   </div>
                 </div>
@@ -504,8 +504,8 @@ export default function ProfilePage() {
                         disabled={savingProfile}
                         className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:shadow-lg active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                         style={{
-                          background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
-                          boxShadow: '0 4px 16px rgba(30,79,122,0.30)',
+                          background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)',
+                          boxShadow: '0 4px 16px color-mix(in srgb, var(--tenant-primary) 30%, transparent)',
                         }}
                       >
                         {savingProfile
@@ -580,7 +580,7 @@ export default function ProfilePage() {
                             value={currentPwd}
                             onChange={e => setCurrentPwd(e.target.value)}
                             placeholder="••••••••"
-                            className="w-full rounded-xl border border-border/70 bg-background/60 px-4 py-2.5 pr-10 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-capta-deep/15 dark:focus:ring-capta-soft/15"
+                            className="w-full rounded-xl border border-border/70 bg-background/60 px-4 py-2.5 pr-10 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none"
                           />
                           <button
                             type="button"
@@ -603,7 +603,7 @@ export default function ProfilePage() {
                             value={newPwd}
                             onChange={e => setNewPwd(e.target.value)}
                             placeholder="Mín. 8 chars…"
-                            className="w-full rounded-xl border border-border/70 bg-background/60 px-4 py-2.5 pr-10 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-capta-deep/15 dark:focus:ring-capta-soft/15"
+                            className="w-full rounded-xl border border-border/70 bg-background/60 px-4 py-2.5 pr-10 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none"
                           />
                           <button
                             type="button"
@@ -636,10 +636,10 @@ export default function ProfilePage() {
                           value={confirmPwd}
                           onChange={e => setConfirmPwd(e.target.value)}
                           placeholder="Repite la contraseña"
-                          className={`w-full rounded-xl border bg-background/60 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-2 transition-shadow ${
+                          className={`w-full rounded-xl border bg-background/60 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none transition-all ${
                             confirmPwd && confirmPwd !== newPwd
-                              ? 'border-red-300 dark:border-red-700 focus:ring-red-500/15'
-                              : 'border-border/70 focus:ring-capta-deep/15 dark:focus:ring-capta-soft/15'
+                              ? 'border-red-300 dark:border-red-700'
+                              : 'border-border/70'
                           }`}
                         />
                         {confirmPwd && confirmPwd !== newPwd && (
@@ -652,7 +652,7 @@ export default function ProfilePage() {
                           onClick={handleChangePassword}
                           disabled={savingPwd || !currentPwd || !newPwd || newPwd !== confirmPwd}
                           className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold text-white transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
-                          style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
+                          style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 10px color-mix(in srgb, var(--tenant-primary) 25%, transparent)' }}
                         >
                           {savingPwd
                             ? <><Icon name="refresh" size={12} className="animate-spin" /> Actualizando…</>
@@ -718,7 +718,7 @@ export default function ProfilePage() {
                       onClick={handleMfaSetup}
                       disabled={mfaLoading}
                       className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold text-white transition-all hover:scale-[1.02] hover:shadow-md disabled:opacity-50"
-                      style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                      style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
                     >
                       {mfaLoading
                         ? <Icon name="refresh" size={12} className="animate-spin" />
@@ -764,7 +764,7 @@ export default function ProfilePage() {
                               value={mfaCode}
                               onChange={e => { setMfaCode(e.target.value.replace(/\D/g, '')); setMfaError(''); }}
                               placeholder="000 000"
-                              className="w-full rounded-xl border border-border/70 bg-background/60 px-4 py-2.5 text-center font-mono text-xl tracking-[0.5em] text-foreground focus:outline-none focus:ring-2 focus:ring-capta-deep/15"
+                              className="w-full rounded-xl border border-border/70 bg-background/60 px-4 py-2.5 text-center font-mono text-xl tracking-[0.5em] text-foreground focus:outline-none"
                               autoFocus
                             />
                             {mfaError && <p className="text-[11px] text-destructive">{mfaError}</p>}
@@ -777,7 +777,7 @@ export default function ProfilePage() {
                                 onClick={handleMfaConfirm}
                                 disabled={mfaLoading || mfaCode.length !== 6}
                                 className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold text-white disabled:opacity-40 transition-all hover:scale-[1.02]"
-                                style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                                style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
                               >
                                 {mfaLoading ? <Icon name="refresh" size={12} className="animate-spin" /> : <Icon name="check" size={12} />}
                                 Confirmar

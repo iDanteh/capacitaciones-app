@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { StorageService } from './storage.service';
 import { PresignedUploadDto } from './dto/presigned-upload.dto';
@@ -6,6 +6,13 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 import * as crypto from 'crypto';
+
+const ALLOWED_EXTENSIONS: Record<string, Set<string>> = {
+  thumbnails: new Set(['jpg', 'jpeg', 'png', 'webp', 'gif']),
+  avatars:    new Set(['jpg', 'jpeg', 'png', 'webp']),
+  logos:      new Set(['jpg', 'jpeg', 'png', 'webp', 'svg']),
+  lessons:    new Set(['mp4', 'webm', 'mov', 'pdf', 'zip']),
+};
 
 @ApiTags('Storage')
 @ApiBearerAuth()
@@ -29,7 +36,15 @@ export class StorageController {
     @Body() dto: PresignedUploadDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    const ext    = dto.fileName.split('.').pop() ?? 'bin';
+    const ext = (dto.fileName.split('.').pop() ?? '').toLowerCase();
+    const allowed = ALLOWED_EXTENSIONS[dto.folder];
+    if (!ext || !allowed?.has(ext)) {
+      throw new BadRequestException(
+        `Tipo de archivo no permitido para la carpeta "${dto.folder}". ` +
+        `Permitidos: ${[...(allowed ?? [])].join(', ')}.`,
+      );
+    }
+
     const uuid   = crypto.randomUUID();
     // Los objetos públicos van bajo public/ para que la policy anónima de MinIO los exponga.
     const prefix = dto.isPublic ? 'public' : 'private';

@@ -276,27 +276,27 @@ export function EvaluationEditorTab({ lessonId, tenantHasEval }: { lessonId: str
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
               placeholder="Título del quiz (Ej: Evaluación Módulo 1)"
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft"
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:border-capta-soft"
             />
             <textarea
               value={newInstructions}
               onChange={e => setNewInstructions(e.target.value)}
               rows={2}
               placeholder="Instrucciones para el empleado (opcional)"
-              className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-capta-soft/40"
+              className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground focus:outline-none"
             />
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Puntuación mínima (%)</label>
                 <input type="number" min="0" max="100" value={minScore}
                   onChange={e => setMinScore(Number(e.target.value))}
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40" />
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none" />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Intentos máximos (-1=∞)</label>
                 <input type="number" min="-1" value={maxAttempts}
                   onChange={e => setMaxAttempts(Number(e.target.value))}
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40" />
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none" />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Tiempo límite (min, opcional)</label>
@@ -305,7 +305,7 @@ export function EvaluationEditorTab({ lessonId, tenantHasEval }: { lessonId: str
                   value={timeLimitMin}
                   onChange={e => setTimeLimitMin(e.target.value === '' ? '' : Number(e.target.value))}
                   placeholder="Sin límite"
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40" />
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none" />
               </div>
             </div>
             <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -320,7 +320,7 @@ export function EvaluationEditorTab({ lessonId, tenantHasEval }: { lessonId: str
               onClick={handleCreate}
               disabled={!newTitle.trim() || creating}
               className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.97]"
-              style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+              style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
             >
               {creating ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
               Crear evaluación
@@ -351,27 +351,27 @@ export function EvaluationEditorTab({ lessonId, tenantHasEval }: { lessonId: str
                   value={editTitle}
                   onChange={e => setEditTitle(e.target.value)}
                   placeholder="Título"
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:border-capta-soft"
                 />
                 <textarea
                   value={editInstr}
                   onChange={e => setEditInstr(e.target.value)}
                   rows={2}
                   placeholder="Instrucciones (opcional)"
-                  className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-capta-soft/40"
+                  className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground focus:outline-none"
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-muted-foreground mb-1 block">Puntuación mínima (%)</label>
                     <input type="number" min="0" max="100" value={editMinScore}
                       onChange={e => setEditMinScore(Number(e.target.value))}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-capta-soft/40" />
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none" />
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground mb-1 block">Intentos máximos</label>
                     <input type="number" min="-1" value={editMaxAttempts}
                       onChange={e => setEditMaxAttempts(Number(e.target.value))}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-capta-soft/40" />
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none" />
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground mb-1 block">Tiempo límite (min)</label>
@@ -380,7 +380,7 @@ export function EvaluationEditorTab({ lessonId, tenantHasEval }: { lessonId: str
                       value={editTimeLimitMin}
                       onChange={e => setEditTimeLimitMin(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="Sin límite"
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-capta-soft/40" />
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none" />
                   </div>
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -400,7 +400,7 @@ export function EvaluationEditorTab({ lessonId, tenantHasEval }: { lessonId: str
                     onClick={handleSaveSettings}
                     disabled={!editTitle.trim() || savingSettings}
                     className="flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50 transition-all hover:opacity-90"
-                    style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                    style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
                   >
                     {savingSettings ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                     Guardar
@@ -531,7 +531,7 @@ export function EvaluationEditorTab({ lessonId, tenantHasEval }: { lessonId: str
                         onClick={() => handleApproveReset(req.id)}
                         disabled={processingReqId === req.id}
                         className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg text-white font-semibold transition-all hover:opacity-90 disabled:opacity-50"
-                        style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                        style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
                       >
                         {processingReqId === req.id
                           ? <Loader2 size={10} className="animate-spin" />

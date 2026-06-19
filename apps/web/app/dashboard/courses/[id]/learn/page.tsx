@@ -390,7 +390,7 @@ function QuizPanel({
                   rows={2}
                   maxLength={300}
                   placeholder="Ej: Necesito repasar el material antes de intentarlo de nuevo…"
-                  className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-capta-soft/40"
+                  className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:border-capta-soft/50"
                 />
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] text-muted-foreground">{resetMessage.length}/300</p>
@@ -405,7 +405,7 @@ function QuizPanel({
                       onClick={handleSendResetRequest}
                       disabled={sendingReset}
                       className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60"
-                      style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                      style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
                     >
                       {sendingReset
                         ? <Loader2 size={11} className="animate-spin" />
@@ -432,7 +432,7 @@ function QuizPanel({
           <button
             onClick={handleStart}
             className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.97]"
-            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
+            style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 10px color-mix(in srgb, var(--tenant-primary) 25%, transparent)' }}
           >
             <Zap size={14} />
             {evalData.attemptsUsed > 0 ? 'Intentar de nuevo' : 'Comenzar evaluación'}
@@ -584,7 +584,7 @@ function QuizPanel({
                   onClick={doSubmit}
                   disabled={submitting}
                   className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60"
-                  style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                  style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
                 >
                   {submitting ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
                   Enviar
@@ -605,7 +605,7 @@ function QuizPanel({
             onClick={() => allAnswered && !confirmSubmit && setConfirmSubmit(true)}
             disabled={!allAnswered || submitting || confirmSubmit}
             className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)', boxShadow: '0 2px 10px rgba(30,79,122,0.25)' }}
+            style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)', boxShadow: '0 2px 10px color-mix(in srgb, var(--tenant-primary) 25%, transparent)' }}
           >
             {submitting ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
             {submitting ? 'Enviando…' : 'Enviar respuestas'}
@@ -1089,7 +1089,7 @@ function LessonViewer({
         ) : (
           <a href={fileSignedUrl} download={lesson.fileName}
             className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-all active:scale-[0.97]"
-            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}>
+            style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}>
             <Download size={15} /> Descargar archivo
           </a>
         )}
@@ -1215,7 +1215,7 @@ function LessonViewer({
                 ? 'Debes aprobar la evaluación para continuar'
                 : undefined}
               className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.97]"
-              style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+              style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
             >
               {completing ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
               Marcar como completada
@@ -1520,7 +1520,7 @@ export default function LearnPage() {
                 onClick={handleEnroll}
                 disabled={enrolling}
                 className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-all active:scale-[0.97]"
-                style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+                style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
               >
                 {enrolling ? <Loader2 size={16} className="animate-spin" /> : null}
                 Inscribirme en este curso

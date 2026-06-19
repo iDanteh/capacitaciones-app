@@ -56,7 +56,7 @@ function InputField({
       <input
         {...props}
         className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all
-          focus:border-capta-soft/60 focus:ring-2 focus:ring-capta-soft/12
+          focus:border-capta-soft/60
           ${error
             ? 'border-destructive/60 bg-destructive/5'
             : 'border-border bg-background hover:border-capta-deep/30 dark:hover:border-capta-soft/25'
@@ -120,7 +120,7 @@ function OtpInput({ value, onChange, disabled }: {
           onChange={e => handleChange(i, e)}
           onKeyDown={e => handleKeyDown(i, e)}
           onFocus={e => e.target.select()}
-          className="h-14 w-12 rounded-xl border border-border bg-background text-center text-xl font-bold text-foreground outline-none transition-all focus:border-capta-deep/60 focus:ring-2 focus:ring-capta-deep/12 dark:focus:border-capta-soft/60 dark:focus:ring-capta-soft/12 disabled:opacity-50"
+          className="h-14 w-12 rounded-xl border border-border bg-background text-center text-xl font-bold text-foreground outline-none transition-all focus:border-capta-deep/60 dark:focus:border-capta-soft/60 disabled:opacity-50"
         />
       ))}
     </div>
@@ -287,7 +287,11 @@ export default function LoginPage() {
           <p className="text-sm font-medium text-white/35">
             Capacita, mide y certifica desde una sola plataforma.
           </p>
-          <div className="grid grid-cols-2 gap-3 pt-4">
+          <motion.div
+            className="grid grid-cols-2 gap-3 pt-4"
+            animate={{ y: [0, -6, 0] }}
+            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', repeatType: 'loop' }}
+          >
             {[
               { val: '312', label: 'Colaboradores' },
               { val: '78%', label: 'Tasa completado' },
@@ -296,11 +300,11 @@ export default function LoginPage() {
             ].map((s) => (
               <div key={s.label}
                 className="rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm">
-                <div className="text-xl font-bold text-white/90">{s.val}</div>
+                <div className="font-display text-2xl font-normal tracking-tight text-white/90">{s.val}</div>
                 <div className="text-xs text-white/40">{s.label}</div>
               </div>
             ))}
-          </div>
+          </motion.div>
         </div>
 
         <div className="relative grid grid-cols-4 gap-2 opacity-15">
@@ -342,7 +346,7 @@ export default function LoginPage() {
                 transition={{ type: 'spring', stiffness: 300, damping: 28 }}
               >
                 <div className="mb-8">
-                  <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                  <h1 className="font-display text-2xl font-normal tracking-tight text-foreground">
                     Bienvenido de nuevo
                   </h1>
                   <p className="mt-2 text-sm text-muted-foreground">
@@ -402,7 +406,7 @@ export default function LoginPage() {
                       placeholder="••••••••"
                       autoComplete="current-password"
                       className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all
-                        focus:border-capta-soft/60 focus:ring-2 focus:ring-capta-soft/12
+                        focus:border-capta-soft/60
                         ${errors.password ? 'border-destructive/60 bg-destructive/5' : 'border-border bg-background hover:border-capta-deep/30 dark:hover:border-capta-soft/25'}`}
                       {...register('password')}
                     />
@@ -416,8 +420,8 @@ export default function LoginPage() {
                     disabled={isSubmitting}
                     className="relative w-full overflow-hidden rounded-xl py-3.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                     style={{
-                      background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
-                      boxShadow: '0 4px 20px rgba(30,79,122,0.30)',
+                      background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)',
+                      boxShadow: '0 4px 20px color-mix(in srgb, var(--tenant-primary) 30%, transparent)',
                     }}
                   >
                     {isSubmitting ? (
@@ -463,11 +467,11 @@ export default function LoginPage() {
                 <div className="text-center space-y-2">
                   <div
                     className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl"
-                    style={{ background: 'linear-gradient(135deg, #DCE9F4, #8FC4E830)' }}
+                    style={{ background: 'color-mix(in srgb, var(--tenant-primary) 8%, transparent)' }}
                   >
-                    <Icon name="shield" size={24} style={{ color: '#1E4F7A' }} />
+                    <Icon name="shield" size={24} style={{ color: 'var(--tenant-primary)' }} />
                   </div>
-                  <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                  <h1 className="font-display text-2xl font-normal tracking-tight text-foreground">
                     Verificación en dos pasos
                   </h1>
                   <p className="text-sm text-muted-foreground">
@@ -517,7 +521,7 @@ export default function LoginPage() {
                         onChange={e => { setBackupCode(e.target.value); setMfaError(null); }}
                         placeholder="xxxxxxxx"
                         maxLength={8}
-                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-center text-sm font-mono text-foreground tracking-widest outline-none focus:border-capta-deep/60 focus:ring-2 focus:ring-capta-deep/12"
+                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-center text-sm font-mono text-foreground tracking-widest outline-none focus:border-capta-deep/60 dark:focus:border-capta-soft/60"
                         autoFocus
                       />
                     </motion.div>
@@ -530,8 +534,8 @@ export default function LoginPage() {
                   disabled={mfaLoading || (useBackup ? backupCode.length < 6 : otpCode.length < 6)}
                   className="w-full rounded-xl py-3.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                   style={{
-                    background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
-                    boxShadow: '0 4px 20px rgba(30,79,122,0.30)',
+                    background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)',
+                    boxShadow: '0 4px 20px color-mix(in srgb, var(--tenant-primary) 30%, transparent)',
                   }}
                 >
                   {mfaLoading ? (

@@ -156,7 +156,7 @@ function StatCard({ label, value, sub, iconName, accent }: {
         style={{ background: `${accent}15`, color: accent, border: `1px solid ${accent}20` }}>
         <Icon name={iconName} size={16} />
       </div>
-      <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
+      <p className="font-display text-2xl font-normal tracking-tight text-foreground">{value}</p>
       <p className="mt-0.5 text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide">{label}</p>
       {sub && <p className="mt-1 text-xs text-muted-foreground/50">{sub}</p>}
     </motion.div>
@@ -325,7 +325,7 @@ function WeeklyChart({ data }: { data: ChartPoint[] }) {
                   </linearGradient>
                 ))}
               </defs>
-              <CartesianGrid strokeDasharray="4 4" stroke="rgba(0,0,0,0.05)" vertical={false} />
+              <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false} />
               <XAxis
                 dataKey="date"
                 tick={{ fontSize: 11, fill: '#94A3B8' }}
@@ -703,7 +703,7 @@ export default function AnalyticsPage() {
                   value={empSearch}
                   onChange={e => { setEmpSearch(e.target.value); setEmpPage(1); }}
                   placeholder="Buscar por nombre o email..."
-                  className="w-full rounded-lg border border-border bg-background pl-8 pr-3 py-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-capta-soft/40 focus:border-capta-soft/60 transition-all"
+                  className="w-full rounded-lg border border-border bg-background pl-8 pr-3 py-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:border-capta-soft/60 transition-all"
                 />
               </div>
             </div>

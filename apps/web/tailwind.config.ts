@@ -15,7 +15,8 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ['var(--font-geist)', 'system-ui', 'sans-serif'],
+        sans:    ['var(--font-geist)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-dm-serif)', 'Georgia', 'serif'],
       },
       colors: {
         border:     'hsl(var(--border))',

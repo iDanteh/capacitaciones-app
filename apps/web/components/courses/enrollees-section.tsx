@@ -65,7 +65,7 @@ export function EnrolleesSection({ courseId }: { courseId: string }) {
         {fetched && enrollees.length > 0 && (
           <span
             className="flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold text-white"
-            style={{ background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)' }}
+            style={{ background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)' }}
           >
             {enrollees.length}
           </span>

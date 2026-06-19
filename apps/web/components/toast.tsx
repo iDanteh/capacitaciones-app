@@ -62,9 +62,9 @@ const VARIANT_CONFIG: Record<ToastVariant, {
   },
   info: {
     icon:      'info',
-    accent:    '#1E4F7A',
-    iconBg:    'rgba(30,79,122,0.10)',
-    iconColor: '#1E4F7A',
+    accent:    'var(--tenant-primary)',
+    iconBg:    'color-mix(in srgb, var(--tenant-primary) 10%, transparent)',
+    iconColor: 'var(--tenant-primary)',
   },
 };
 

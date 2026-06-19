@@ -258,7 +258,16 @@ export class SubscriptionsService {
       throw new BadRequestException('Stripe webhook signature inválida');
     }
 
-    this.logger.log(`Webhook recibido: ${event.type}`);
+    this.logger.log(`Webhook recibido: ${event.type} [${event.id}]`);
+
+    // Dedup: si ya procesamos este evento, Stripe lo está reintentando — ignorar.
+    const alreadyProcessed = await this.prisma.processedStripeEvent.findUnique({
+      where: { stripeEventId: event.id },
+    });
+    if (alreadyProcessed) {
+      this.logger.debug(`Stripe event ${event.id} ya procesado — ignorando reintento`);
+      return;
+    }
 
     // Los handlers reciben el objeto como AnyRecord. El tipo real está garantizado por
     // Stripe en runtime (verificación de firma + schema del evento).
@@ -288,6 +297,11 @@ export class SubscriptionsService {
       default:
         this.logger.debug(`Evento no manejado: ${event.type}`);
     }
+
+    // Marcar el evento como procesado para futuros reintentos de Stripe.
+    await this.prisma.processedStripeEvent.create({
+      data: { stripeEventId: event.id, eventType: event.type },
+    });
   }
 
   // ── Handlers privados ───────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import { MfaService } from './mfa.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
+import { EmailModule } from '../email/email.module';
 
 /**
  * Módulo de autenticación.
@@ -19,6 +20,7 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
   imports: [
     PassportModule,
     JwtModule.register({}),
+    EmailModule,
   ],
   providers: [
     AuthService,

@@ -67,8 +67,11 @@ function PasswordStrength({ password }: { password: string }) {
         <div className="flex flex-wrap gap-2.5">
           {checks.map(({ label, ok }) => (
             <span key={label}
-              className={`text-xs transition-colors ${ok ? 'text-emerald-500' : 'text-muted-foreground/40'}`}>
-              {ok ? '✓' : '○'} {label}
+              className={`inline-flex items-center gap-1 text-xs transition-colors ${ok ? 'text-emerald-500' : 'text-muted-foreground/40'}`}>
+              {ok
+                ? <Icon name="check" size={10} className="flex-shrink-0" />
+                : <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full border border-current" />}
+              {label}
             </span>
           ))}
         </div>
@@ -92,7 +95,7 @@ function InputField({
       <label className="block text-sm font-medium text-foreground">{label}</label>
       <input {...props}
         className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all
-          focus:border-capta-soft/60 focus:ring-2 focus:ring-capta-soft/12
+          focus:border-capta-soft/60
           ${error
             ? 'border-destructive/60 bg-destructive/5'
             : 'border-border bg-background hover:border-capta-deep/30 dark:hover:border-capta-soft/25'
@@ -151,7 +154,7 @@ function RegisterForm() {
     <div className="w-full max-w-md">
       {/* Header */}
       <div className="mb-7">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Crea tu cuenta</h1>
+        <h1 className="font-display text-2xl font-normal tracking-tight text-foreground">Crea tu cuenta</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Configura tu empresa y comienza a capacitar a tu equipo.
         </p>
@@ -214,7 +217,7 @@ function RegisterForm() {
             placeholder="Mínimo 8 caracteres"
             autoComplete="new-password"
             className={`w-full rounded-xl border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all
-              focus:border-capta-soft/60 focus:ring-2 focus:ring-capta-soft/12
+              focus:border-capta-soft/60
               ${errors.password ? 'border-destructive/60 bg-destructive/5' : 'border-border bg-background hover:border-capta-deep/30 dark:hover:border-capta-soft/25'}`}
             {...register('password')}
           />
@@ -238,8 +241,8 @@ function RegisterForm() {
           disabled={isSubmitting}
           className="w-full rounded-xl py-3.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           style={{
-            background: 'linear-gradient(135deg, #1E4F7A, #2D6FA0)',
-            boxShadow: '0 4px 20px rgba(30,79,122,0.30)',
+            background: 'linear-gradient(135deg, var(--tenant-primary) 0%, color-mix(in srgb, var(--tenant-primary) 72%, white) 100%)',
+            boxShadow: '0 4px 20px color-mix(in srgb, var(--tenant-primary) 30%, transparent)',
           }}
         >
           {isSubmitting ? (
@@ -304,7 +307,7 @@ export default function RegisterPage() {
         <div className="relative space-y-5">
           <div className="h-px w-10"
             style={{ background: 'linear-gradient(90deg, #8FC4E8, transparent)' }} />
-          <h2 className="text-2xl font-semibold leading-snug text-white/90">
+          <h2 className="font-display text-2xl font-normal leading-snug text-white/90">
             Todo incluido desde el primer día.
           </h2>
           <p className="text-sm font-medium text-white/35">
