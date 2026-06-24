@@ -23,6 +23,7 @@ import { CleanupModule } from './cleanup/cleanup.module';
 import { SearchModule } from './search/search.module';
 import { AuditModule } from './audit/audit.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
+import { QuizModule } from './quiz/quiz.module';
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
 
@@ -76,6 +77,7 @@ import { validate } from './config/env.validation';
 
     // Fase 4 — Gestión interna:
     SuperAdminModule,        // ✓ Panel SUPER_ADMIN — gestión centralizada de tenants
+    QuizModule,              // ✓ Quizzes standalone — asignados directamente a empleados
   ],
   providers: [
     // JwtAuthGuard global — todas las rutas requieren token por defecto.

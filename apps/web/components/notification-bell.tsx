@@ -11,12 +11,14 @@ import { getSocket, connectSocket } from '@/lib/socket';
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 interface NotifData {
-  courseId?:     string;
-  lessonId?:     string;
-  evaluationId?: string;
-  userId?:       string;
-  studentName?:  string;
-  courseTitle?:  string;
+  courseId?:      string;
+  lessonId?:      string;
+  evaluationId?:  string;
+  quizId?:        string;
+  assignmentId?:  string;
+  userId?:        string;
+  studentName?:   string;
+  courseTitle?:   string;
 }
 
 interface Notification {
@@ -43,6 +45,8 @@ const ICON: Record<string, IconName> = {
   VIDEO_READY:      'video',
   RESET_APPROVED:   'check',
   RESET_DENIED:     'close',
+  QUIZ_ASSIGNED:    'clipboard',
+  QUIZ_COMPLETED:   'check-circle',
 };
 
 const COLOR: Record<string, string> = {
@@ -52,6 +56,8 @@ const COLOR: Record<string, string> = {
   VIDEO_READY:      '#8b5cf6',
   RESET_APPROVED:   '#16a34a',
   RESET_DENIED:     '#ef4444',
+  QUIZ_ASSIGNED:    '#ea580c',  // naranja — visualmente distinto del resto
+  QUIZ_COMPLETED:   '#0891b2',  // cyan para el admin que recibe el resultado
 };
 
 // ─── URL de navegación al hacer click en la notificación ─────────────────────
@@ -73,6 +79,10 @@ function getUrl(n: Notification): string {
     case 'RESET_APPROVED':
     case 'RESET_DENIED':
       return d?.courseId ? `/dashboard/courses/${d.courseId}/learn` : '/dashboard/courses';
+    case 'QUIZ_ASSIGNED':
+      return '/dashboard'; // QuizLockdown interceptará automáticamente
+    case 'QUIZ_COMPLETED':
+      return d?.quizId ? `/dashboard/quizzes/${d.quizId}` : '/dashboard/quizzes';
     default:
       return '/dashboard';
   }

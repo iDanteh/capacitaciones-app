@@ -25,7 +25,7 @@ export class StripeService {
 
   constructor(private readonly config: ConfigService) {
     this.client = new Stripe(this.config.getOrThrow<string>('stripe.secretKey'), {
-      apiVersion: '2026-04-22.dahlia',
+      apiVersion: '2026-05-27.dahlia',
       typescript: true,
     });
   }

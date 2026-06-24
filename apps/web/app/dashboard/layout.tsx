@@ -12,6 +12,7 @@ import { CommandPalette } from '@/components/command-palette';
 import { api, setAccessToken, clearAccessToken, getAccessToken, hydrateFromCookie } from '@/lib/api';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 import { applyTenantHead } from '@/lib/tenant-head';
+import { QuizLockdown } from '@/components/quiz/quiz-lockdown';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,10 +54,11 @@ interface AuthSwitchResponse {
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
 const NAV_PLATFORM = [
-  { label: 'Inicio',     icon: 'home'      as IconName, href: '/dashboard',           roles: [] },
-  { label: 'Cursos',     icon: 'book-open' as IconName, href: '/dashboard/courses',   roles: [] },
-  { label: 'Equipos',    icon: 'users'     as IconName, href: '/dashboard/users',     roles: ['OWNER', 'ADMIN', 'MANAGER'] },
-  { label: 'Analíticas', icon: 'chart-bar' as IconName, href: '/dashboard/analytics', roles: ['OWNER', 'ADMIN', 'MANAGER'] },
+  { label: 'Inicio',     icon: 'home'       as IconName, href: '/dashboard',           roles: [] },
+  { label: 'Cursos',     icon: 'book-open'  as IconName, href: '/dashboard/courses',   roles: [] },
+  { label: 'Quizzes',    icon: 'clipboard'  as IconName, href: '/dashboard/quizzes',   roles: ['OWNER', 'ADMIN', 'MANAGER'] },
+  { label: 'Equipos',    icon: 'users'      as IconName, href: '/dashboard/users',     roles: ['OWNER', 'ADMIN', 'MANAGER'] },
+  { label: 'Analíticas', icon: 'chart-bar'  as IconName, href: '/dashboard/analytics', roles: ['OWNER', 'ADMIN', 'MANAGER'] },
 ] as const;
 
 const NAV_COMPANY = [
@@ -189,23 +191,56 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
     return () => document.removeEventListener('mousedown', handler);
   }, [tenantOpen]);
 
+  // Restaura la sesión del padre sin redirigir. Retorna false si el RT expiró (ya redirigió a /login).
+  const restoreParentSilent = async (): Promise<boolean> => {
+    try {
+      const res = await api.post<{ accessToken: string }>('/auth/restore-parent', {});
+      setAccessToken(res.data.accessToken);
+      const raw = localStorage.getItem('parent_session');
+      if (raw) {
+        const sess = JSON.parse(raw) as Record<string, string | null>;
+        if (sess.user) localStorage.setItem('user',          sess.user);
+        localStorage.setItem('tenant_logo',    sess.tenantLogo    ?? '');
+        localStorage.setItem('tenant_name',    sess.tenantName    ?? '');
+        localStorage.setItem('tenant_color',   sess.tenantColor   ?? '');
+        localStorage.setItem('tenant_appname', sess.tenantAppname ?? '');
+        localStorage.removeItem('parent_session');
+      }
+      return true;
+    } catch {
+      clearAccessToken();
+      localStorage.clear();
+      window.location.href = '/login';
+      return false;
+    }
+  };
+
+  const handleRestoreParent = async () => {
+    const ok = await restoreParentSilent();
+    if (ok) window.location.replace('/dashboard');
+  };
+
   const handleSwitchTenant = async (childId: string) => {
     if (switching) return;
     setSwitching(true);
     setTenantOpen(false);
 
     try {
-      if (!isInSubcompany) {
-        // Guardar metadata del padre antes de hacer el switch
-        // El RT del padre se guarda como __parent_rt cookie en el servidor
-        localStorage.setItem('parent_session', JSON.stringify({
-          user:          localStorage.getItem('user'),
-          tenantLogo:    localStorage.getItem('tenant_logo'),
-          tenantName:    localStorage.getItem('tenant_name'),
-          tenantColor:   localStorage.getItem('tenant_color'),
-          tenantAppname: localStorage.getItem('tenant_appname'),
-        }));
+      // Si estamos dentro de una sub-empresa, primero volver al padre antes del switch.
+      // El API valida que childTenantId sea hijo del tenant activo en el token,
+      // por lo que desde una sub-empresa no se puede hacer switch directo a una hermana.
+      if (isInSubcompany) {
+        const ok = await restoreParentSilent();
+        if (!ok) return;
       }
+
+      localStorage.setItem('parent_session', JSON.stringify({
+        user:          localStorage.getItem('user'),
+        tenantLogo:    localStorage.getItem('tenant_logo'),
+        tenantName:    localStorage.getItem('tenant_name'),
+        tenantColor:   localStorage.getItem('tenant_color'),
+        tenantAppname: localStorage.getItem('tenant_appname'),
+      }));
 
       const res = await api.post<AuthSwitchResponse>('/auth/switch-tenant', { childTenantId: childId });
       const { accessToken, user: newUser } = res.data;
@@ -219,36 +254,9 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
 
       window.location.replace('/dashboard');
     } catch {
-      if (!isInSubcompany) localStorage.removeItem('parent_session');
+      localStorage.removeItem('parent_session');
       setSwitching(false);
     }
-  };
-
-  const handleRestoreParent = async () => {
-    try {
-      // El servidor valida __parent_rt cookie, rota los tokens del padre
-      // y devuelve un nuevo accessToken
-      const res = await api.post<{ accessToken: string }>('/auth/restore-parent', {});
-      setAccessToken(res.data.accessToken);
-
-      const raw = localStorage.getItem('parent_session');
-      if (raw) {
-        const sess = JSON.parse(raw) as Record<string, string | null>;
-        if (sess.user)         localStorage.setItem('user',          sess.user);
-        localStorage.setItem('tenant_logo',    sess.tenantLogo    ?? '');
-        localStorage.setItem('tenant_name',    sess.tenantName    ?? '');
-        localStorage.setItem('tenant_color',   sess.tenantColor   ?? '');
-        localStorage.setItem('tenant_appname', sess.tenantAppname ?? '');
-        localStorage.removeItem('parent_session');
-      }
-    } catch {
-      // Si el __parent_rt expiró, forzar re-login
-      clearAccessToken();
-      localStorage.clear();
-      window.location.href = '/login';
-      return;
-    }
-    window.location.replace('/dashboard');
   };
 
   // ── Derived values ────────────────────────────────────────────────────────
@@ -274,9 +282,12 @@ function SidebarContent({ user, pathname, onNavClick, tenantLogo, tenantName, ac
   const visiblePlatform = NAV_PLATFORM.filter(item =>
     item.roles.length === 0 || (user?.role && item.roles.includes(user.role as never)),
   );
-  const visibleCompany = NAV_COMPANY.filter(item =>
-    user?.role && item.roles.includes(user.role as never),
-  );
+  const visibleCompany = NAV_COMPANY.filter(item => {
+    if (!user?.role || !item.roles.includes(user.role as never)) return false;
+    // Sub-company owners cannot manage the companies hierarchy
+    if (item.href === '/dashboard/companies' && isInSubcompany) return false;
+    return true;
+  });
   const visibleSystem = NAV_SYSTEM.filter(item =>
     user?.role && item.roles.includes(user.role as never),
   );
@@ -808,6 +819,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
 
       </div>
+
+      {/* ── Quiz Lockdown — bloquea navegación si hay quiz asignado pendiente ── */}
+      <QuizLockdown />
 
       {/* ── Command Palette (⌘K) ── */}
       <CommandPalette

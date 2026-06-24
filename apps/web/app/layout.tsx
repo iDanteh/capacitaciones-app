@@ -27,10 +27,11 @@ export const metadata: Metadata = {
   keywords: ['capacitación', 'e-learning', 'LMS', 'formación empresarial', 'Capta'],
   icons: {
     icon: [
-      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon', type: 'image/png' },           // generado por icon.tsx (PNG — Safari, iOS, todos)
+      { url: '/icon.svg', type: 'image/svg+xml' },   // SVG para Chrome/Firefox
     ],
-    shortcut: '/icon.svg',
-    apple:    '/icon.svg',
+    shortcut: '/icon',
+    apple:    '/icon',
     other: [
       { rel: 'mask-icon', url: '/icon.svg', color: '#0B2840' },
     ],
