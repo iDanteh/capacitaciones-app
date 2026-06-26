@@ -275,11 +275,18 @@ export default function CompaniesPage() {
   const [deleting,       setDeleting]       = useState(false);
   const [planError,      setPlanError]      = useState<string | null>(null);
   const [switchingId,    setSwitchingId]    = useState<string | null>(null);
-  const [isInSubcompany] = useState(() => !!localStorage.getItem('parent_session'));
+  const [isInSubcompany, setIsInSubcompany] = useState(() => !!localStorage.getItem('parent_session'));
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // Fuente autoritativa: localStorage solo refleja el flujo "switch tenant"
+      // y no detecta owners que se autentican directamente a una sub-empresa
+      const familyRes = await api.get<{ isSubcompany: boolean }>('/tenants/family');
+      if (familyRes.data.isSubcompany) {
+        setIsInSubcompany(true);
+        return;
+      }
       const res = await api.get<Subcompany[]>('/tenants/children');
       setCompanies(res.data);
     } catch (err: unknown) {
@@ -294,7 +301,7 @@ export default function CompaniesPage() {
     }
   }, []);
 
-  useEffect(() => { if (!isInSubcompany) void load(); }, [load, isInSubcompany]);
+  useEffect(() => { void load(); }, [load]);
 
   const handleCreateSuccess = (company: Subcompany) => {
     setCompanies(prev => [company, ...prev]);
@@ -489,10 +496,10 @@ export default function CompaniesPage() {
                   key={company.id}
                   variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  className={`relative flex items-center gap-4 overflow-hidden px-5 py-4 transition-colors hover:bg-muted/20 ${!company.isActive ? 'opacity-60' : ''}`}
+                  className={`relative flex items-center gap-4 overflow-hidden px-5 py-4 transition-colors hover:bg-muted/30 ${!company.isActive ? 'opacity-60' : ''}`}
                 >
-                  {/* Acento lateral */}
-                  <div className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: '#8FC4E8' }} />
+                  {/* Acento lateral — tenant primary */}
+                  <div className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: 'var(--tenant-primary)' }} />
                   {/* Avatar empresa */}
                   <div
                     className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"

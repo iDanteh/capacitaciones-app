@@ -657,30 +657,38 @@ model Notification {
 
 // ─── FASE 3: CERTIFICADOS ─────────────────────────────────────────────────────
 
-/// Certificado de finalización emitido al completar un curso al 100%.
-/// Se genera automáticamente cuando enrollment.progress = 100.
+/// Certificado de finalización emitido al completar un curso al 100% o al aprobar un quiz.
+/// Se genera automáticamente al completar el enrollment (curso) o al pasar el quiz.
 model Certificate {
-  id           String   @id @default(cuid())
-  tenantId     String
-  userId       String
-  courseId     String
-  enrollmentId String   @unique // 1 certificado por inscripción
+  id               String    @id @default(cuid())
+  tenantId         String
+  userId           String
+  /// null para certificados de quiz
+  courseId         String?
+  /// null para certificados de curso
+  quizId           String?
+  /// null para certificados de quiz. @unique → 1 certificado por inscripción.
+  enrollmentId     String?   @unique
+  /// null para certificados de curso. @unique → 1 certificado por asignación.
+  quizAssignmentId String?   @unique
   /// UUID v4 público para verificación — no derivable del id interno.
-  publicUuid   String   @unique @default(uuid())
-  issuedAt     DateTime @default(now())
+  publicUuid       String    @unique @default(uuid())
+  issuedAt         DateTime  @default(now())
 
   // Snapshot inmutable — preserva los datos aunque cambien el nombre del usuario,
-  // el título del curso o el nombre de la empresa.
+  // el título del curso/quiz o el nombre de la empresa.
   recipientName String
+  /// Título del curso o del quiz en el momento de la emisión.
   courseTitle   String
   tenantName    String
 
   createdAt DateTime @default(now())
 
-  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  enrollment     Enrollment?     @relation(fields: [enrollmentId], references: [id])
+  quizAssignment QuizAssignment? @relation(fields: [quizAssignmentId], references: [id])
 
-  @@unique([tenantId, userId, courseId])
   @@index([tenantId])
+  @@index([tenantId, userId])
   @@map("certificates")
 }
 
@@ -773,6 +781,7 @@ model QuizAssignment {
   user       User         @relation("QuizAssignee", fields: [userId], references: [id])
   assignedBy User         @relation("QuizAssigner", fields: [assignedById], references: [id])
   attempt    QuizAttempt?
+  certificate Certificate?
 
   @@unique([quizId, userId])
   @@index([tenantId])

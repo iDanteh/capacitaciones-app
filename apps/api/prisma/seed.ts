@@ -155,6 +155,9 @@ async function seedDevelopmentData() {
     { email: 'admin@acme.dev',    role: UserRole.ADMIN,    firstName: 'Admin',    lastName: 'Dev'     },
     { email: 'manager@acme.dev',  role: UserRole.MANAGER,  firstName: 'Manager',  lastName: 'Dev'     },
     { email: 'employee@acme.dev', role: UserRole.EMPLOYEE, firstName: 'Employee', lastName: 'Dev'     },
+    { email: 'employee1@acme.dev', role: UserRole.EMPLOYEE, firstName: 'Employee', lastName: 'Dev'     },
+    { email: 'employee2@acme.dev', role: UserRole.EMPLOYEE, firstName: 'Employee', lastName: 'Dev'     },
+    { email: 'employee3@acme.dev', role: UserRole.EMPLOYEE, firstName: 'Employee', lastName: 'Dev'     },
   ];
 
   // Misma password para todos en dev — fácil de recordar, no apta para producción

@@ -316,7 +316,7 @@ export default function RegisterPage() {
 
           {/* Feature pills */}
           <div className="flex flex-wrap gap-2 pt-2">
-            {['Multi-empresa', 'Certificados', 'Analíticas', 'API access', 'White-label', 'Storage flexible'].map((f) => (
+            {['Multi-empresa', 'Certificados', 'Analíticas', 'White-label', 'Storage flexible'].map((f) => (
               <span key={f}
                 className="rounded-full border border-white/12 bg-white/5 px-3 py-1 text-xs font-medium text-white/50">
                 {f}

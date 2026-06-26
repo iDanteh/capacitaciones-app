@@ -6,7 +6,9 @@ export class CertificateResponseDto {
   tenantName:    string;
   issuedAt:      Date;
   verifyUrl:     string;
+  type:          'COURSE' | 'QUIZ';
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static from(cert: any, baseUrl: string): CertificateResponseDto {
     return {
       id:            cert.id,
@@ -15,7 +17,8 @@ export class CertificateResponseDto {
       courseTitle:   cert.courseTitle,
       tenantName:    cert.tenantName,
       issuedAt:      cert.issuedAt,
-      verifyUrl:     `${baseUrl}/certificates/verify/${cert.publicUuid}`,
+      verifyUrl:     `${baseUrl}/verify/${cert.publicUuid}`,
+      type:          cert.quizAssignmentId ? 'QUIZ' : 'COURSE',
     };
   }
 }
@@ -27,4 +30,5 @@ export class VerifyCertificateDto {
   tenantName:    string;
   issuedAt:      Date;
   isValid:       boolean;
+  type:          'COURSE' | 'QUIZ';
 }

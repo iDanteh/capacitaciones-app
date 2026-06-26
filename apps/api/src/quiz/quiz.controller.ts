@@ -80,6 +80,12 @@ export class QuizController {
     return this.service.getMyAssignments(user.tenantId, user.sub);
   }
 
+  @Get('my-results')
+  @ApiOperation({ summary: 'Historial de quizzes completados con revisión detallada (empleado)' })
+  getMyResults(@CurrentUser() user: JwtPayload) {
+    return this.service.getMyResults(user.tenantId, user.sub);
+  }
+
   @Get('assignments/:aid')
   @ApiOperation({ summary: 'Detalles de una asignación (empleado)' })
   getAssignment(@CurrentUser() user: JwtPayload, @Param('aid') aid: string) {
@@ -111,6 +117,15 @@ export class QuizController {
   @ApiOperation({ summary: 'Obtener quiz con preguntas y opciones' })
   getOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.service.getQuiz(user.tenantId, id);
+  }
+
+  @Get(':id/employees')
+  @UseGuards(RolesGuard, PlanFeatureGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  @RequireFeature('hasEvaluations')
+  @ApiOperation({ summary: 'Empleados asignables al quiz (role=EMPLOYEE, activos, del tenant)' })
+  getAssignableEmployees(@CurrentUser() user: JwtPayload) {
+    return this.service.getAssignableEmployees(user.tenantId);
   }
 
   @Patch(':id')

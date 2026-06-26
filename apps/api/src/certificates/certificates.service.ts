@@ -113,6 +113,51 @@ export class CertificatesService {
     return cert ? CertificateResponseDto.from(cert, this.frontendBaseUrl()) : null;
   }
 
+  // ── Generación para Quiz (llamado desde QuizService) ─────────────────────
+
+  async generateQuizCertificate(
+    tenantId:     string,
+    userId:       string,
+    quizId:       string,
+    assignmentId: string,
+    quizTitle:    string,
+  ): Promise<CertificateResponseDto | null> {
+    const subscription = await this.prisma.subscription.findUnique({
+      where:   { tenantId },
+      include: { plan: true, tenant: true },
+    });
+
+    if (!subscription?.plan?.hasCertificates) return null;
+
+    const existing = await this.prisma.certificate.findUnique({
+      where: { quizAssignmentId: assignmentId },
+    });
+
+    if (existing) return CertificateResponseDto.from(existing, this.frontendBaseUrl());
+
+    const [user, tenant] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId } }),
+      this.prisma.tenant.findUnique({ where: { id: tenantId } }),
+    ]);
+
+    if (!user || !tenant) throw new NotFoundException('Usuario o tenant no encontrado');
+
+    const certificate = await this.prisma.certificate.create({
+      data: {
+        tenantId,
+        userId,
+        quizId,
+        quizAssignmentId: assignmentId,
+        recipientName:    `${user.firstName} ${user.lastName}`,
+        courseTitle:      quizTitle,
+        tenantName:       tenant.name,
+      },
+    });
+
+    this.logger.log(`Certificado de quiz generado — usuario: ${userId}, quiz: ${quizId}, uuid: ${certificate.publicUuid}`);
+    return CertificateResponseDto.from(certificate, this.frontendBaseUrl());
+  }
+
   // ── Verificación pública ─────────────────────────────────────────────────
 
   async verifyByUuid(uuid: string): Promise<VerifyCertificateDto> {
@@ -128,6 +173,7 @@ export class CertificatesService {
         tenantName:    '',
         issuedAt:      new Date(),
         isValid:       false,
+        type:          'COURSE',
       };
     }
 
@@ -138,6 +184,7 @@ export class CertificatesService {
       tenantName:    cert.tenantName,
       issuedAt:      cert.issuedAt,
       isValid:       true,
+      type:          cert.quizAssignmentId ? 'QUIZ' : 'COURSE',
     };
   }
 
@@ -150,11 +197,11 @@ export class CertificatesService {
 
     if (!cert) throw new NotFoundException('Certificado no encontrado');
 
-    // Obtener logoUrl del tenant para incluirlo en el PDF
     const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
     const logoBuffer = tenant?.logoUrl ? await this.downloadImageBuffer(tenant.logoUrl) : null;
+    const type = cert.quizAssignmentId ? 'QUIZ' : 'COURSE';
 
-    return this.buildPdf(cert, logoBuffer);
+    return this.buildPdf(cert, logoBuffer, type);
   }
 
   async downloadPdfByUuid(uuid: string): Promise<Buffer> {
@@ -164,11 +211,11 @@ export class CertificatesService {
 
     if (!cert) throw new NotFoundException('Certificado no encontrado');
 
-    // Obtener logoUrl del tenant
     const tenant = await this.prisma.tenant.findUnique({ where: { id: cert.tenantId } });
     const logoBuffer = tenant?.logoUrl ? await this.downloadImageBuffer(tenant.logoUrl) : null;
+    const type = cert.quizAssignmentId ? 'QUIZ' : 'COURSE';
 
-    return this.buildPdf(cert, logoBuffer);
+    return this.buildPdf(cert, logoBuffer, type);
   }
 
   // ── Descarga de imagen remota ─────────────────────────────────────────────
@@ -255,7 +302,7 @@ export class CertificatesService {
    * Diseño:
    *  - Fondo crema (#FAFAF4), marco doble navy/celeste.
    *  - Header navy: mark vectorial Capta + "Capta" + logo del tenant (si existe).
-   *  - Cuerpo: nombre del participante, curso, empresa, fecha.
+   *  - Cuerpo: nombre del participante, curso/quiz, empresa, fecha.
    *  - Footer: URL de verificación pública + UUID.
    */
   private buildPdf(
@@ -267,6 +314,7 @@ export class CertificatesService {
       issuedAt:      Date;
     },
     tenantLogoBuffer: Buffer | null = null,
+    type: 'COURSE' | 'QUIZ' = 'COURSE',
   ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
@@ -398,11 +446,12 @@ export class CertificatesService {
       }
 
       // ── Título del certificado ─────────────────────────────────────────────
+      const certTitle = type === 'QUIZ' ? 'CERTIFICADO DE EVALUACIÓN' : 'CERTIFICADO DE FINALIZACIÓN';
       doc
         .fillColor('#0B1F2A')
         .font('Helvetica-Bold')
         .fontSize(13)
-        .text('CERTIFICADO DE FINALIZACIÓN', 0, 108, {
+        .text(certTitle, 0, 108, {
           align:            'center',
           width:            W,
           characterSpacing: 3,
@@ -440,12 +489,15 @@ export class CertificatesService {
         .lineWidth(0.75)
         .stroke('#8FC4E8');
 
-      // ── "ha completado satisfactoriamente el curso" ────────────────────────
+      // ── "ha completado satisfactoriamente el curso/evaluación" ────────────
+      const completionText = type === 'QUIZ'
+        ? 'ha completado satisfactoriamente la evaluación'
+        : 'ha completado satisfactoriamente el curso';
       doc
         .fillColor('#4B6478')
         .font('Helvetica')
         .fontSize(12)
-        .text('ha completado satisfactoriamente el curso', 0, 228, {
+        .text(completionText, 0, 228, {
           align: 'center',
           width: W,
         });
@@ -519,7 +571,7 @@ export class CertificatesService {
         .text('CAPTA · CERT', sealColX - 30, sigY - 10, { width: 60, align: 'center' });
 
       // ── UUID de verificación (footer) ──────────────────────────────────────
-      const verifyUrl = `${this.frontendBaseUrl()}/certificates/verify/${cert.publicUuid}`;
+      const verifyUrl = `${this.frontendBaseUrl()}/verify/${cert.publicUuid}`;
       doc
         .rect(0, H - 52, W, 52)
         .fill('#F0F4F8');

@@ -248,3 +248,28 @@
 .recharts-cartesian-axis-tick-value {
   fill: hsl(var(--muted-foreground)) !important;
 }
+
+/* ─── Card micro-lift ────────────────────────────────────────────────────────── */
+@layer utilities {
+  .card-lift {
+    transition: transform 200ms ease, box-shadow 200ms ease;
+  }
+  .card-lift:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.6) inset,
+      0 16px 40px rgba(11, 31, 42, 0.09);
+  }
+  .dark .card-lift:hover {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.04) inset,
+      0 24px 56px rgba(0, 0, 0, 0.40);
+  }
+}
+
+/* ─── Mint semantic tint ─────────────────────────────────────────────────────── */
+@layer utilities {
+  .bg-mint-tint  { background-color: color-mix(in srgb, #7FD1AE 12%, transparent); }
+  .text-mint     { color: #7FD1AE; }
+  .border-mint   { border-color: color-mix(in srgb, #7FD1AE 30%, transparent); }
+}

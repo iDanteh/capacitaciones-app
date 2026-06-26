@@ -9,7 +9,8 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
-import { NotificationType, QuizAssignmentStatus } from '@prisma/client';
+import { CertificatesService } from '../certificates/certificates.service';
+import { NotificationType, QuizAssignmentStatus, UserRole } from '@prisma/client';
 import {
   CreateQuizDto,
   UpdateQuizDto,
@@ -28,6 +29,7 @@ export class QuizService {
     private readonly prisma:        PrismaService,
     private readonly notifications: NotificationsService,
     private readonly gateway:       NotificationsGateway,
+    private readonly certificates:  CertificatesService,
   ) {}
 
   // ── Gestión de Quizzes (ADMIN/OWNER) ────────────────────────────────────────
@@ -80,6 +82,11 @@ export class QuizService {
 
   async addQuestion(tenantId: string, quizId: string, dto: AddQuizQuestionDto) {
     await this.assertQuizExists(tenantId, quizId);
+
+    const correctCount = dto.options.filter(o => o.isCorrect).length;
+    if (correctCount !== 1) {
+      throw new BadRequestException('Debe haber exactamente 1 opción correcta');
+    }
 
     const lastOrder = await this.prisma.quizQuestion.count({ where: { quizId } });
     const { options, ...questionData } = dto;
@@ -141,6 +148,10 @@ export class QuizService {
 
   async assignToUsers(tenantId: string, quizId: string, assignerId: string, dto: AssignQuizDto) {
     const quiz = await this.assertQuizExists(tenantId, quizId);
+
+    if (!quiz.isActive) {
+      throw new BadRequestException('El quiz debe estar publicado antes de poder asignarse');
+    }
 
     // Bulk: usuarios válidos del tenant en una sola query
     const users = await this.prisma.user.findMany({
@@ -341,7 +352,7 @@ export class QuizService {
       this.prisma.quizAttemptAnswer.createMany({ data: answerRecords }),
     ]);
 
-    // Notificar a todos los admins/managers del tenant
+    // Notificar a todos los admins/managers del tenant (fire-and-forget)
     this.notifications.createForAdmins(
       tenantId,
       NotificationType.QUIZ_COMPLETED,
@@ -350,10 +361,30 @@ export class QuizService {
       { quizId: assignment.quizId, assignmentId },
     ).catch(() => undefined);
 
+    // Generar certificado si aprobó (fire-and-forget en caso de error)
+    let certificate: { id: string; publicUuid: string; verifyUrl: string } | null = null;
+    if (passed) {
+      try {
+        const cert = await this.certificates.generateQuizCertificate(
+          tenantId,
+          userId,
+          assignment.quizId,
+          assignmentId,
+          assignment.quiz.title,
+        );
+        if (cert) {
+          certificate = { id: cert.id, publicUuid: cert.publicUuid, verifyUrl: cert.verifyUrl };
+        }
+      } catch (err) {
+        this.logger.warn(`No se pudo generar certificado para assignment ${assignmentId}: ${err}`);
+      }
+    }
+
     return {
       score,
       passed,
       minScore: assignment.quiz.minScore,
+      certificate,
       answers: questions.map(q => {
         const userAnswer = answerRecords.find(a => a.questionId === q.id);
         const correctOpt = q.options.find(o => o.isCorrect);
@@ -367,6 +398,52 @@ export class QuizService {
         };
       }),
     };
+  }
+
+  // ── Empleado: Historial de quizzes completados ────────────────────────────
+
+  async getMyResults(tenantId: string, userId: string) {
+    return this.prisma.quizAssignment.findMany({
+      where: { tenantId, userId, status: QuizAssignmentStatus.COMPLETED },
+      select: {
+        id:         true,
+        assignedAt: true,
+        dueDate:    true,
+        quiz: {
+          select: { id: true, title: true, description: true, minScore: true, timeLimit: true },
+        },
+        attempt: {
+          select: {
+            id:          true,
+            score:       true,
+            passed:      true,
+            startedAt:   true,
+            submittedAt: true,
+            answers: {
+              select: {
+                isCorrect: true,
+                question: {
+                  select: {
+                    id:          true,
+                    text:        true,
+                    explanation: true,
+                    order:       true,
+                    options: {
+                      select:  { id: true, text: true, isCorrect: true },
+                      orderBy: { order: 'asc' },
+                    },
+                  },
+                },
+                option: { select: { id: true, text: true } },
+              },
+              orderBy: { question: { order: 'asc' } },
+            },
+          },
+        },
+        certificate: { select: { id: true, publicUuid: true } },
+      },
+      orderBy: { assignedAt: 'desc' },
+    });
   }
 
   // ── Admin: Resultados ──────────────────────────────────────────────────────
@@ -383,6 +460,17 @@ export class QuizService {
       },
       orderBy: { assignedAt: 'desc' },
     });
+  }
+
+  // ── Admin: Empleados asignables ───────────────────────────────────────────
+
+  async getAssignableEmployees(tenantId: string) {
+    const employees = await this.prisma.user.findMany({
+      where:   { tenantId, role: UserRole.EMPLOYEE, deletedAt: null, isActive: true },
+      select:  { id: true, firstName: true, lastName: true, email: true, avatarUrl: true },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+    return { employees };
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

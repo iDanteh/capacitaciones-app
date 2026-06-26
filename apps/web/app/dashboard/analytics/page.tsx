@@ -92,16 +92,18 @@ function TablePager({ page, total, count, onChange }: {
   page: number; total: number; count: number; onChange: (p: number) => void;
 }) {
   if (total <= 1) return null;
+  const btnBase = 'inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed';
   return (
-    <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-muted/20">
+    <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-muted/10">
       <button
         onClick={() => onChange(page - 1)}
         disabled={page <= 1}
-        className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className={`${btnBase} text-muted-foreground hover:text-foreground hover:bg-muted`}
       >
-        ← Anterior
+        <Icon name="chevron-left" size={12} />
+        Anterior
       </button>
-      <span className="text-xs text-muted-foreground">
+      <span className="text-[11px] text-muted-foreground tabular-nums">
         <span className="font-semibold text-foreground">{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, count)}</span>
         {' '}de{' '}
         <span className="font-semibold text-foreground">{count}</span>
@@ -109,9 +111,10 @@ function TablePager({ page, total, count, onChange }: {
       <button
         onClick={() => onChange(page + 1)}
         disabled={page >= total}
-        className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className={`${btnBase} text-muted-foreground hover:text-foreground hover:bg-muted`}
       >
-        Siguiente →
+        Siguiente
+        <Icon name="chevron-right" size={12} />
       </button>
     </div>
   );
@@ -166,13 +169,21 @@ function StatCard({ label, value, sub, iconName, accent }: {
 // ─── MiniBar ──────────────────────────────────────────────────────────────────
 
 function MiniBar({ value, color }: { value: number; color?: string }) {
-  const fill = color ?? 'linear-gradient(90deg, #1F5C4D, #7FD1AE)';
+  const pct  = Math.max(0, Math.min(100, value));
+  const fill = color ?? (pct >= 70
+    ? 'linear-gradient(90deg, #1F5C4D, #7FD1AE)'
+    : pct >= 40
+    ? '#8FC4E8'
+    : 'hsl(var(--muted-foreground) / 0.4)');
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: fill }} />
+    <div className="flex items-center gap-2.5">
+      <div className="relative flex-1 h-[5px] rounded-full overflow-hidden" style={{ background: 'hsl(var(--muted))' }}>
+        <div
+          className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: fill }}
+        />
       </div>
-      <span className="text-xs font-semibold text-foreground w-8 text-right">{value}%</span>
+      <span className="text-[11px] font-semibold tabular-nums text-foreground w-8 text-right">{pct}%</span>
     </div>
   );
 }
@@ -579,10 +590,10 @@ export default function AnalyticsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Curso</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Estado</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Curso</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Estado</th>
                   <th
-                    className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none"
+                    className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground cursor-pointer hover:text-foreground select-none transition-colors"
                     onClick={() => toggleCourseSort('enrolled')}
                   >
                     <span className="inline-flex items-center gap-1 justify-end">
@@ -590,7 +601,7 @@ export default function AnalyticsPage() {
                     </span>
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none"
+                    className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground cursor-pointer hover:text-foreground select-none transition-colors"
                     onClick={() => toggleCourseSort('completionRate')}
                   >
                     <span className="inline-flex items-center gap-1 justify-end">
@@ -598,7 +609,7 @@ export default function AnalyticsPage() {
                     </span>
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none hidden lg:table-cell"
+                    className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground cursor-pointer hover:text-foreground select-none transition-colors hidden lg:table-cell"
                     onClick={() => toggleCourseSort('avgProgress')}
                   >
                     <span className="inline-flex items-center gap-1 justify-end">
@@ -609,8 +620,8 @@ export default function AnalyticsPage() {
               </thead>
               <tbody className="divide-y divide-border/60">
                 {pagedCourses.map(c => (
-                  <tr key={c.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-6 py-3.5">
+                  <tr key={c.id} className="group hover:bg-muted/25 transition-colors duration-150">
+                    <td className="px-6 py-3.5 transition-shadow duration-150 group-hover:[box-shadow:inset_3px_0_0_var(--tenant-primary)]">
                       <p className="font-medium text-foreground line-clamp-1">{c.title}</p>
                       <p className="text-xs text-muted-foreground">{c.totalLessons} lecciones</p>
                     </td>
@@ -712,10 +723,10 @@ export default function AnalyticsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Empleado</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Inscritos</th>
+                    <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Empleado</th>
+                    <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Inscritos</th>
                     <th
-                      className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none"
+                      className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground cursor-pointer hover:text-foreground select-none transition-colors"
                       onClick={() => toggleEmployeeSort('completed')}
                     >
                       <span className="inline-flex items-center gap-1 justify-end">
@@ -723,7 +734,7 @@ export default function AnalyticsPage() {
                       </span>
                     </th>
                     <th
-                      className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none hidden lg:table-cell"
+                      className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground cursor-pointer hover:text-foreground select-none transition-colors hidden lg:table-cell"
                       onClick={() => toggleEmployeeSort('avgProgress')}
                     >
                       <span className="inline-flex items-center gap-1 justify-end">
@@ -731,7 +742,7 @@ export default function AnalyticsPage() {
                       </span>
                     </th>
                     <th
-                      className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none"
+                      className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground cursor-pointer hover:text-foreground select-none transition-colors"
                       onClick={() => toggleEmployeeSort('lastLoginAt')}
                     >
                       <span className="inline-flex items-center gap-1 justify-end">
@@ -742,8 +753,8 @@ export default function AnalyticsPage() {
                 </thead>
                 <tbody className="divide-y divide-border/60">
                   {pagedEmployees.length > 0 ? pagedEmployees.map(e => (
-                    <tr key={e.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-6 py-3.5">
+                    <tr key={e.id} className="group hover:bg-muted/25 transition-colors duration-150">
+                      <td className="px-6 py-3.5 transition-shadow duration-150 group-hover:[box-shadow:inset_3px_0_0_var(--tenant-primary)]">
                         <p className="font-medium text-foreground">{e.name}</p>
                         <p className="text-xs text-muted-foreground">{e.email}</p>
                       </td>

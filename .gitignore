@@ -48,5 +48,3 @@ docker/data/
 # Certificates (SSL local)
 nginx/certs/
 !nginx/certs/.gitkeep
-
-t

@@ -54,11 +54,13 @@ interface AuthSwitchResponse {
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
 const NAV_PLATFORM = [
-  { label: 'Inicio',     icon: 'home'       as IconName, href: '/dashboard',           roles: [] },
-  { label: 'Cursos',     icon: 'book-open'  as IconName, href: '/dashboard/courses',   roles: [] },
-  { label: 'Quizzes',    icon: 'clipboard'  as IconName, href: '/dashboard/quizzes',   roles: ['OWNER', 'ADMIN', 'MANAGER'] },
-  { label: 'Equipos',    icon: 'users'      as IconName, href: '/dashboard/users',     roles: ['OWNER', 'ADMIN', 'MANAGER'] },
-  { label: 'Analíticas', icon: 'chart-bar'  as IconName, href: '/dashboard/analytics', roles: ['OWNER', 'ADMIN', 'MANAGER'] },
+  { label: 'Inicio',        icon: 'home'       as IconName, href: '/dashboard',                roles: [] },
+  { label: 'Cursos',        icon: 'book-open'  as IconName, href: '/dashboard/courses',        roles: [] },
+  { label: 'Certificados',  icon: 'award'      as IconName, href: '/dashboard/certificates',   roles: [] },
+  { label: 'Mis Quizzes',  icon: 'clipboard'  as IconName, href: '/dashboard/my-quizzes',     roles: ['EMPLOYEE'] },
+  { label: 'Quizzes',      icon: 'clipboard'  as IconName, href: '/dashboard/quizzes',        roles: ['OWNER', 'ADMIN', 'MANAGER'] },
+  { label: 'Equipos',       icon: 'users'      as IconName, href: '/dashboard/users',          roles: ['OWNER', 'ADMIN', 'MANAGER'] },
+  { label: 'Analíticas',    icon: 'chart-bar'  as IconName, href: '/dashboard/analytics',      roles: ['OWNER', 'ADMIN', 'MANAGER'] },
 ] as const;
 
 const NAV_COMPANY = [

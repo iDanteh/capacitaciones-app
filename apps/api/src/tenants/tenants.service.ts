@@ -186,7 +186,10 @@ export class TenantsService {
       where:  { id: parentTenantId },
       select: { parentTenantId: true },
     });
-    if (parentTenant?.parentTenantId) {
+    if (!parentTenant) {
+      throw new NotFoundException('Tenant padre no encontrado.');
+    }
+    if (parentTenant.parentTenantId) {
       throw new ForbiddenException('Las sub-empresas no pueden crear sub-empresas.');
     }
 

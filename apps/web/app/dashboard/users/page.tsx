@@ -103,7 +103,11 @@ function Avatar({ firstName, lastName, avatarUrl, size = 'md' }: {
   return (
     <div
       className={`${dim} flex flex-shrink-0 items-center justify-center rounded-full font-bold`}
-      style={{ background: 'linear-gradient(135deg, #DCE9F4, #8FC4E830)', color: 'var(--tenant-primary)' }}
+      style={{
+        background: 'linear-gradient(140deg, color-mix(in srgb, var(--tenant-primary) 14%, white), color-mix(in srgb, var(--tenant-primary) 6%, white))',
+        color: 'var(--tenant-primary)',
+        boxShadow: '0 0 0 1.5px color-mix(in srgb, var(--tenant-primary) 20%, transparent)',
+      }}
     >
       {initials}
     </div>
@@ -650,8 +654,8 @@ function UserRow({ user, onUpdate, onDelete, onOpen, currentUserId }: {
   return (
     <div
       onClick={() => onOpen(user)}
-      className={`group flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 transition-all duration-150 hover:border-capta-soft/30 hover:bg-muted/40 hover:shadow-sm ${!user.isActive ? 'opacity-60' : ''}`}
-      style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.5) inset' }}
+      className={`group flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 transition-all duration-150 hover:-translate-y-px hover:border-capta-soft/40 hover:bg-muted/30 ${!user.isActive ? 'opacity-60' : ''}`}
+      style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.5) inset, 0 1px 4px rgba(11,31,42,0.04)' }}
     >
       <Avatar firstName={user.firstName} lastName={user.lastName} avatarUrl={user.avatarUrl} />
 

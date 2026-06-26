@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsInt, IsBoolean, Min, Max, IsArray, IsDateString, ValidateNested, ArrayMinSize } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsInt, IsBoolean, Min, Max, IsArray, IsDateString, ValidateNested, ArrayMinSize, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateQuizDto {
@@ -7,13 +7,14 @@ export class CreateQuizDto {
   @IsOptional() @IsString() instructions?: string;
   @IsOptional() @IsInt() @Min(30) timeLimit?: number;
   @IsInt() @Min(0) @Max(100) minScore: number = 70;
+  @IsOptional() @IsBoolean() isActive?: boolean;
 }
 
 export class UpdateQuizDto {
   @IsOptional() @IsString() title?: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsString() instructions?: string;
-  @IsOptional() @IsInt() @Min(30) timeLimit?: number;
+  @IsOptional() @ValidateIf(o => o.timeLimit !== null) @IsInt() @Min(30) timeLimit?: number | null;
   @IsOptional() @IsInt() @Min(0) @Max(100) minScore?: number;
   @IsOptional() @IsBoolean() isActive?: boolean;
 }
